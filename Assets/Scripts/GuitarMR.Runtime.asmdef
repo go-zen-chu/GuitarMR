@@ -1,0 +1,19 @@
+{
+    "name": "GuitarMR.Runtime",
+    "rootNamespace": "GuitarMR",
+    "references": [
+        "Unity.InputSystem",
+        "Unity.XR.CoreUtils",
+        "Unity.XR.ARFoundation",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
