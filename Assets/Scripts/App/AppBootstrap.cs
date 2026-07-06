@@ -1,4 +1,6 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using GuitarMR.Domain;
 using GuitarMR.Infra;
@@ -13,8 +15,8 @@ namespace GuitarMR.App
 {
     /// <summary>
     /// Composition root of the application. Builds the XR rig with passthrough,
-    /// the score and metronome panels, wires controller input into the practice
-    /// use case, and places the panels in front of the player.
+    /// the score, metronome and picker panels, wires controller input into the
+    /// practice use case, and places the panels in front of the player.
     /// </summary>
     public sealed class AppBootstrap : MonoBehaviour
     {
@@ -36,20 +38,32 @@ namespace GuitarMR.App
             panelRoot = new GameObject("PanelRoot").transform;
             var scorePanel = new ScorePanel(panelRoot);
             var metronomePanel = new MetronomePanel(panelRoot, BeatsPerBar);
+            var pickerPanel = new ScorePickerPanel(panelRoot);
 
             var metronome = gameObject.AddComponent<AudioMetronome>();
             metronome.Initialize(new BeatClock(DefaultBpm, BeatsPerBar));
 
-            controller = new PracticeController(metronome, CreateScoreSource(), scorePanel, metronomePanel);
+            var scoresDirectory = Path.Combine(Application.persistentDataPath, "Scores");
+            controller = new PracticeController(
+                metronome,
+                new SharedStorageScoreRepository(BuildScoreDirectories(scoresDirectory)),
+                new AndroidPdfDocumentRenderer(),
+                new ImageFolderScoreSource(scoresDirectory),
+                CreateStoragePermission(),
+                new PlayerPrefsScoreSelectionStore(),
+                scorePanel,
+                metronomePanel,
+                pickerPanel);
 
             var input = gameObject.AddComponent<XrControllerInput>();
-            input.NextPagePressed += controller.ShowNextPage;
-            input.PreviousPagePressed += controller.ShowPreviousPage;
-            input.ToggleMetronomePressed += controller.ToggleMetronome;
-            input.BpmStepRequested += controller.AddBpm;
-            input.RecenterPressed += RecenterPanels;
+            input.RightPrimaryPressed += controller.OnRightPrimary;
+            input.RightSecondaryPressed += controller.OnRightSecondary;
+            input.RightStickStepped += controller.OnRightStickStep;
+            input.LeftPrimaryPressed += controller.OnToggleMetronome;
+            input.LeftSecondaryPressed += RecenterPanels;
+            input.LeftMenuPressed += controller.OnTogglePicker;
 
-            controller.LoadScore();
+            controller.Initialize();
             StartCoroutine(RecenterAfterTrackingStarts());
         }
 
@@ -57,6 +71,15 @@ namespace GuitarMR.App
         void Update()
         {
             controller?.Tick();
+        }
+
+        /// <summary>Rescans the score library after returning from the system permission screen.</summary>
+        void OnApplicationFocus(bool hasFocus)
+        {
+            if (hasFocus)
+            {
+                controller?.OnAppFocusRegained();
+            }
         }
 
         /// <summary>Creates the XR origin with a passthrough-ready tracked camera and returns the camera transform.</summary>
@@ -106,16 +129,34 @@ namespace GuitarMR.App
             new GameObject("AR Session").AddComponent<ARSession>();
         }
 
-        /// <summary>Builds the score source: PDFs first on device, image files as fallback.</summary>
-        static IScoreSource CreateScoreSource()
+        /// <summary>Returns the directories scanned for score PDFs: the app folder plus shared storage on device.</summary>
+        static string[] BuildScoreDirectories(string scoresDirectory)
         {
-            var scoresDirectory = Path.Combine(Application.persistentDataPath, "Scores");
+            var directories = new List<string> { scoresDirectory };
 #if UNITY_ANDROID && !UNITY_EDITOR
-            return new CompositeScoreSource(
-                new AndroidPdfScoreSource(scoresDirectory),
-                new ImageFolderScoreSource(scoresDirectory));
+            try
+            {
+                using var environment = new AndroidJavaClass("android.os.Environment");
+                using var externalRoot = environment.CallStatic<AndroidJavaObject>("getExternalStorageDirectory");
+                var rootPath = externalRoot.Call<string>("getAbsolutePath");
+                directories.Add(Path.Combine(rootPath, "Download"));
+                directories.Add(Path.Combine(rootPath, "Documents"));
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"could not resolve shared storage directories: {e.Message}");
+            }
+#endif
+            return directories.ToArray();
+        }
+
+        /// <summary>Creates the storage permission gate for the current platform.</summary>
+        static IStoragePermission CreateStoragePermission()
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return new AndroidStoragePermission();
 #else
-            return new ImageFolderScoreSource(scoresDirectory);
+            return new GrantedStoragePermission();
 #endif
         }
 

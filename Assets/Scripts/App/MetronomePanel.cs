@@ -50,7 +50,7 @@ namespace GuitarMR.App
 
             var hintText = UiFactory.CreateText("HintText", canvas.transform, 24, TextAnchor.MiddleCenter,
                 new Color(1f, 1f, 1f, 0.7f));
-            hintText.text = "A: next page   B: prev page   X: start/stop   Y: recenter   R-stick up/down: BPM";
+            hintText.text = "A: next   B: prev   X: start/stop   Y: recenter   R-stick: BPM   Menu: scores";
             UiFactory.ApplyAnchors(hintText.rectTransform, Vector2.zero, new Vector2(1f, 0f),
                 new Vector2(10f, 8f), new Vector2(-10f, 44f));
         }

@@ -126,3 +126,40 @@ font.
 - Zero assets to import; panels are fully code-generated.
 - Slightly softer text rendering; acceptable for labels and hints. The score
   itself is a texture, so readability of the music is unaffected.
+
+## ADR-007: In-app score picker using "all files access"
+
+**Status**: Accepted (2026-07-06), supersedes the adb-push-only flow
+
+**Context**: Requiring `adb push` to transfer scores is developer-centric.
+Players should download a PDF with the headset browser (lands in `Download`)
+or drop it there over USB, then pick it in-app. Under Android scoped storage
+(11+, Quest 3 is Android 12L), reading non-media files like PDFs owned by
+other apps is impossible with `READ_EXTERNAL_STORAGE` alone. Options:
+1. Storage Access Framework (`ACTION_OPEN_DOCUMENT`) system picker — the
+   proper scoped-storage citizen, but launching 2D system activities from a
+   VR process is unreliable on Quest.
+2. `MANAGE_EXTERNAL_STORAGE` ("all files access") — one-time grant in the
+   system settings, then plain file paths work; common among sideloaded
+   Quest apps, but not allowed for Play Store listing (irrelevant here).
+3. Target SDK 29 + `requestLegacyExternalStorage` — conflicts with the
+   platform requirements of Horizon OS.
+
+**Decision**: Option 2. The picker (left Menu button) lists PDFs from
+`Download`, `Documents` and the app's own `Scores` folder; on missing
+permission it deep-links to the system "all files access" screen for this
+app. The permissions are injected into the generated manifest by an
+`IPostGenerateGradleAndroidProject` post-processor.
+
+**Consequences**:
+- No PC or adb required: browser download → Menu → pick → play.
+- One extra first-run step (granting file access in a system panel).
+- The app must rescan the library on `OnApplicationFocus(true)` because the
+  grant happens outside the app.
+- The last selection is persisted (PlayerPrefs) and reloaded on launch.
+- Controller input became modal: while the picker is open, the right-hand
+  controls navigate the list. The modality lives in `PracticeController`,
+  keeping `XrControllerInput` a dumb button poller.
+- Should Meta ever reject the permission for store distribution, fall back
+  to SAF (option 1) behind the same `IScoreRepository`/`IStoragePermission`
+  ports.

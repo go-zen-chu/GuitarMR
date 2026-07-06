@@ -38,7 +38,7 @@ namespace GuitarMR.Infra
                 {
                     return new ScoreLoadResult(
                         new List<Texture2D>(),
-                        $"No score found.\nPut a PDF (on device) or PNG/JPG pages into:\n{scoresDirectory}\nthen restart the app.");
+                        $"(Advanced: PNG/JPG pages or PDFs can also be copied to\n{scoresDirectory})");
                 }
                 var pages = new List<Texture2D>();
                 foreach (var path in imagePaths)

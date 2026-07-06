@@ -17,11 +17,44 @@ namespace GuitarMR.Usecase
         }
     }
 
-    /// <summary>Provides score pages as textures, e.g. from a PDF file or an image folder.</summary>
+    /// <summary>Lists score files available on the device.</summary>
+    public interface IScoreRepository
+    {
+        /// <summary>Returns full paths of all score PDFs found, sorted by file name.</summary>
+        IReadOnlyList<string> ListScorePaths();
+    }
+
+    /// <summary>Renders one score document (PDF) into page textures.</summary>
+    public interface IScoreDocumentRenderer
+    {
+        /// <summary>Renders all pages of the document; never throws, failures are reported via the status message.</summary>
+        ScoreLoadResult Render(string documentPath);
+    }
+
+    /// <summary>Provides score pages as textures without document selection, e.g. from an image folder.</summary>
     public interface IScoreSource
     {
         /// <summary>Loads all score pages; never throws, failures are reported via the status message.</summary>
         ScoreLoadResult Load();
+    }
+
+    /// <summary>Reports and requests access to the shared device storage.</summary>
+    public interface IStoragePermission
+    {
+        bool IsGranted { get; }
+
+        /// <summary>Opens the system screen where the player can grant storage access.</summary>
+        void OpenPermissionSettings();
+    }
+
+    /// <summary>Persists which score the player used last.</summary>
+    public interface IScoreSelectionStore
+    {
+        /// <summary>Returns the last selected score path, or null when none was saved.</summary>
+        string LoadLastScorePath();
+
+        /// <summary>Saves the selected score path for the next session.</summary>
+        void SaveLastScorePath(string path);
     }
 
     /// <summary>Plays metronome clicks and reports the current beat for display.</summary>
@@ -59,5 +92,18 @@ namespace GuitarMR.Usecase
     {
         /// <summary>Shows the tempo, whether the metronome runs, and the highlighted beat.</summary>
         void ShowState(int bpm, bool isRunning, int beatInBar, int beatsPerBar);
+    }
+
+    /// <summary>Displays the score picker list to the player.</summary>
+    public interface IScorePickerView
+    {
+        /// <summary>Shows the score file names with one entry highlighted.</summary>
+        void ShowScores(IReadOnlyList<string> fileNames, int highlightedIndex);
+
+        /// <summary>Shows a message inside the picker (no files, missing permission).</summary>
+        void ShowMessage(string message);
+
+        /// <summary>Hides the picker.</summary>
+        void Hide();
     }
 }

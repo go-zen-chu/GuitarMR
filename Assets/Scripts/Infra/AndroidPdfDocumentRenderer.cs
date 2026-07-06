@@ -1,18 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using GuitarMR.Usecase;
 using UnityEngine;
 
 namespace GuitarMR.Infra
 {
     /// <summary>
-    /// Renders the first PDF found in the scores directory into textures using
-    /// the Android platform API (android.graphics.pdf.PdfRenderer) via JNI,
-    /// so no PDF library or offline conversion is needed.
+    /// Renders a PDF file into textures using the Android platform API
+    /// (android.graphics.pdf.PdfRenderer) via JNI, so no PDF library or
+    /// offline conversion is needed. Returns an explanatory empty result
+    /// on platforms without the Android runtime (e.g. the editor).
     /// </summary>
-    public sealed class AndroidPdfScoreSource : IScoreSource
+    public sealed class AndroidPdfDocumentRenderer : IScoreDocumentRenderer
     {
         // ParcelFileDescriptor.MODE_READ_ONLY per Android SDK.
         const int ModeReadOnly = 0x10000000;
@@ -21,34 +21,22 @@ namespace GuitarMR.Infra
         const int TargetPageWidthPixels = 1536;
         const int MaxPages = 60;
 
-        readonly string scoresDirectory;
-
-        /// <summary>Creates a source reading PDFs from the given directory, creating it when missing.</summary>
-        public AndroidPdfScoreSource(string scoresDirectory)
-        {
-            this.scoresDirectory = scoresDirectory ?? throw new ArgumentNullException(nameof(scoresDirectory));
-        }
-
-        /// <summary>Loads all pages of the alphabetically first PDF in the scores directory.</summary>
-        public ScoreLoadResult Load()
+        /// <summary>Renders all pages of the given PDF file.</summary>
+        public ScoreLoadResult Render(string documentPath)
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
             try
             {
-                Directory.CreateDirectory(scoresDirectory);
-                var pdfPath = Directory.GetFiles(scoresDirectory, "*.pdf").OrderBy(p => p).FirstOrDefault();
-                if (pdfPath == null)
+                if (!File.Exists(documentPath))
                 {
-                    return new ScoreLoadResult(
-                        new List<Texture2D>(),
-                        $"No PDF found.\nCopy one with:\nadb push score.pdf \"{scoresDirectory}/\"\nthen restart the app.");
+                    return new ScoreLoadResult(new List<Texture2D>(), $"File not found:\n{documentPath}");
                 }
-                var pages = RenderPdf(pdfPath);
-                return new ScoreLoadResult(pages, $"Loaded {Path.GetFileName(pdfPath)}");
+                var pages = RenderPdf(documentPath);
+                return new ScoreLoadResult(pages, $"Loaded {Path.GetFileName(documentPath)}");
             }
             catch (Exception e)
             {
-                Debug.LogError($"failed to render PDF: {e}");
+                Debug.LogError($"failed to render PDF {documentPath}: {e}");
                 return new ScoreLoadResult(new List<Texture2D>(), $"Failed to render PDF:\n{e.Message}");
             }
 #else

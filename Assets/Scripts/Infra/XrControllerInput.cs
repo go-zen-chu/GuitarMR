@@ -7,25 +7,27 @@ namespace GuitarMR.Infra
 {
     /// <summary>
     /// Polls the Quest touch controllers through the XR input API and raises
-    /// edge-triggered events for the practice actions:
-    /// right A = next page, right B = previous page, right stick up/down = BPM step,
-    /// left X = start/stop metronome, left Y = recenter panels.
+    /// edge-triggered events per physical control. Mapping buttons to actions
+    /// is left to the use case layer, which is modal (score vs picker).
     /// </summary>
     public sealed class XrControllerInput : MonoBehaviour
     {
         const float StickThreshold = 0.65f;
-        const int BpmStep = 5;
 
-        public event Action NextPagePressed;
-        public event Action PreviousPagePressed;
-        public event Action ToggleMetronomePressed;
-        public event Action RecenterPressed;
-        public event Action<int> BpmStepRequested;
+        public event Action RightPrimaryPressed;
+        public event Action RightSecondaryPressed;
+        public event Action LeftPrimaryPressed;
+        public event Action LeftSecondaryPressed;
+        public event Action LeftMenuPressed;
+
+        /// <summary>Fires +1 when the right stick is flicked up and -1 when flicked down.</summary>
+        public event Action<int> RightStickStepped;
 
         struct ControllerSnapshot
         {
             public bool Primary;
             public bool Secondary;
+            public bool Menu;
             public int StickZone;
         }
 
@@ -42,27 +44,31 @@ namespace GuitarMR.Infra
 
             if (right.Primary && !previousRight.Primary)
             {
-                NextPagePressed?.Invoke();
+                RightPrimaryPressed?.Invoke();
             }
             if (right.Secondary && !previousRight.Secondary)
             {
-                PreviousPagePressed?.Invoke();
+                RightSecondaryPressed?.Invoke();
             }
             if (right.StickZone == 1 && previousRight.StickZone != 1)
             {
-                BpmStepRequested?.Invoke(BpmStep);
+                RightStickStepped?.Invoke(1);
             }
             if (right.StickZone == -1 && previousRight.StickZone != -1)
             {
-                BpmStepRequested?.Invoke(-BpmStep);
+                RightStickStepped?.Invoke(-1);
             }
             if (left.Primary && !previousLeft.Primary)
             {
-                ToggleMetronomePressed?.Invoke();
+                LeftPrimaryPressed?.Invoke();
             }
             if (left.Secondary && !previousLeft.Secondary)
             {
-                RecenterPressed?.Invoke();
+                LeftSecondaryPressed?.Invoke();
+            }
+            if (left.Menu && !previousLeft.Menu)
+            {
+                LeftMenuPressed?.Invoke();
             }
 
             previousRight = right;
@@ -81,6 +87,7 @@ namespace GuitarMR.Infra
             var device = DeviceBuffer[0];
             device.TryGetFeatureValue(CommonUsages.primaryButton, out snapshot.Primary);
             device.TryGetFeatureValue(CommonUsages.secondaryButton, out snapshot.Secondary);
+            device.TryGetFeatureValue(CommonUsages.menuButton, out snapshot.Menu);
             if (device.TryGetFeatureValue(CommonUsages.primary2DAxis, out var stick))
             {
                 snapshot.StickZone = stick.y > StickThreshold ? 1 : stick.y < -StickThreshold ? -1 : 0;

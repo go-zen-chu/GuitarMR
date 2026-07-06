@@ -18,20 +18,23 @@ Android platform API, so no offline conversion is needed.
 ## Features
 
 - XR passthrough on Quest 3: play while seeing your real guitar and room
-- Sheet music panel: renders each page of a PDF placed on the device
+- Sheet music panel: renders PDFs on-device; pick any PDF from the headset
+  storage (browser downloads, USB copies) with the in-app score picker
 - Metronome: sample-accurate clicks scheduled on the audio DSP clock,
   procedurally generated sounds (accent on beat 1), 30–300 BPM, beat indicator
-- Controller-driven: page turning, tempo, start/stop and panel recentering
+- Controller-driven: score picking, page turning, tempo, start/stop and
+  panel recentering
 
 ## Controls
 
-| Input | Action |
-| --- | --- |
-| Right controller A | Next page |
-| Right controller B | Previous page |
-| Right thumbstick up / down | BPM +5 / -5 |
-| Left controller X | Start / stop metronome |
-| Left controller Y | Recenter panels in front of you |
+| Input | Action | While picker is open |
+| --- | --- | --- |
+| Right controller A | Next page | Load highlighted score |
+| Right controller B | Previous page | Close picker |
+| Right thumbstick up / down | BPM +5 / -5 | Move highlight |
+| Left controller X | Start / stop metronome | — |
+| Left controller Y | Recenter panels | Recenter panels |
+| Left controller Menu (☰) | Open score picker | Close picker |
 
 ## Requirements
 
@@ -62,19 +65,23 @@ If step 3 logs a warning about OpenXR settings not being found, open
 
 ## Putting your sheet music on the device
 
-Launch the app once so it creates its data directory, then push your PDF:
+Get a PDF into the headset's shared storage — no adb required:
 
-```sh
-adb push your-score.pdf /sdcard/Android/data/com.gozenchu.guitarmr/files/Scores/
-```
+- download it with the **headset browser** (lands in `Download`), or
+- connect the headset to a PC over USB and **drag & drop** it into
+  `Download` or `Documents`, or
+- (advanced) `adb push your-score.pdf /sdcard/Download/`.
 
-Restart the app and the first PDF (alphabetically) in the folder is rendered.
-PNG/JPG page images in the same folder work as a fallback when no PDF exists
-(sorted by file name, one image per page).
+Then press the left controller **Menu** button in the app and pick it from
+the list. On first use the picker sends you to the system settings to grant
+**"Allow management of all files"** (required to read PDFs from shared
+storage under Android scoped storage; see docs/design ADR-007). The last
+selected score is remembered across sessions.
 
-In the editor, `GuitarMR > Open Scores Folder (Editor)` opens the local folder
-used in play mode; drop PNG/JPG pages there to test (PDF rendering only works
-on the device because it uses the Android `PdfRenderer` API).
+PNG/JPG page images in the app's `Scores` folder work as a fallback when no
+PDF is selected (sorted by file name, one image per page). In the editor,
+`GuitarMR > Open Scores Folder (Editor)` opens that folder; PDF rendering
+only works on the device because it uses the Android `PdfRenderer` API.
 
 ## Architecture
 
@@ -84,12 +91,16 @@ interfaces:
 
 ```
 Assets/Scripts/
-├── Domain/    Pure logic, no engine dependency (BeatClock, ScoreBook)
-├── Usecase/   PracticeController + ports (IMetronome, IScoreSource, views)
-├── Infra/     AudioMetronome (DSP-scheduled clicks), AndroidPdfScoreSource (JNI),
-│              ImageFolderScoreSource, CompositeScoreSource, XrControllerInput
-├── App/       AppBootstrap (composition root), ScorePanel, MetronomePanel, UiFactory
-└── Editor/    ProjectConfigurator (Quest settings + APK build menu items)
+├── Domain/    Pure logic, no engine dependency (BeatClock, ScoreBook, ScoreCatalog)
+├── Usecase/   PracticeController + ports (IMetronome, IScoreRepository,
+│              IScoreDocumentRenderer, IStoragePermission, views, ...)
+├── Infra/     AudioMetronome (DSP-scheduled clicks), AndroidPdfDocumentRenderer (JNI),
+│              SharedStorageScoreRepository, ImageFolderScoreSource,
+│              StoragePermission, PlayerPrefsScoreSelectionStore, XrControllerInput
+├── App/       AppBootstrap (composition root), ScorePanel, MetronomePanel,
+│              ScorePickerPanel, UiFactory
+└── Editor/    ProjectConfigurator (Quest settings + APK build menu items),
+               AndroidManifestPostProcessor (storage permissions)
 ```
 
 ## Testing

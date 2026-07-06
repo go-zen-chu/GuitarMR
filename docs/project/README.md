@@ -5,8 +5,8 @@ project starts taking external contributions.
 
 ## TODO (feature backlog)
 
-- [ ] **Score file picker**: list all PDFs in the Scores folder and let the
-      player choose one in-app (currently: first PDF alphabetically).
+- [x] **Score file picker**: done — left Menu button opens an in-app picker
+      listing PDFs from Download/Documents/app folder (ADR-007).
 - [ ] **Selectable time signatures**: beats per bar is fixed to 4/4;
       `BeatClock` already supports any `beatsPerBar`, only input/UI is missing.
 - [ ] **Tap tempo**: set the BPM by tapping a controller button.
@@ -43,6 +43,12 @@ project starts taking external contributions.
   at 60 pages. Very dense scores may need a higher resolution (increase
   `TargetPageWidthPixels` in `AndroidPdfScoreSource`, at the cost of memory:
   ~8.5 MB per page at 1536x2172 RGBA32).
+- **"All files access" grant flow is device-dependent**: the picker deep-links
+  to the system settings screen (`MANAGE_APP_ALL_FILES_ACCESS_PERMISSION`).
+  If a future Horizon OS build changes that screen, the fallback global
+  settings intent is used; worst case, grant the permission manually under
+  Settings > Apps > GuitarMR. A SAF-based picker is the designed fallback
+  (ADR-007).
 - **Editor play mode has no XR input**: without a headset the panels render
   but controller events never fire; domain behavior is covered by EditMode
   tests instead (see docs/development for the verification matrix).

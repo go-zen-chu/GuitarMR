@@ -42,6 +42,9 @@ adb shell am start -n com.gozenchu.guitarmr/com.unity3d.player.UnityPlayerActivi
 ```
 
 The first IL2CPP build takes a while; subsequent builds are incremental.
+During the build, `AndroidManifestPostProcessor` injects the storage
+permissions (`MANAGE_EXTERNAL_STORAGE`, `READ_EXTERNAL_STORAGE`) into the
+generated manifest; no manual manifest editing is needed.
 
 ## Verification
 
@@ -74,9 +77,16 @@ After installing on a Quest 3:
 
 - [ ] App launches into passthrough (real room visible, no black background).
 - [ ] Both panels appear in front of you; **Y** recenters them after moving.
-- [ ] Without a score: instruction message shows the `adb push` path.
-- [ ] After `adb push <file>.pdf .../Scores/` and app restart: page 1 renders
-      sharply, page counter shows the correct total.
+- [ ] Without a score: instruction message explains how to get a PDF and
+      open the picker.
+- [ ] **Menu** opens the picker; on first use pressing **A** opens the
+      system "all files access" screen, and after granting and returning the
+      list shows PDFs from `Download`/`Documents` without an app restart.
+- [ ] Right stick moves the highlight (list windows/scrolls past 12 items),
+      **A** loads the selected PDF, **B**/**Menu** closes the picker.
+- [ ] Page 1 renders sharply and the page counter shows the correct total.
+- [ ] After relaunching the app, the last selected score reopens
+      automatically.
 - [ ] **A**/**B** turn pages and stop at both ends without wrapping.
 - [ ] **X** starts the metronome: steady clicks, beat 1 accented (higher
       pitch, red dot), dots advance 1-2-3-4 in time with the audio.

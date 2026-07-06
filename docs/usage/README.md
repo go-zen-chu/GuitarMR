@@ -13,47 +13,57 @@ panels float about 1.1 m in front of you:
   indicator (the first beat of each bar lights up red, others orange), and a
   controls hint.
 
-If no score has been transferred yet, the score panel shows instructions with
-the exact device path to push your PDF to.
+If no score has been selected yet, the score panel shows instructions for
+getting a PDF onto the headset and opening the picker.
 
-## Transferring your sheet music
+## Getting sheet music onto the headset
 
-1. Launch the app once so it creates its data directory.
-2. Connect the headset via USB (allow the connection in the headset) and run:
+No PC tooling is required. Either:
 
-   ```sh
-   adb push your-score.pdf /sdcard/Android/data/com.gozenchu.guitarmr/files/Scores/
-   ```
+- **Headset browser**: open the Quest browser, download your PDF (e.g. from
+  Google Drive or an email attachment). Downloads land in the `Download`
+  folder.
+- **USB drag & drop**: connect the headset to a PC (allow the connection in
+  the headset), open it as a drive and drop PDFs into `Download` or
+  `Documents`.
+- **adb (advanced)**: `adb push score.pdf /sdcard/Download/`.
 
-3. Restart the app. The first PDF (alphabetical order) in the folder is
-   rendered.
+## Choosing a score in the app
 
-Notes:
-- PNG/JPG images in the same folder are used as pages (sorted by file name)
-  when no PDF exists — useful for scores you only have as images.
-- To switch songs, remove or rename PDFs so the one you want comes first
-  alphabetically, then restart the app. A file picker is a planned feature
-  (see docs/project).
+1. Press the left controller **Menu** button to open the score picker.
+2. On first use the picker asks for file access: press **A** to open the
+   system settings, enable **"Allow management of all files"**, and return to
+   the app. This is needed because Android's scoped storage does not let apps
+   read PDFs from shared folders otherwise (see docs/design ADR-007).
+3. Move the highlight with the **right thumbstick**, load with **A**, cancel
+   with **B**. The picker lists all PDFs in `Download`, `Documents` and the
+   app's own folder.
+
+The app remembers your selection and reopens the same score next time.
+PNG/JPG images placed in the app's `Scores` folder are used as pages when no
+PDF is selected — useful for scores you only have as images.
 
 ## Controls
 
-| Input | Action |
-| --- | --- |
-| Right controller A | Next page |
-| Right controller B | Previous page |
-| Right thumbstick up / down | BPM +5 / -5 (flick once per step) |
-| Left controller X | Start / stop the metronome |
-| Left controller Y | Recenter the panels in front of you |
+| Input | Action (score mode) | Action (picker open) |
+| --- | --- | --- |
+| Right controller A | Next page | Load highlighted score |
+| Right controller B | Previous page | Close the picker |
+| Right thumbstick up / down | BPM +5 / -5 (flick once per step) | Move the highlight |
+| Left controller X | Start / stop the metronome | — |
+| Left controller Y | Recenter the panels in front of you | Recenter |
+| Left controller Menu (☰) | Open the score picker | Close the picker |
 
 ## Practice flow
 
 1. Put on the headset, launch GuitarMR, and pick up your guitar.
-2. Sit or stand where you want to practice and press **Y** to place the
+2. Press **Menu** and choose your score if it is not already showing.
+3. Sit or stand where you want to practice and press **Y** to place the
    panels comfortably in front of you.
-3. Set the tempo with the right thumbstick (30–300 BPM, default 90).
-4. Press **X** to start the metronome. Beat 1 of each bar has a higher
+4. Set the tempo with the right thumbstick (30–300 BPM, default 90).
+5. Press **X** to start the metronome. Beat 1 of each bar has a higher
    pitched, red-highlighted accent.
-5. Turn pages with **A**/**B** as you play.
+6. Turn pages with **A**/**B** as you play.
 
 ## Tips
 
