@@ -8,6 +8,13 @@ Built with Unity official packages only (OpenXR + AR Foundation + Unity OpenXR
 Meta); no Meta XR SDK dependency. PDFs are rendered on-device through the
 Android platform API, so no offline conversion is needed.
 
+## Documentation
+
+- [docs/design](docs/design/README.md) — architecture and design decision records (ADRs)
+- [docs/usage](docs/usage/README.md) — how to use the app on the headset
+- [docs/development](docs/development/README.md) — setup, build and verification steps
+- [docs/project](docs/project/README.md) — feature backlog and known issues
+
 ## Features
 
 - XR passthrough on Quest 3: play while seeing your real guitar and room

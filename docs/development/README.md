@@ -1,0 +1,106 @@
+# Development Guide
+
+Setup, build and verification steps for GuitarMR contributors.
+
+## Prerequisites
+
+| Tool | Version | Notes |
+| --- | --- | --- |
+| Unity Hub | 3.x | https://unity.com/download |
+| Unity Editor | 6000.0 LTS (any 6000.0.x) | Install via Unity Hub |
+| Android Build Support | bundled with the editor | Check **OpenJDK** and **Android SDK & NDK Tools** in the Hub install dialog |
+| adb | any recent | Bundled with the Unity Android module; or `brew install android-platform-tools` |
+| Meta Quest 3 | Horizon OS (Android 12L+) | Developer mode enabled via the Meta Horizon mobile app |
+
+## Initial setup
+
+1. Clone the repository and open the folder with Unity Hub.
+   The first open resolves packages and imports assets (several minutes).
+   If package resolution fails, see "Known issues" in docs/project.
+2. Switch the platform: `File > Build Profiles > Android > Switch Platform`.
+3. Run `GuitarMR > Configure Project For Quest 3` from the menu bar. This:
+   - sets the Android player settings (IL2CPP, ARM64, min SDK 32, Vulkan,
+     Linear color space, ASTC, package id `com.gozenchu.guitarmr`),
+   - creates the XR settings asset and assigns the OpenXR loader for Android,
+   - enables the Meta OpenXR features (passthrough camera, session, Quest
+     support) and the Oculus Touch interaction profile,
+   - registers `Assets/Scenes/Main.unity` in the build settings,
+   - switches the active input handler to the Input System package.
+4. Restart the editor if prompted (input handler change requires it).
+5. If the console warned that OpenXR settings were not found, open
+   `Project Settings > XR Plug-in Management > OpenXR` once and rerun step 3.
+
+## Building and installing
+
+```text
+Editor menu: GuitarMR > Build Android APK   ->  Builds/GuitarMR.apk
+```
+
+```sh
+adb install -r Builds/GuitarMR.apk
+adb shell am start -n com.gozenchu.guitarmr/com.unity3d.player.UnityPlayerActivity
+```
+
+The first IL2CPP build takes a while; subsequent builds are incremental.
+
+## Verification
+
+### 1. Unit tests (no device required)
+
+`Window > General > Test Runner > EditMode > Run All`, or headless:
+
+```sh
+/Applications/Unity/Hub/Editor/<version>/Unity.app/Contents/MacOS/Unity \
+  -batchmode -projectPath . -runTests -testPlatform EditMode -logFile -
+```
+
+All tests in `Assets/Tests/EditMode` must pass. They cover the metronome
+timing math (`BeatClock`) and page navigation (`ScoreBook`) in BDD style.
+
+### 2. Editor play mode (no device required)
+
+PDF rendering and XR input are device-only, but the UI and score loading can
+be smoke-tested:
+
+1. `GuitarMR > Open Scores Folder (Editor)` and drop a few PNG/JPG pages in.
+2. Enter play mode in the `Main` scene.
+3. Expected: both panels appear in front of the camera, the first image page
+   is shown with a correct page counter and aspect ratio. Without images, the
+   instruction message with the folder path is shown instead.
+
+### 3. On-device verification checklist
+
+After installing on a Quest 3:
+
+- [ ] App launches into passthrough (real room visible, no black background).
+- [ ] Both panels appear in front of you; **Y** recenters them after moving.
+- [ ] Without a score: instruction message shows the `adb push` path.
+- [ ] After `adb push <file>.pdf .../Scores/` and app restart: page 1 renders
+      sharply, page counter shows the correct total.
+- [ ] **A**/**B** turn pages and stop at both ends without wrapping.
+- [ ] **X** starts the metronome: steady clicks, beat 1 accented (higher
+      pitch, red dot), dots advance 1-2-3-4 in time with the audio.
+- [ ] Right stick up/down changes BPM in steps of 5, clamped to 30–300, and
+      the beat does not stutter or restart while running.
+- [ ] Audio stays in time over several minutes (no drift against a reference
+      metronome at e.g. 120 BPM).
+
+### 4. Log inspection
+
+```sh
+adb logcat -s Unity
+```
+
+Score loading failures are logged as errors with the exception message, and
+also surfaced on the score panel itself.
+
+## Project conventions
+
+- Follow the layered structure described in docs/design (ADR-004): pure logic
+  in `Domain`, orchestration in `Usecase`, I/O in `Infra`, composition in
+  `App`.
+- New interfaces belong to the layer that consumes them (ports live in
+  `Usecase/Ports.cs`).
+- All comments and log messages are written in English.
+- Add BDD-style EditMode tests (`If_xxx_it_should_yyy`) for any new domain or
+  use case logic.
