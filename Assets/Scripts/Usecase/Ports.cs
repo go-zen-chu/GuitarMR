@@ -31,13 +31,6 @@ namespace GuitarMR.Usecase
         ScoreLoadResult Render(string documentPath);
     }
 
-    /// <summary>Provides score pages as textures without document selection, e.g. from an image folder.</summary>
-    public interface IScoreSource
-    {
-        /// <summary>Loads all score pages; never throws, failures are reported via the status message.</summary>
-        ScoreLoadResult Load();
-    }
-
     /// <summary>Reports and requests access to the shared device storage.</summary>
     public interface IStoragePermission
     {

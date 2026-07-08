@@ -17,11 +17,15 @@ namespace GuitarMR.Usecase
     public sealed class PracticeController
     {
         const int BpmStep = 5;
+        const string NoScoreGuidance =
+            "No score found.\n\n" +
+            "Download a PDF with the headset browser or copy one into the " +
+            "Download folder over USB, then press the left controller " +
+            "Menu button to pick it.";
 
         readonly IMetronome metronome;
         readonly IScoreRepository scoreRepository;
         readonly IScoreDocumentRenderer documentRenderer;
-        readonly IScoreSource fallbackSource;
         readonly IStoragePermission storagePermission;
         readonly IScoreSelectionStore selectionStore;
         readonly IScoreView scoreView;
@@ -41,7 +45,6 @@ namespace GuitarMR.Usecase
             IMetronome metronome,
             IScoreRepository scoreRepository,
             IScoreDocumentRenderer documentRenderer,
-            IScoreSource fallbackSource,
             IStoragePermission storagePermission,
             IScoreSelectionStore selectionStore,
             IScoreView scoreView,
@@ -51,7 +54,6 @@ namespace GuitarMR.Usecase
             this.metronome = metronome ?? throw new ArgumentNullException(nameof(metronome));
             this.scoreRepository = scoreRepository ?? throw new ArgumentNullException(nameof(scoreRepository));
             this.documentRenderer = documentRenderer ?? throw new ArgumentNullException(nameof(documentRenderer));
-            this.fallbackSource = fallbackSource ?? throw new ArgumentNullException(nameof(fallbackSource));
             this.storagePermission = storagePermission ?? throw new ArgumentNullException(nameof(storagePermission));
             this.selectionStore = selectionStore ?? throw new ArgumentNullException(nameof(selectionStore));
             this.scoreView = scoreView ?? throw new ArgumentNullException(nameof(scoreView));
@@ -70,7 +72,7 @@ namespace GuitarMR.Usecase
                 LoadScore(initial);
                 return;
             }
-            LoadFallback();
+            scoreView.ShowMessage(NoScoreGuidance);
         }
 
         /// <summary>Handles right controller A: confirms the picker selection or turns to the next page.</summary>
@@ -193,25 +195,6 @@ namespace GuitarMR.Usecase
             currentScorePath = path;
             selectionStore.SaveLastScorePath(path);
             ShowCurrentPage();
-        }
-
-        /// <summary>Loads image pages as a fallback, or shows instructions when nothing is available.</summary>
-        void LoadFallback()
-        {
-            var result = fallbackSource.Load();
-            if (result.Pages.Count > 0)
-            {
-                pages = result.Pages;
-                book = new ScoreBook(pages.Count);
-                currentScorePath = null;
-                ShowCurrentPage();
-                return;
-            }
-            scoreView.ShowMessage(
-                "No score found.\n\n" +
-                "Download a PDF with the headset browser or copy one to the Download folder over USB, " +
-                "then press the left controller Menu button to pick it.\n\n" +
-                result.StatusMessage);
         }
 
         /// <summary>Opens the picker with the current score highlighted.</summary>

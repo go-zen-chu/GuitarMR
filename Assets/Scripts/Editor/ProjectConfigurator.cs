@@ -61,15 +61,6 @@ namespace GuitarMR.Editor
             Debug.Log($"GuitarMR: build {report.summary.result}, output: {ApkOutputPath}");
         }
 
-        /// <summary>Opens the folder used as the scores directory in editor play mode.</summary>
-        [MenuItem("GuitarMR/Open Scores Folder (Editor)")]
-        public static void OpenScoresFolder()
-        {
-            var scoresDirectory = Path.Combine(Application.persistentDataPath, "Scores");
-            Directory.CreateDirectory(scoresDirectory);
-            EditorUtility.RevealInFinder(scoresDirectory);
-        }
-
         /// <summary>Sets identification, scripting backend, graphics and orientation for Quest.</summary>
         static void ConfigurePlayerSettings()
         {

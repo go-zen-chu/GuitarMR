@@ -62,14 +62,14 @@ timing math (`BeatClock`) and page navigation (`ScoreBook`) in BDD style.
 
 ### 2. Editor play mode (no device required)
 
-PDF rendering and XR input are device-only, but the UI and score loading can
-be smoke-tested:
+PDF rendering and XR controller input are device-only, so editor play mode is
+a layout smoke test:
 
-1. `GuitarMR > Open Scores Folder (Editor)` and drop a few PNG/JPG pages in.
-2. Enter play mode in the `Main` scene.
-3. Expected: both panels appear in front of the camera, the first image page
-   is shown with a correct page counter and aspect ratio. Without images, the
-   instruction message with the folder path is shown instead.
+1. Enter play mode in the `Main` scene.
+2. Expected: the score, metronome and (hidden) picker panels are built in
+   front of the camera and the score panel shows the no-score guidance
+   message. Score rendering and picker interaction are verified on the
+   device (next section).
 
 ### 3. On-device verification checklist
 

@@ -35,11 +35,16 @@ Core SDK (Asset Store package) or with Unity's official OpenXR stack
 **Decision**: Option 3, with option 1 kept as a fallback (PNG/JPG pages are
 loaded when no PDF is found; also used in the editor where JNI is unavailable).
 
+**Amendment (2026-07-08)**: the image fallback (option 1) and the adb-push
+workflow into the app-private folder were removed once the in-app picker
+(ADR-007) made shared storage the single source of scores.
+
 **Consequences**:
-- Users push a PDF as-is with `adb push`; no conversion step.
+- Users transfer a PDF as-is; no conversion step.
 - No external library dependency; the standard platform API is stable.
 - JNI marshalling code is verbose, so it is isolated in
-  `Infra/AndroidPdfScoreSource` behind the `IScoreSource` interface.
+  `Infra/AndroidPdfDocumentRenderer` behind the `IScoreDocumentRenderer`
+  interface.
 - Explicit `Rect`/`Matrix` arguments are passed to `Page.render` because
   Unity's JNI helper cannot resolve Java method overloads from C# `null`.
 - Pages are rendered once at startup at a fixed 1536 px width (readable at
@@ -79,7 +84,7 @@ compose everything at runtime:
 
 ```
 Domain/   Pure C# logic, no UnityEngine dependency (BeatClock, ScoreBook)
-Usecase/  PracticeController + ports (IMetronome, IScoreSource, IScoreView, IMetronomeView)
+Usecase/  PracticeController + ports (IMetronome, IScoreRepository, IScoreDocumentRenderer, views, ...)
 Infra/    Implementations touching I/O: audio, JNI, file system, XR input
 App/      Composition root (AppBootstrap), world-space UI panels
 Editor/   Project configuration and build automation
@@ -146,10 +151,14 @@ other apps is impossible with `READ_EXTERNAL_STORAGE` alone. Options:
    platform requirements of Horizon OS.
 
 **Decision**: Option 2. The picker (left Menu button) lists PDFs from
-`Download`, `Documents` and the app's own `Scores` folder; on missing
-permission it deep-links to the system "all files access" screen for this
-app. The permissions are injected into the generated manifest by an
-`IPostGenerateGradleAndroidProject` post-processor.
+`Download` and `Documents`; on missing permission it deep-links to the
+system "all files access" screen for this app. The permissions are injected
+into the generated manifest by an `IPostGenerateGradleAndroidProject`
+post-processor.
+
+**Amendment (2026-07-08)**: the legacy adb-push path (app-private `Scores`
+folder scanning and the PNG/JPG fallback) was removed; shared storage via
+this picker is now the only way scores enter the app.
 
 **Consequences**:
 - No PC or adb required: browser download → Menu → pick → play.

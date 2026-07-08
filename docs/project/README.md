@@ -6,7 +6,8 @@ project starts taking external contributions.
 ## TODO (feature backlog)
 
 - [x] **Score file picker**: done — left Menu button opens an in-app picker
-      listing PDFs from Download/Documents/app folder (ADR-007).
+      listing PDFs from Download/Documents (ADR-007); the legacy adb-push
+      path was removed.
 - [ ] **Selectable time signatures**: beats per bar is fixed to 4/4;
       `BeatClock` already supports any `beatsPerBar`, only input/UI is missing.
 - [ ] **Tap tempo**: set the BPM by tapping a controller button.

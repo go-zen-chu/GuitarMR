@@ -26,7 +26,6 @@ No PC tooling is required. Either:
 - **USB drag & drop**: connect the headset to a PC (allow the connection in
   the headset), open it as a drive and drop PDFs into `Download` or
   `Documents`.
-- **adb (advanced)**: `adb push score.pdf /sdcard/Download/`.
 
 ## Choosing a score in the app
 
@@ -36,12 +35,10 @@ No PC tooling is required. Either:
    the app. This is needed because Android's scoped storage does not let apps
    read PDFs from shared folders otherwise (see docs/design ADR-007).
 3. Move the highlight with the **right thumbstick**, load with **A**, cancel
-   with **B**. The picker lists all PDFs in `Download`, `Documents` and the
-   app's own folder.
+   with **B**. The picker lists all PDFs in the `Download` and `Documents`
+   folders.
 
 The app remembers your selection and reopens the same score next time.
-PNG/JPG images placed in the app's `Scores` folder are used as pages when no
-PDF is selected — useful for scores you only have as images.
 
 ## Controls
 

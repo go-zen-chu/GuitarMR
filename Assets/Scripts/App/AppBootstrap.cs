@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.IO;
 using GuitarMR.Domain;
 using GuitarMR.Infra;
@@ -43,12 +42,10 @@ namespace GuitarMR.App
             var metronome = gameObject.AddComponent<AudioMetronome>();
             metronome.Initialize(new BeatClock(DefaultBpm, BeatsPerBar));
 
-            var scoresDirectory = Path.Combine(Application.persistentDataPath, "Scores");
             controller = new PracticeController(
                 metronome,
-                new SharedStorageScoreRepository(BuildScoreDirectories(scoresDirectory)),
+                new SharedStorageScoreRepository(BuildScoreDirectories()),
                 new AndroidPdfDocumentRenderer(),
-                new ImageFolderScoreSource(scoresDirectory),
                 CreateStoragePermission(),
                 new PlayerPrefsScoreSelectionStore(),
                 scorePanel,
@@ -129,25 +126,26 @@ namespace GuitarMR.App
             new GameObject("AR Session").AddComponent<ARSession>();
         }
 
-        /// <summary>Returns the directories scanned for score PDFs: the app folder plus shared storage on device.</summary>
-        static string[] BuildScoreDirectories(string scoresDirectory)
+        /// <summary>Returns the shared storage directories scanned for score PDFs.</summary>
+        static string[] BuildScoreDirectories()
         {
-            var directories = new List<string> { scoresDirectory };
 #if UNITY_ANDROID && !UNITY_EDITOR
             try
             {
                 using var environment = new AndroidJavaClass("android.os.Environment");
                 using var externalRoot = environment.CallStatic<AndroidJavaObject>("getExternalStorageDirectory");
                 var rootPath = externalRoot.Call<string>("getAbsolutePath");
-                directories.Add(Path.Combine(rootPath, "Download"));
-                directories.Add(Path.Combine(rootPath, "Documents"));
+                return new[] { Path.Combine(rootPath, "Download"), Path.Combine(rootPath, "Documents") };
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"could not resolve shared storage directories: {e.Message}");
+                Debug.LogWarning($"falling back to the default shared storage root: {e.Message}");
+                return new[] { "/storage/emulated/0/Download", "/storage/emulated/0/Documents" };
             }
+#else
+            // In the editor the host Downloads folder stands in for the headset's shared storage.
+            return new[] { Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads") };
 #endif
-            return directories.ToArray();
         }
 
         /// <summary>Creates the storage permission gate for the current platform.</summary>

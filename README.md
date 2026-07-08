@@ -65,12 +65,11 @@ If step 3 logs a warning about OpenXR settings not being found, open
 
 ## Putting your sheet music on the device
 
-Get a PDF into the headset's shared storage — no adb required:
+Get a PDF into the headset's shared storage — no PC tooling required:
 
 - download it with the **headset browser** (lands in `Download`), or
 - connect the headset to a PC over USB and **drag & drop** it into
-  `Download` or `Documents`, or
-- (advanced) `adb push your-score.pdf /sdcard/Download/`.
+  `Download` or `Documents`.
 
 Then press the left controller **Menu** button in the app and pick it from
 the list. On first use the picker sends you to the system settings to grant
@@ -78,10 +77,9 @@ the list. On first use the picker sends you to the system settings to grant
 storage under Android scoped storage; see docs/design ADR-007). The last
 selected score is remembered across sessions.
 
-PNG/JPG page images in the app's `Scores` folder work as a fallback when no
-PDF is selected (sorted by file name, one image per page). In the editor,
-`GuitarMR > Open Scores Folder (Editor)` opens that folder; PDF rendering
-only works on the device because it uses the Android `PdfRenderer` API.
+PDF rendering only works on the device because it uses the Android
+`PdfRenderer` API; in editor play mode the panels and the no-score guidance
+can still be smoke-tested.
 
 ## Architecture
 
@@ -95,8 +93,8 @@ Assets/Scripts/
 ├── Usecase/   PracticeController + ports (IMetronome, IScoreRepository,
 │              IScoreDocumentRenderer, IStoragePermission, views, ...)
 ├── Infra/     AudioMetronome (DSP-scheduled clicks), AndroidPdfDocumentRenderer (JNI),
-│              SharedStorageScoreRepository, ImageFolderScoreSource,
-│              StoragePermission, PlayerPrefsScoreSelectionStore, XrControllerInput
+│              SharedStorageScoreRepository, StoragePermission,
+│              PlayerPrefsScoreSelectionStore, XrControllerInput
 ├── App/       AppBootstrap (composition root), ScorePanel, MetronomePanel,
 │              ScorePickerPanel, UiFactory
 └── Editor/    ProjectConfigurator (Quest settings + APK build menu items),
