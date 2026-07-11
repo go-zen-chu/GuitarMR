@@ -29,7 +29,7 @@ namespace GuitarMR.Infra
             {
                 if (!File.Exists(documentPath))
                 {
-                    return new ScoreLoadResult(new List<Texture2D>(), $"File not found:\n{documentPath}");
+                    return new ScoreLoadResult(new List<IScorePage>(), $"File not found:\n{documentPath}");
                 }
                 var pages = RenderPdf(documentPath);
                 return new ScoreLoadResult(pages, $"Loaded {Path.GetFileName(documentPath)}");
@@ -37,18 +37,18 @@ namespace GuitarMR.Infra
             catch (Exception e)
             {
                 Debug.LogError($"failed to render PDF {documentPath}: {e}");
-                return new ScoreLoadResult(new List<Texture2D>(), $"Failed to render PDF:\n{e.Message}");
+                return new ScoreLoadResult(new List<IScorePage>(), $"Failed to render PDF:\n{e.Message}");
             }
 #else
-            return new ScoreLoadResult(new List<Texture2D>(), "PDF rendering is only available on the Android device.");
+            return new ScoreLoadResult(new List<IScorePage>(), "PDF rendering is only available on the Android device.");
 #endif
         }
 
 #if UNITY_ANDROID && !UNITY_EDITOR
-        /// <summary>Renders every page of the PDF at the target width into RGBA32 textures.</summary>
-        static List<Texture2D> RenderPdf(string pdfPath)
+        /// <summary>Renders every page of the PDF at the target width into texture-backed pages.</summary>
+        static List<IScorePage> RenderPdf(string pdfPath)
         {
-            var pages = new List<Texture2D>();
+            var pages = new List<IScorePage>();
             using var file = new AndroidJavaObject("java.io.File", pdfPath);
             using var descriptorClass = new AndroidJavaClass("android.os.ParcelFileDescriptor");
             using var descriptor = descriptorClass.CallStatic<AndroidJavaObject>("open", file, ModeReadOnly);
@@ -56,7 +56,7 @@ namespace GuitarMR.Infra
             var pageCount = Math.Min(renderer.Call<int>("getPageCount"), MaxPages);
             for (var i = 0; i < pageCount; i++)
             {
-                pages.Add(RenderPage(renderer, i));
+                pages.Add(new TextureScorePage(RenderPage(renderer, i)));
             }
             renderer.Call("close");
             return pages;

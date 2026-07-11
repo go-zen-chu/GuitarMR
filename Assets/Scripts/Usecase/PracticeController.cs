@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using GuitarMR.Domain;
-using UnityEngine;
 
 namespace GuitarMR.Usecase
 {
@@ -37,7 +36,7 @@ namespace GuitarMR.Usecase
         bool pickerOpen;
 
         ScoreBook book = new ScoreBook(0);
-        IReadOnlyList<Texture2D> pages = Array.Empty<Texture2D>();
+        IReadOnlyList<IScorePage> pages = Array.Empty<IScorePage>();
         string currentScorePath;
 
         /// <summary>Creates the controller with its collaborating ports.</summary>

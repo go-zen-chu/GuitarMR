@@ -1,3 +1,4 @@
+using GuitarMR.Infra;
 using GuitarMR.Usecase;
 using UnityEngine;
 using UnityEngine.UI;
@@ -51,12 +52,17 @@ namespace GuitarMR.App
         }
 
         /// <summary>Shows one rendered score page with paging information.</summary>
-        public void ShowPage(Texture2D page, int pageIndex, int pageCount)
+        public void ShowPage(IScorePage page, int pageIndex, int pageCount)
         {
+            if (!(page is TextureScorePage texturePage))
+            {
+                ShowMessage($"Unsupported score page type: {page?.GetType().Name ?? "null"}");
+                return;
+            }
             messageText.gameObject.SetActive(false);
             pageImage.gameObject.SetActive(true);
-            pageImage.texture = page;
-            aspectFitter.aspectRatio = (float)page.width / page.height;
+            pageImage.texture = texturePage.Texture;
+            aspectFitter.aspectRatio = (float)texturePage.Texture.width / texturePage.Texture.height;
             pageLabel.text = $"Page {pageIndex + 1} / {pageCount}";
         }
 

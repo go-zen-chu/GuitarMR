@@ -7,7 +7,7 @@ Setup, build and verification steps for GuitarMR contributors.
 | Tool | Version | Notes |
 | --- | --- | --- |
 | Unity Hub | 3.x | https://unity.com/download |
-| Unity Editor | 6000.0 LTS (any 6000.0.x) | Install via Unity Hub |
+| Unity Editor | 6000.5.2f1 | Install via Unity Hub; pinned in `ProjectSettings/ProjectVersion.txt` |
 | Android Build Support | bundled with the editor | Check **OpenJDK** and **Android SDK & NDK Tools** in the Hub install dialog |
 | adb | any recent | Bundled with the Unity Android module; or `brew install android-platform-tools` |
 | Meta Quest 3 | Horizon OS (Android 12L+) | Developer mode enabled via the Meta Horizon mobile app |
@@ -48,17 +48,29 @@ generated manifest; no manual manifest editing is needed.
 
 ## Verification
 
-### 1. Unit tests (no device required)
-
-`Window > General > Test Runner > EditMode > Run All`, or headless:
+### 1. Unit tests (no device required, scriptable)
 
 ```sh
-/Applications/Unity/Hub/Editor/<version>/Unity.app/Contents/MacOS/Unity \
-  -batchmode -projectPath . -runTests -testPlatform EditMode -logFile -
+./scripts/run-editmode-tests.sh
 ```
 
-All tests in `Assets/Tests/EditMode` must pass. They cover the metronome
-timing math (`BeatClock`) and page navigation (`ScoreBook`) in BDD style.
+The script runs the whole EditMode suite headless with the pinned Unity
+version, prints the pass/fail counts, and exits non-zero on compile errors or
+test failures — suitable for humans, CI and AI agents alike. Results land in
+`Logs/editmode-results.xml`, the full editor log in `Logs/editmode-tests.log`.
+The same suite is available interactively via
+`Window > General > Test Runner > EditMode`.
+
+The tests cover the metronome timing math (`BeatClock`), page navigation
+(`ScoreBook`), picker highlighting (`ScoreCatalog`) and the whole practice
+flow including modal input routing (`PracticeControllerTests`, all ports
+faked). The use case layer is engine-independent by design (pages cross the
+boundary as the opaque `IScorePage`), which is what makes this coverage
+possible without a headset.
+
+Headless runs verify everything except rendering, XR tracking, audio output,
+JNI (PDF rendering) and the permission flow — those remain device checklist
+items (section 3).
 
 ### 2. Editor play mode (no device required)
 

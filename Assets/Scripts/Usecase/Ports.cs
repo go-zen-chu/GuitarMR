@@ -1,18 +1,26 @@
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace GuitarMR.Usecase
 {
-    /// <summary>Result of loading a score: rendered page textures plus a user-facing status message.</summary>
+    /// <summary>
+    /// Opaque handle to one rendered score page. The use case layer only moves
+    /// pages around; the presentation layer knows the concrete (engine) type.
+    /// This keeps the use case free of engine dependencies and testable outside Unity.
+    /// </summary>
+    public interface IScorePage
+    {
+    }
+
+    /// <summary>Result of loading a score: rendered pages plus a user-facing status message.</summary>
     public sealed class ScoreLoadResult
     {
-        public IReadOnlyList<Texture2D> Pages { get; }
+        public IReadOnlyList<IScorePage> Pages { get; }
         public string StatusMessage { get; }
 
         /// <summary>Creates a load result; pass an empty page list with a message when nothing was loaded.</summary>
-        public ScoreLoadResult(IReadOnlyList<Texture2D> pages, string statusMessage)
+        public ScoreLoadResult(IReadOnlyList<IScorePage> pages, string statusMessage)
         {
-            Pages = pages ?? new List<Texture2D>();
+            Pages = pages ?? new List<IScorePage>();
             StatusMessage = statusMessage ?? string.Empty;
         }
     }
@@ -74,7 +82,7 @@ namespace GuitarMR.Usecase
     public interface IScoreView
     {
         /// <summary>Shows one rendered score page with paging information.</summary>
-        void ShowPage(Texture2D page, int pageIndex, int pageCount);
+        void ShowPage(IScorePage page, int pageIndex, int pageCount);
 
         /// <summary>Shows a status message instead of a page (e.g. when no score is available).</summary>
         void ShowMessage(string message);

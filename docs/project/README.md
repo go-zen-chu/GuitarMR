@@ -25,11 +25,15 @@ project starts taking external contributions.
 
 ## Known issues / risks
 
-- **Package versions are pinned optimistically**: `Packages/manifest.json`
-  pins versions (AR Foundation 6.0.4, Meta OpenXR 2.0.1, OpenXR 1.13.0) that
-  were not verified against the registry from this machine. If resolution
-  fails on first open, align versions in the Package Manager and update the
-  manifest.
+- **Package versions are tied to the editor version**: the manifest pins the
+  versions bundled as defaults with Unity 6000.5.2f1 (Input System 1.19.0,
+  AR Foundation 6.5.0, Meta OpenXR 2.5.0, OpenXR 1.17.1), verified by a
+  headless test run. Moving to another editor stream means realigning them
+  (older pins failed to compile on 6000.5, e.g. Input System 1.11 uses a
+  removed TreeView API; `com.unity.modules.vr` no longer exists).
+- **Android Build Support may be missing locally**: headless EditMode tests
+  run without it, but building the APK requires adding the module (with
+  OpenJDK and SDK/NDK) to the 6000.5.2f1 install in Unity Hub.
 - **First editor open is required before building**: the project ships
   without `ProjectSettings.asset`; Unity generates defaults and
   `GuitarMR > Configure Project For Quest 3` fills in the Quest-specific

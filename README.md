@@ -38,8 +38,10 @@ Android platform API, so no offline conversion is needed.
 
 ## Requirements
 
-- Unity 6000.0 LTS (any 6000.0.x) with the **Android Build Support** module
-  (including OpenJDK and Android SDK/NDK) installed via Unity Hub
+- Unity 6000.5.2f1 (pinned in `ProjectSettings/ProjectVersion.txt`; other
+  6000.x versions may need the package versions in `Packages/manifest.json`
+  realigned) with the **Android Build Support** module (including OpenJDK and
+  Android SDK/NDK) installed via Unity Hub
 - Meta Quest 3 with developer mode enabled
 - `adb` (bundled with the Unity Android module, or via Android platform tools)
 
@@ -103,13 +105,17 @@ Assets/Scripts/
 
 ## Testing
 
-Domain logic is covered by BDD-style EditMode tests
-(`Assets/Tests/EditMode`). Run them via `Window > General > Test Runner`
-in the editor, or headless:
+Domain and use case logic (including the modal controller input routing) is
+covered by BDD-style EditMode tests (`Assets/Tests/EditMode`). Run them
+headless — no device needed:
 
 ```sh
-Unity -batchmode -projectPath . -runTests -testPlatform EditMode -logFile -
+./scripts/run-editmode-tests.sh
 ```
+
+The script prints the pass/fail counts and exits non-zero on compile errors
+or failures. The suite is also available interactively via
+`Window > General > Test Runner`.
 
 ## TODO
 
