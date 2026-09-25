@@ -14,6 +14,7 @@ Android platform API, so no offline conversion is needed.
 - [docs/usage](docs/usage/README.md) — how to use the app on the headset
 - [docs/development](docs/development/README.md) — setup, build and verification steps
 - [docs/project](docs/project/README.md) — feature backlog and known issues
+- [schemas](schemas/gmrscore.schema.json) — `gmrscore` JSON format for digitized handwritten tabs (ADR-008)
 
 ## Features
 

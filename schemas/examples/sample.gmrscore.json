@@ -1,0 +1,150 @@
+{
+  "format": "gmrscore",
+  "version": "0.1",
+  "meta": {
+    "title": "Sample Etude",
+    "key": "G",
+    "capo": 2,
+    "tempo": 96,
+    "timeSignature": "4/4",
+    "fidelity": 3
+  },
+  "source": {
+    "file": "sample-etude.pdf",
+    "pages": [
+      { "index": 0, "rotation": 0 },
+      { "index": 1, "rotation": 270 }
+    ]
+  },
+  "chordShapes": {
+    "E-high": { "frets": [0, 0, 1, 2, 2, 0], "comment": "circled stack in the intro" }
+  },
+  "sections": [
+    {
+      "label": "Intro",
+      "measures": [
+        {
+          "id": "m1",
+          "region": { "page": 0, "bbox": [0.05, 0.12, 0.5, 0.24] },
+          "barStart": "repeat-start",
+          "chords": [
+            { "symbol": "C", "beat": 1, "degree": "IV" },
+            { "symbol": "D", "beat": 3, "degree": "V" }
+          ],
+          "beats": [
+            { "duration": { "value": 16 }, "stroke": "down", "notes": [{ "string": 5, "fret": 3 }] },
+            { "duration": { "value": 16 }, "stroke": "up", "notes": [{ "string": 4, "fret": 0, "slur": "hammer-on" }] },
+            { "duration": { "value": 16 }, "stroke": "down", "notes": [{ "string": 4, "fret": 2 }] },
+            { "duration": { "value": 16 }, "stroke": "up", "notes": [{ "string": 3, "fret": 0 }] },
+            { "duration": { "value": 8 }, "stroke": "down", "notes": [{ "string": 6, "dead": true }, { "string": 5, "dead": true }] },
+            { "duration": { "value": 8 }, "rest": true },
+            { "duration": { "value": 4 }, "stroke": "down", "notes": [{ "string": 4, "fret": 0 }, { "string": 3, "fret": 2 }, { "string": 2, "fret": 3 }] },
+            { "duration": { "value": 4 }, "slash": true, "stroke": "down" }
+          ],
+          "review": { "status": "auto", "confidence": 0.62, "comment": "hammer-on origin fret unclear" }
+        },
+        {
+          "id": "m2",
+          "region": { "page": 0, "bbox": [0.5, 0.12, 0.95, 0.24] },
+          "volta": [1],
+          "barEnd": "repeat-end",
+          "repeatTimes": 2,
+          "chords": [{ "symbol": "Em", "degree": "VIm", "shape": "E-high" }],
+          "beats": [
+            { "duration": { "value": 8, "dots": 1 }, "notes": [{ "string": 1, "fret": 0 }, { "string": 2, "fret": 0 }, { "string": 3, "fret": 0 }] },
+            { "duration": { "value": 16 }, "notes": [{ "string": 3, "fret": 0, "tie": true }] },
+            { "duration": { "value": 8, "tuplet": [3, 2] }, "notes": [{ "string": 4, "fret": 2 }] },
+            { "duration": { "value": 8, "tuplet": [3, 2] }, "notes": [{ "string": 4, "fret": 4, "slur": "pull-off" }] },
+            { "duration": { "value": 8, "tuplet": [3, 2] }, "notes": [{ "string": 4, "fret": 2 }] },
+            { "duration": { "value": 2 }, "notes": [{ "string": 6, "fret": 0, "letRing": true }] }
+          ],
+          "review": { "status": "reviewed" }
+        },
+        {
+          "id": "m3",
+          "region": { "page": 0, "bbox": [0.05, 0.26, 0.5, 0.38] },
+          "volta": [2],
+          "barEnd": "double",
+          "chords": [{ "symbol": "Dsus4" }, { "symbol": "D", "beat": 3 }],
+          "beats": [
+            { "duration": { "value": 2 }, "slash": true },
+            { "duration": { "value": 2 }, "slash": true }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "A",
+      "measures": [
+        {
+          "id": "m4",
+          "region": { "page": 0, "bbox": [0.5, 0.26, 0.95, 0.38] },
+          "navigation": ["segno"],
+          "chords": [{ "symbol": "G", "degree": "I" }],
+          "lyrics": [
+            { "verse": 1, "text": "la la la" },
+            { "verse": 2, "text": "lu lu lu" }
+          ],
+          "beats": [
+            { "duration": { "value": 4 }, "slash": true, "stroke": "down" },
+            { "duration": { "value": 4 }, "slash": true, "stroke": "down" },
+            { "duration": { "value": 4 }, "slash": true, "stroke": "down" },
+            { "duration": { "value": 4 }, "slash": true, "stroke": "down" }
+          ]
+        },
+        {
+          "id": "m5",
+          "region": { "page": 0, "bbox": [0.05, 0.4, 0.5, 0.52] },
+          "simile": 1
+        },
+        {
+          "id": "m6",
+          "region": { "page": 0, "bbox": [0.5, 0.4, 0.95, 0.52] },
+          "navigation": ["to-coda"],
+          "chords": [{ "symbol": "Am7", "degree": "IIm7" }, { "symbol": "G/B", "beat": 3 }],
+          "lyrics": [{ "verse": 1, "text": "la la" }]
+        },
+        {
+          "id": "m7",
+          "region": { "page": 0, "bbox": [0.05, 0.54, 0.5, 0.66] },
+          "navigation": ["ds-al-coda"],
+          "barEnd": "double",
+          "chords": [{ "symbol": "N.C." }]
+        }
+      ]
+    },
+    {
+      "label": "Coda",
+      "measures": [
+        {
+          "id": "m8",
+          "region": { "page": 0, "bbox": [0.5, 0.54, 0.95, 0.66] },
+          "navigation": ["coda"],
+          "barEnd": "final",
+          "chords": [{ "symbol": "G" }],
+          "beats": [
+            { "duration": { "value": 1 }, "fermata": true, "notes": [{ "string": 6, "fret": 3 }, { "string": 5, "fret": 2 }, { "string": 1, "fret": 3 }] }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Chord sheet",
+      "lines": [
+        {
+          "region": { "page": 1, "bbox": [0.1, 0.1, 0.45, 0.16] },
+          "segments": [{ "chord": "G", "lyric": "la la la " }, { "chord": "C", "lyric": "la la" }]
+        },
+        {
+          "region": { "page": 1, "bbox": [0.1, 0.17, 0.45, 0.23] },
+          "segments": [{ "chord": "C" }, { "chord": "G/B" }, { "chord": "C" }, { "chord": "Dsus4" }, { "chord": "D" }]
+        }
+      ],
+      "review": { "status": "reviewed" }
+    }
+  ],
+  "annotations": [
+    { "text": "keep the picking wrist loose", "color": "blue", "measure": "m1" },
+    { "text": "accent beat 2 and 4", "color": "red", "region": { "page": 0, "bbox": [0.5, 0.36, 0.95, 0.4] } }
+  ]
+}

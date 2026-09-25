@@ -172,3 +172,35 @@ this picker is now the only way scores enter the app.
 - Should Meta ever reject the permission for store distribution, fall back
   to SAF (option 1) behind the same `IScoreRepository`/`IStoragePermission`
   ports.
+
+## ADR-008: Canonical JSON format (gmrscore) for digitized handwritten tabs
+
+**Status**: Proposed (2026-09-25)
+
+**Context**: The scores used for practice are handwritten tabs scanned to PDF
+(no text layer, mixed page orientation, colored teacher annotations). To
+enable features beyond showing the image (measure highlighting, auto page
+turn, chord charts, playback), they need to be digitized. Recognition of
+handwriting is imperfect, so the data must be reviewable against the scan and
+may be only partially complete. Candidates were MusicXML, Guitar Pro,
+alphaTex, ChordPro and a project-specific JSON format.
+
+**Decision**: Define a project-specific JSON format, `gmrscore`, validated by
+`schemas/gmrscore.schema.json`, as the canonical representation. It stores
+what is written on the page (capo-relative frets and chords, simile signs,
+repeats and navigation in written order), the page region of every measure,
+per-measure confidence/review status, and colored annotations. MusicXML,
+alphaTex and ChordPro are export targets. Full rationale, data model and the
+recognition pipeline outline: [tab-digitization.md](tab-digitization.md).
+
+**Consequences**:
+- Partial fidelity (structure only, or chords and lyrics only) is a valid
+  document, so value is delivered before tab recognition is solved.
+- Page regions let the app map playback position to the PDF it already
+  renders, without re-engraving the score.
+- The schema doubles as the structured-output contract for LLM-based
+  extraction and as the validation gate.
+- We own exporters and a review viewer instead of reusing an editor's
+  native format.
+- Real transcriptions are copyrighted and stay out of the repository; they
+  live next to the PDF as `<name>.gmrscore.json`.
