@@ -12,8 +12,7 @@
   "source": {
     "file": "sample-etude.pdf",
     "pages": [
-      { "index": 0, "rotation": 0 },
-      { "index": 1, "rotation": 270 }
+      { "index": 0, "rotation": 0 }
     ]
   },
   "chordShapes": {
@@ -28,8 +27,8 @@
           "region": { "page": 0, "bbox": [0.05, 0.12, 0.5, 0.24] },
           "barStart": "repeat-start",
           "chords": [
-            { "symbol": "C", "beat": 1, "degree": "IV" },
-            { "symbol": "D", "beat": 3, "degree": "V" }
+            { "symbol": "C", "beat": 1 },
+            { "symbol": "D", "beat": 3 }
           ],
           "beats": [
             { "duration": { "value": 16 }, "stroke": "down", "notes": [{ "string": 5, "fret": 3 }] },
@@ -49,7 +48,7 @@
           "volta": [1],
           "barEnd": "repeat-end",
           "repeatTimes": 2,
-          "chords": [{ "symbol": "Em", "degree": "VIm", "shape": "E-high" }],
+          "chords": [{ "symbol": "Em", "shape": "E-high" }],
           "beats": [
             { "duration": { "value": 8, "dots": 1 }, "notes": [{ "string": 1, "fret": 0 }, { "string": 2, "fret": 0 }, { "string": 3, "fret": 0 }] },
             { "duration": { "value": 16 }, "notes": [{ "string": 3, "fret": 0, "tie": true }] },
@@ -80,11 +79,7 @@
           "id": "m4",
           "region": { "page": 0, "bbox": [0.5, 0.26, 0.95, 0.38] },
           "navigation": ["segno"],
-          "chords": [{ "symbol": "G", "degree": "I" }],
-          "lyrics": [
-            { "verse": 1, "text": "la la la" },
-            { "verse": 2, "text": "lu lu lu" }
-          ],
+          "chords": [{ "symbol": "G" }],
           "beats": [
             { "duration": { "value": 4 }, "slash": true, "stroke": "down" },
             { "duration": { "value": 4 }, "slash": true, "stroke": "down" },
@@ -101,8 +96,7 @@
           "id": "m6",
           "region": { "page": 0, "bbox": [0.5, 0.4, 0.95, 0.52] },
           "navigation": ["to-coda"],
-          "chords": [{ "symbol": "Am7", "degree": "IIm7" }, { "symbol": "G/B", "beat": 3 }],
-          "lyrics": [{ "verse": 1, "text": "la la" }]
+          "chords": [{ "symbol": "Am7" }, { "symbol": "G/B", "beat": 3 }]
         },
         {
           "id": "m7",
@@ -127,24 +121,6 @@
           ]
         }
       ]
-    },
-    {
-      "label": "Chord sheet",
-      "lines": [
-        {
-          "region": { "page": 1, "bbox": [0.1, 0.1, 0.45, 0.16] },
-          "segments": [{ "chord": "G", "lyric": "la la la " }, { "chord": "C", "lyric": "la la" }]
-        },
-        {
-          "region": { "page": 1, "bbox": [0.1, 0.17, 0.45, 0.23] },
-          "segments": [{ "chord": "C" }, { "chord": "G/B" }, { "chord": "C" }, { "chord": "Dsus4" }, { "chord": "D" }]
-        }
-      ],
-      "review": { "status": "reviewed" }
     }
-  ],
-  "annotations": [
-    { "text": "keep the picking wrist loose", "color": "blue", "measure": "m1" },
-    { "text": "accent beat 2 and 4", "color": "red", "region": { "page": 0, "bbox": [0.5, 0.36, 0.95, 0.4] } }
   ]
 }

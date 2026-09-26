@@ -21,11 +21,6 @@
       "type": "array",
       "minItems": 1,
       "items": { "$ref": "#/$defs/section" }
-    },
-    "annotations": {
-      "description": "Free-form notes written on the score (teacher comments in colored pen etc.).",
-      "type": "array",
-      "items": { "$ref": "#/$defs/annotation" }
     }
   },
   "$defs": {
@@ -50,7 +45,7 @@
         "tempo": { "type": "number", "exclusiveMinimum": 0 },
         "timeSignature": { "$ref": "#/$defs/timeSignature" },
         "fidelity": {
-          "description": "Highest level fully captured: 1 = structure/layout, 2 = + chords and lyrics, 3 = + rhythm and tab notes.",
+          "description": "Highest level fully captured: 1 = structure/layout, 2 = + chords, 3 = + rhythm and tab notes.",
           "type": "integer",
           "enum": [1, 2, 3]
         }
@@ -112,43 +107,11 @@
     },
     "section": {
       "type": "object",
-      "required": ["label"],
+      "required": ["label", "measures"],
       "additionalProperties": false,
       "properties": {
         "label": { "description": "Rehearsal mark as written, e.g. \"Intro\", \"A\", \"B\", \"Coda\".", "type": "string" },
         "measures": { "type": "array", "items": { "$ref": "#/$defs/measure" } },
-        "lines": {
-          "description": "Chord-over-lyrics lines for scores without barlines (printed chord sheets).",
-          "type": "array",
-          "items": { "$ref": "#/$defs/chordLine" }
-        },
-        "review": { "$ref": "#/$defs/review" }
-      },
-      "oneOf": [
-        { "required": ["measures"], "not": { "required": ["lines"] } },
-        { "required": ["lines"], "not": { "required": ["measures"] } }
-      ]
-    },
-    "chordLine": {
-      "type": "object",
-      "required": ["segments"],
-      "additionalProperties": false,
-      "properties": {
-        "segments": {
-          "description": "Each segment is a chord change followed by the lyric text sung over it. Either field may be omitted.",
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "minProperties": 1,
-            "properties": {
-              "chord": { "$ref": "#/$defs/chordSymbol" },
-              "lyric": { "type": "string" }
-            }
-          }
-        },
-        "region": { "$ref": "#/$defs/region" },
         "review": { "$ref": "#/$defs/review" }
       }
     },
@@ -194,20 +157,7 @@
             "properties": {
               "symbol": { "$ref": "#/$defs/chordSymbol" },
               "beat": { "description": "1-based beat position in the measure; fractional for off-beats.", "type": "number", "minimum": 1, "default": 1 },
-              "degree": { "description": "Roman numeral analysis if written, e.g. \"IV\", \"VIm\", \"IIIm7\".", "type": "string" },
               "shape": { "description": "Key into chordShapes when a voicing is drawn.", "type": "string" }
-            }
-          }
-        },
-        "lyrics": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["text"],
-            "additionalProperties": false,
-            "properties": {
-              "verse": { "description": "Verse number (the circled 1/2 marks).", "type": "integer", "minimum": 1, "default": 1 },
-              "text": { "type": "string" }
             }
           }
         },
@@ -296,17 +246,6 @@
           "maxItems": 6
         },
         "comment": { "type": "string" }
-      }
-    },
-    "annotation": {
-      "type": "object",
-      "required": ["text"],
-      "additionalProperties": false,
-      "properties": {
-        "text": { "type": "string" },
-        "color": { "enum": ["black", "red", "green", "blue", "other"] },
-        "measure": { "description": "Measure id the note refers to, if any.", "type": "string" },
-        "region": { "$ref": "#/$defs/region" }
       }
     }
   }

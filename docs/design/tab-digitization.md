@@ -17,11 +17,11 @@ Surveyed from three real scores (4, 5 and 7 pages):
 | Paper | Printed staff paper: TAB-only systems, or a 5-line staff (left empty) above a TAB | Staff/bar lines are regular, so layout can be found with classic CV |
 | Tab content | Pencil fret numbers, beams/stems for rhythm, `x` dead notes, `H`/`P`, ties, rests, rhythm slashes, `%` simile signs, circled chord stacks | Rhythm and tab need a per-beat model; simile kept as-is |
 | Structure | Boxed rehearsal marks (Intro, A, B, C, Coda), repeat bars with `2x`/`4回`, 1st/2nd endings, segno, coda, D.S. | Navigation must be modeled to derive playback order |
-| Harmony | Chord names above each measure, often with Roman numeral degrees (`IV`, `VIm`, `IIIm7`) | Chords carry beat position and optional degree |
-| Lyrics | Up to two verses per system, marked with circled 1/2 | Lyrics carry a verse number |
+| Harmony | Chord names above each measure, often with Roman numeral degrees (`IV`, `VIm`, `IIIm7`) | Chords carry a beat position; degrees are out of scope for now (§5) |
+| Lyrics | Up to two verses per system, marked with circled 1/2 | Out of scope for now (§5) |
 | Header | Title, `Capo 4`, `Key = G`, page number | Score-level metadata |
-| Annotations | Teacher comments in red/green/blue pen, strum arrows (↓↑) | Arrows become stroke directions; comments are kept as colored annotations |
-| Other layout | One score is a printed chord-over-lyrics sheet with no barlines | A barline-free "lines" body is needed alongside measures |
+| Annotations | Teacher comments in red/green/blue pen, strum arrows (↓↑) | Arrows become stroke directions; colored ink is filtered out, comments are out of scope for now (§5) |
+| Other layout | One score is a printed chord-over-lyrics sheet with no barlines | Out of scope for now (§5) |
 
 Handwriting recognition will never be perfect, so the format must also be
 able to say **how sure** it is and **where on the page** each element came
@@ -33,9 +33,8 @@ from, so a person can review it quickly against the scan.
    written (simile signs, repeats, capo-relative frets and chord shapes)
    and derive the rest (unrolled playback order, concert pitch).
 2. **Partial fidelity is valid**: a score with only structure, or only
-   chords and lyrics, is a complete, useful document. Chord sheets never go
-   beyond chords.
-3. **Page geometry**: every measure (or line) links to a normalized bounding
+   structure and chords, is a complete, useful document.
+3. **Page geometry**: every measure links to a normalized bounding
    box on the upright page. This powers review side-by-side with the scan and,
    in the app, highlighting the current measure on the PDF and auto page
    turning (backlog item).
@@ -54,7 +53,7 @@ from, so a person can review it quickly against the scan.
 | Guitar Pro (.gp) | Best tab tooling | Proprietary zipped XML; same gaps as MusicXML |
 | alphaTex (alphaTab) | Compact text syntax built for tab; renders and plays in the browser | Niche grammar with a single implementation; no geometry/review metadata; hard to validate outside alphaTab |
 | ChordPro | Perfect for chord-over-lyrics sheets | No measures, rhythm or tab |
-| **Own JSON + JSON Schema** | Carries geometry, confidence, partial fidelity and annotations natively; schema-validated; direct LLM structured-output target; trivial to load in C#/Python | Needs our own viewer; other apps need an exporter (MusicXML, backlog) |
+| **Own JSON + JSON Schema** | Carries geometry, confidence and partial fidelity natively; schema-validated; direct LLM structured-output target; trivial to load in C#/Python | Needs our own viewer; other apps need an exporter (MusicXML, backlog) |
 
 ## 4. Decision
 
@@ -76,22 +75,31 @@ score
 ├── meta          title, key, capo, tuning, tempo, timeSignature, fidelity
 ├── source        pdf file name, sha256, pages[{index, rotation}]
 ├── chordShapes   named voicings drawn on the page (circled stacks)
-├── sections[]    label ("Intro", "A", "Coda", ...), then ONE of:
-│   ├── measures[]  id, region, bars/repeats/volta/navigation, simile,
-│   │               chords[{symbol, beat, degree, shape}],
-│   │               lyrics[{verse, text}],
-│   │               beats[{duration, rest|slash|notes[], stroke}],
-│   │               review{status, confidence, comment}
-│   └── lines[]     chord sheet: segments[{chord, lyric}], region
-└── annotations[] colored free-text comments, anchored to a measure or region
+└── sections[]    label ("Intro", "A", "Coda", ...)
+    └── measures[]  id, region, bars/repeats/volta/navigation, simile,
+                    chords[{symbol, beat, shape}],
+                    beats[{duration, rest|slash|notes[], stroke}],
+                    review{status, confidence, comment}
 ```
+
+### Out of scope for now
+
+Present on the scores but deliberately not modeled or extracted yet. Each
+can be added later as an optional field without breaking existing files.
+
+| Element | Later shape (sketch) |
+| --- | --- |
+| Roman numeral degrees (`IV`, `VIm`) | `chords[].degree` |
+| Lyrics (verses ①②) | `measures[].lyrics[{verse, text}]` |
+| Barline-free printed chord sheets | a `lines[]` section body of `{chord, lyric}` segments |
+| Colored pen comments | top-level `annotations[{text, color, measure/region}]` |
 
 ### Fidelity levels
 
 | Level | Captured | Enables |
 | --- | --- | --- |
 | 1 | Pages, sections, measures with regions, repeats and navigation | Measure highlighting, auto page turn, bar counting |
-| 2 | + chords (with beat positions) and lyrics | Chord charts, practice by section |
+| 2 | + chords (with beat positions) | Chord charts, practice by section |
 | 3 | + rhythm and tab notes per beat | Rendering and audio playback (e.g. via a future MusicXML export) |
 
 `meta.fidelity` states the level the whole score reaches; individual
@@ -132,10 +140,8 @@ measures may go further.
 | `‖:  :‖` with `2x`, `4回` | `barStart`/`barEnd`, `repeatTimes` |
 | 1st/2nd ending brackets | `measure.volta` |
 | 𝄋 / 𝄌 / `D.S.` / `to Coda` | `measure.navigation` |
-| Chord name + Roman numeral | `chords[{symbol, degree}]` |
+| Chord name | `chords[{symbol, beat}]` |
 | Circled vertical fret stack | `chordShapes` entry + `chords[].shape` |
-| Circled ①② lyric lines | `lyrics[{verse}]` |
-| Colored pen comments | `annotations[{text, color}]` |
 
 ## 6. Recognition pipeline (outline)
 
@@ -148,8 +154,7 @@ PDF ──▶ 1. rasterize + orient ──▶ 2. layout ──▶ 3. content ─
 1. **Rasterize and orient** (Python, PyMuPDF): render pages at ~300 dpi and
    pick the rotation whose horizontal projection shows long staff lines.
    Split ink by color: pencil/black stays for recognition, red/green/blue
-   is routed to annotations (also removing teacher comments that overlap
-   the TAB).
+   is dropped so teacher comments overlapping the TAB do not confuse it.
 2. **Layout** (classic CV, deterministic): find staff line groups (5-line
    staff vs 6-line TAB) → systems; vertical bar lines → measures with
    regions; boxed labels → section boundaries. Output is a level-1 skeleton.
@@ -196,5 +201,3 @@ MusicXML export is not on this roadmap; it stays in the backlog
   may gain `voices[]` in a later version.
 - Whether the 5-line staff above the TAB is ever filled in; so far it is
   always empty, so it is not modeled.
-- Lyrics are attached per measure; per-beat syllable alignment is deferred
-  until something (karaoke-style display) needs it.

@@ -27,6 +27,10 @@ project starts taking external contributions.
 - [ ] **MusicXML export for gts**: one-way converter so digitized scores
       open in MuseScore / Guitar Pro and other viewers (level 3 as tab,
       level 2 as chord symbols over slashes). Not needed yet (ADR-008).
+- [ ] **gts: extract more of the page**: Roman numeral degrees, lyrics,
+      barline-free printed chord sheets and colored pen comments are left
+      out of the format for now (sketches in docs/design/tab-digitization.md,
+      "Out of scope for now").
 - [ ] **CI**: run EditMode tests headless on GitHub Actions
       (needs a Unity license secret, e.g. game-ci/unity-test-runner).
 
