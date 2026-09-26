@@ -1,0 +1,164 @@
+{
+  "format": "gts",
+  "version": "0.1",
+  "meta": {
+    "title": "Twinkle, Twinkle, Little Star",
+    "artist": "Traditional",
+    "key": "C",
+    "capo": 0,
+    "tempo": 100,
+    "timeSignature": "4/4",
+    "layers": ["layout", "structure", "chords", "tab"]
+  },
+  "source": {
+    "file": "twinkle-twinkle.pdf",
+    "sha256": "b2e53f69c9c5ebc096a420f01ea44913b748b3c3f67cd31be29877e56312d276",
+    "pages": [{"index": 0, "rotation": 90}]
+  },
+  "sections": [
+    {
+      "label": "A",
+      "measures": [
+        {
+          "id": "m1",
+          "region": {"page": 0, "bbox": [0.0697, 0.0777, 0.2851, 0.2575]},
+          "barStart": "repeat-start",
+          "chords": [{"symbol": "C", "beat": 1}],
+          "beats": [
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 5, "fret": 3}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 5, "fret": 3}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 0}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 0}]}
+          ]
+        },
+        {
+          "id": "m2",
+          "region": {"page": 0, "bbox": [0.2851, 0.0777, 0.4995, 0.2575]},
+          "chords": [{"symbol": "F", "beat": 1}, {"symbol": "C", "beat": 3}],
+          "beats": [
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 2}, "stroke": "down", "notes": [{"string": 3, "fret": 0}]}
+          ]
+        },
+        {
+          "id": "m3",
+          "region": {"page": 0, "bbox": [0.4995, 0.0777, 0.7139, 0.2575]},
+          "chords": [{"symbol": "F", "beat": 1}, {"symbol": "C", "beat": 3}],
+          "beats": [
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 3}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 3}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 2}]}
+          ]
+        },
+        {
+          "id": "m4",
+          "region": {"page": 0, "bbox": [0.7139, 0.0777, 0.9293, 0.2575]},
+          "chords": [{"symbol": "G7", "beat": 1}, {"symbol": "C", "beat": 3}],
+          "beats": [
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 0}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 0}]},
+            {"duration": {"value": 2}, "stroke": "down", "notes": [{"string": 5, "fret": 3}]}
+          ]
+        }
+      ]
+    },
+    {
+      "label": "B",
+      "measures": [
+        {
+          "id": "m5",
+          "region": {"page": 0, "bbox": [0.0697, 0.2575, 0.2846, 0.4376]},
+          "chords": [{"symbol": "C", "beat": 1}, {"symbol": "F", "beat": 3}],
+          "beats": [
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 0}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 0}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 3}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 3}]}
+          ]
+        },
+        {
+          "id": "m6",
+          "region": {"page": 0, "bbox": [0.2846, 0.2575, 0.4995, 0.4376]},
+          "chords": [{"symbol": "C", "beat": 1}, {"symbol": "G7", "beat": 3}],
+          "beats": [
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 2}, "stroke": "down", "notes": [{"string": 4, "fret": 0}]}
+          ]
+        },
+        {
+          "id": "m7",
+          "region": {"page": 0, "bbox": [0.4995, 0.2575, 0.7139, 0.4376]},
+          "chords": [{"symbol": "C", "beat": 1}, {"symbol": "F", "beat": 3}],
+          "beats": [
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 0}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 0}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 3}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 3}]}
+          ]
+        },
+        {
+          "id": "m8",
+          "region": {"page": 0, "bbox": [0.7139, 0.2575, 0.9288, 0.4376]},
+          "chords": [{"symbol": "C", "beat": 1}, {"symbol": "G7", "beat": 3}],
+          "beats": [
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 2}, "stroke": "down", "notes": [{"string": 4, "fret": 0}]}
+          ]
+        }
+      ]
+    },
+    {
+      "label": "A'",
+      "measures": [
+        {
+          "id": "m9",
+          "region": {"page": 0, "bbox": [0.0697, 0.4376, 0.2851, 0.6176]},
+          "chords": [{"symbol": "C", "beat": 1}],
+          "beats": [
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 5, "fret": 3}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 5, "fret": 3}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 0}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 0}]}
+          ]
+        },
+        {
+          "id": "m10",
+          "region": {"page": 0, "bbox": [0.2851, 0.4376, 0.4995, 0.6176]},
+          "chords": [{"symbol": "F", "beat": 1}, {"symbol": "C", "beat": 3}],
+          "beats": [
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 2}, "stroke": "down", "notes": [{"string": 3, "fret": 0}]}
+          ]
+        },
+        {
+          "id": "m11",
+          "region": {"page": 0, "bbox": [0.4995, 0.4376, 0.7139, 0.6176]},
+          "chords": [{"symbol": "F", "beat": 1}, {"symbol": "C", "beat": 3}],
+          "beats": [
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 3}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 3}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 2}]}
+          ]
+        },
+        {
+          "id": "m12",
+          "region": {"page": 0, "bbox": [0.7139, 0.4376, 0.9288, 0.6176]},
+          "barEnd": "repeat-end",
+          "repeatTimes": 2,
+          "chords": [{"symbol": "G7", "beat": 1}, {"symbol": "C", "beat": 3}],
+          "beats": [
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 0}]},
+            {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 0}]},
+            {"duration": {"value": 2}, "stroke": "down", "notes": [{"string": 5, "fret": 3}]}
+          ]
+        }
+      ]
+    }
+  ]
+}

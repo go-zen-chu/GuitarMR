@@ -77,3 +77,25 @@ uv run --group dev pytest
 
 The tests draw synthetic staff paper (rotated, skewed, upside down, with
 stems and colored pen) and also validate the output against the gts schema.
+
+### Public-domain sample
+
+`schemas/examples/twinkle-twinkle.pdf` and `.gts.json` are an end-to-end
+fixture that may be committed: "Twinkle, Twinkle, Little Star" (melody "Ah!
+vous dirai-je, maman", 18th century, public domain) with chords and tab
+written for this project. The gts file holds all four layers; the PDF is
+engraved from it on staff + TAB paper and made to look like a sideways,
+slightly skewed scan with red teacher notes. `tests/test_twinkle.py` checks
+that the committed files agree (PDF hash, 4/4 beat sums) and that
+layoutscan reproduces the stored layout layer and finds every measure where
+it was drawn.
+
+Regenerate both files after changing the engraver or the detector:
+
+```sh
+uv run python tests/make_twinkle_sample.py
+```
+
+The output is deterministic for a given OpenCV version, so an unchanged
+detector leaves the files untouched. Real (copyrighted) scores stay out of
+the repository.

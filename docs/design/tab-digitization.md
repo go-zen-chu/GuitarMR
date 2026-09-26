@@ -68,6 +68,12 @@ single converter without changing this format.
 
 A worked example covering every construct is in
 [`schemas/examples/sample.gts.json`](../../schemas/examples/sample.gts.json).
+A complete real-song example with all four layers is
+[`twinkle-twinkle.gts.json`](../../schemas/examples/twinkle-twinkle.gts.json)
+together with the scanned-looking PDF it describes
+([`twinkle-twinkle.pdf`](../../schemas/examples/twinkle-twinkle.pdf)). The
+melody is public domain, so unlike real transcriptions (§7) it can live in
+the repository and serve as the end-to-end test fixture.
 
 ## 5. Data model
 
