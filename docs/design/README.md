@@ -197,7 +197,7 @@ possible future addition (backlog). Full rationale, data model and the
 recognition pipeline outline: [tab-digitization.md](tab-digitization.md).
 
 **Consequences**:
-- Partial fidelity (structure only, or structure and chords) is a valid
+- Partial data (only some of the layers: layout, structure, chords, tab) is a valid
   document, so value is delivered before tab recognition is solved.
 - Page regions let the app map playback position to the PDF it already
   renders, without re-engraving the score.

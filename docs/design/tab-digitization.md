@@ -32,8 +32,9 @@ from, so a person can review it quickly against the scan.
 1. **Faithful to the page, not to a playback engine**: store what is
    written (simile signs, repeats, capo-relative frets and chord shapes)
    and derive the rest (unrolled playback order, concert pitch).
-2. **Partial fidelity is valid**: a score with only structure, or only
-   structure and chords, is a complete, useful document.
+2. **Partial data is valid**: the data is split into layers (§5) that are
+   extracted independently; a score with only some layers filled is a
+   complete, useful document.
 3. **Page geometry**: every measure links to a normalized bounding
    box on the upright page. This powers review side-by-side with the scan and,
    in the app, highlighting the current measure on the PDF and auto page
@@ -41,7 +42,7 @@ from, so a person can review it quickly against the scan.
 4. **Review metadata**: confidence and review status per measure.
 5. **Machine-friendly**: easy to validate, easy to emit from an LLM with
    structured output, easy to load in Unity (C#) and Python.
-6. **Convertible later**: rich enough (at level 3) that a one-way export
+6. **Convertible later**: rich enough (with the `tab` layer) that a one-way export
    to an established format for rendering and playback in other viewers
    is possible without changing the model.
 
@@ -53,7 +54,7 @@ from, so a person can review it quickly against the scan.
 | Guitar Pro (.gp) | Best tab tooling | Proprietary zipped XML; same gaps as MusicXML |
 | alphaTex (alphaTab) | Compact text syntax built for tab; renders and plays in the browser | Niche grammar with a single implementation; no geometry/review metadata; hard to validate outside alphaTab |
 | ChordPro | Perfect for chord-over-lyrics sheets | No measures, rhythm or tab |
-| **Own JSON + JSON Schema** | Carries geometry, confidence and partial fidelity natively; schema-validated; direct LLM structured-output target; trivial to load in C#/Python | Needs our own viewer; other apps need an exporter (MusicXML, backlog) |
+| **Own JSON + JSON Schema** | Carries geometry, confidence and partial data (layers) natively; schema-validated; direct LLM structured-output target; trivial to load in C#/Python | Needs our own viewer; other apps need an exporter (MusicXML, backlog) |
 
 ## 4. Decision
 
@@ -72,10 +73,10 @@ A worked example covering every construct is in
 
 ```
 score
-├── meta          title, key, capo, tuning, tempo, timeSignature, fidelity
+├── meta          title, key, capo, tuning, tempo, timeSignature, layers
 ├── source        pdf file name, sha256, pages[{index, rotation}]
 ├── chordShapes   named voicings drawn on the page (circled stacks)
-└── sections[]    label ("Intro", "A", "Coda", ...)
+└── sections[]    label ("Intro", "A", "Coda", ...; absent when unknown)
     └── measures[]  id, region, bars/repeats/volta/navigation, simile,
                     chords[{symbol, beat, shape}],
                     beats[{duration, rest|slash|notes[], stroke}],
@@ -94,16 +95,25 @@ can be added later as an optional field without breaking existing files.
 | Barline-free printed chord sheets (skipped pages today) | a `lines[]` section body of `{chord, lyric}` segments |
 | Colored pen comments | top-level `annotations[{text, color, measure/region}]` |
 
-### Fidelity levels
+### Layers
 
-| Level | Captured | Enables |
-| --- | --- | --- |
-| 1 | Pages, sections, measures with regions, repeats and navigation | Measure highlighting, auto page turn, bar counting |
-| 2 | + chords (with beat positions) | Chord charts, practice by section |
-| 3 | + rhythm and tab notes per beat | Rendering and audio playback (e.g. via a future MusicXML export) |
+The data is organized in four layers. Each layer is extracted by its own
+pipeline step and fills its own fields; `meta.layers` lists the layers that
+are filled for the whole score. `layout` is the base every other layer
+attaches to; `structure`, `chords` and `tab` only need `layout`, not each
+other, so they can be built and improved in any order.
 
-`meta.fidelity` states the level the whole score reaches; individual
-measures may go further.
+| Layer | What it captures | gts fields | Extracted by | Expected accuracy | Enables |
+| --- | --- | --- | --- | --- | --- |
+| `layout` | Page orientation, systems, measures and where each sits on the page, in written order | `source.pages[].rotation`, `measures[].id`, `measures[].region` | Classic CV (deterministic) | High; hand-added bar lines and colored ink over bar lines need checking | Measure highlighting in written order, measure counting, crops for review and for the other layers |
+| `structure` | Header info, rehearsal marks, meter, repeats and navigation | `meta.title/key/capo/timeSignature/tempo`, `sections[].label`, `measures[].timeSignature/barStart/barEnd/repeatTimes/volta/navigation/simile` | Vision LLM on system crops | Header and rehearsal marks high; repeat/volta/D.S. spans medium to high | Playback order (unrolled repeats), so the app can follow the metronome and turn pages |
+| `chords` | Chord names and drawn voicings | `measures[].chords[{symbol, beat, shape}]`, `chordShapes` | Vision LLM on measure crops | High for names; beat positions approximate | Chord display for the current measure |
+| `tab` | Rhythm and tab notes | `measures[].beats[]` (durations, rests, slashes, strings/frets, techniques, strokes) | Vision LLM on enlarged measure crops, checked by the validators | Low to medium: a draft to be reviewed | Audio playback, future MusicXML export |
+
+Cross-cutting: `measures[].review` (status, confidence) is written by
+whichever step touched the measure last. Until the `structure` layer is
+filled, `meta.title` falls back to the PDF file name and sections have no
+label.
 
 ### Conventions
 
@@ -148,7 +158,7 @@ measures may go further.
 ```
 PDF ──▶ 1. rasterize + orient ──▶ 2. layout ──▶ 3. content ──▶ 4. validate ──▶ 5. review ──▶ gts.json
                                       │              │                                         │
-                                      └─ level 1 ────┴─ level 2/3                               └─▶ GuitarMR
+                                      └─ layout ─────┴─ structure/chords/tab                     └─▶ GuitarMR
 ```
 
 1. **Rasterize and orient** (Python, PyMuPDF): render pages at ~300 dpi and
@@ -157,12 +167,13 @@ PDF ──▶ 1. rasterize + orient ──▶ 2. layout ──▶ 3. content ─
    is dropped so teacher comments overlapping the TAB do not confuse it.
 2. **Layout** (classic CV, deterministic): find staff line groups (5-line
    staff vs 6-line TAB) → systems; vertical bar lines → measures with
-   regions; boxed labels → section boundaries. Output is a level-1 skeleton.
+   regions. Output is the `layout` layer.
    A page where no system is found (e.g. a printed chord-over-lyrics sheet)
    is logged as a warning with its page index and skipped: it is left out
    of `source.pages` and the rest of the PDF is processed normally.
-3. **Content** (multimodal LLM): per system, send the measure crops plus
-   system context and ask for the measure objects with the JSON Schema as a
+3. **Content** (multimodal LLM): one step per layer (`structure`,
+   `chords`, `tab`). Per system, send the measure crops plus system
+   context and ask for that layer's fields with the JSON Schema as a
    structured-output contract, including per-measure confidence. Handwritten
    OMR engines (e.g. Audiveris) target printed standard notation and do not
    read handwritten TAB, which is why a vision LLM is the pragmatic choice
@@ -186,9 +197,9 @@ check `source.sha256` to detect a replaced PDF).
 ## 8. Roadmap
 
 1. **Format** (this change): schema, example, design.
-2. **Layout extraction**: `tools/tabscan` Python CLI producing level-1
-   skeletons with regions; verify on the surveyed scores.
-3. **Content extraction**: LLM step for levels 2/3 + validators.
+2. **`layout` layer**: `tools/tabscan` Python CLI producing measures with
+   regions; verify on the surveyed scores.
+3. **`structure`, `chords`, `tab` layers**: LLM steps + validators.
 4. **Review tool**: HTML reviewer.
 5. **App integration**: load the sidecar JSON in GuitarMR (Domain model in
    C#), highlight the current measure and turn pages in sync with the

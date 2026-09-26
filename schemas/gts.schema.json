@@ -44,10 +44,11 @@
         },
         "tempo": { "type": "number", "exclusiveMinimum": 0 },
         "timeSignature": { "$ref": "#/$defs/timeSignature" },
-        "fidelity": {
-          "description": "Highest level fully captured: 1 = structure/layout, 2 = + chords, 3 = + rhythm and tab notes.",
-          "type": "integer",
-          "enum": [1, 2, 3]
+        "layers": {
+          "description": "Layers filled for the whole score (see docs/design/tab-digitization.md): layout = measures and page regions, structure = header, sections, repeats and navigation, chords = chord symbols, tab = rhythm and tab notes.",
+          "type": "array",
+          "items": { "enum": ["layout", "structure", "chords", "tab"] },
+          "uniqueItems": true
         }
       }
     },
@@ -107,10 +108,10 @@
     },
     "section": {
       "type": "object",
-      "required": ["label", "measures"],
+      "required": ["measures"],
       "additionalProperties": false,
       "properties": {
-        "label": { "description": "Rehearsal mark as written, e.g. \"Intro\", \"A\", \"B\", \"Coda\".", "type": "string" },
+        "label": { "description": "Rehearsal mark as written, e.g. \"Intro\", \"A\", \"B\", \"Coda\". Absent until the structure layer is filled or when the section is unmarked.", "type": "string" },
         "measures": { "type": "array", "items": { "$ref": "#/$defs/measure" } },
         "review": { "$ref": "#/$defs/review" }
       }
@@ -162,7 +163,7 @@
           }
         },
         "beats": {
-          "description": "Rhythm and tab content (fidelity 3), a single voice in time order.",
+          "description": "Rhythm and tab content (tab layer), a single voice in time order.",
           "type": "array",
           "items": { "$ref": "#/$defs/beat" }
         },

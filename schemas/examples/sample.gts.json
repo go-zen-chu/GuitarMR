@@ -7,7 +7,7 @@
     "capo": 2,
     "tempo": 96,
     "timeSignature": "4/4",
-    "fidelity": 3
+    "layers": ["layout", "structure", "chords", "tab"]
   },
   "source": {
     "file": "sample-etude.pdf",
