@@ -91,7 +91,7 @@ can be added later as an optional field without breaking existing files.
 | Element | Later shape (sketch) |
 | --- | --- |
 | Roman numeral degrees (`IV`, `VIm`) | `chords[].degree` |
-| Lyrics (verses ①②) | `measures[].lyrics[{verse, text}]` |
+| Lyrics (verses ①②) | a `lyrics` layer: `measures[].lyrics[{verse, text}]`, private files only (backlog) |
 | Barline-free printed chord sheets (skipped pages today) | a `lines[]` section body of `{chord, lyric}` segments |
 | Colored pen comments | top-level `annotations[{text, color, measure/region}]` |
 
