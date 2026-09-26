@@ -42,8 +42,9 @@ from, so a person can review it quickly against the scan.
 4. **Review metadata**: confidence and review status per measure.
 5. **Machine-friendly**: easy to validate, easy to emit from an LLM with
    structured output, easy to load in Unity (C#) and Python.
-6. **Exportable** to established formats for rendering, playback and
-   sharing.
+6. **Convertible later**: rich enough (at level 3) that a one-way export
+   to an established format for rendering and playback in other viewers
+   is possible without changing the model.
 
 ## 3. Options considered
 
@@ -53,18 +54,17 @@ from, so a person can review it quickly against the scan.
 | Guitar Pro (.gp) | Best tab tooling | Proprietary zipped XML; same gaps as MusicXML |
 | alphaTex (alphaTab) | Compact text syntax built for tab; renders and plays in the browser | Niche grammar with a single implementation; no geometry/review metadata; hard to validate outside alphaTab |
 | ChordPro | Perfect for chord-over-lyrics sheets | No measures, rhythm or tab |
-| **Own JSON + JSON Schema** | Carries geometry, confidence, partial fidelity and annotations natively; schema-validated; direct LLM structured-output target; trivial to load in C#/Python | Needs our own exporters and viewer |
+| **Own JSON + JSON Schema** | Carries geometry, confidence, partial fidelity and annotations natively; schema-validated; direct LLM structured-output target; trivial to load in C#/Python | Needs our own viewer; other apps need an exporter (MusicXML, backlog) |
 
 ## 4. Decision
 
 Use a project-specific JSON format, **gts** (Guitar Tab Score), as the
 canonical representation, defined by [`schemas/gts.schema.json`](../../schemas/gts.schema.json)
-(JSON Schema 2020-12). Established formats are **export targets**, not the
-source of truth:
-
-- MusicXML → MuseScore / Guitar Pro for engraving and audio playback
-- alphaTex → browser rendering in the review tool
-- ChordPro → chord sheets
+(JSON Schema 2020-12). No established format is used as the source of
+truth, and no exporter is built for now. A one-way **MusicXML export** (to
+view and play scores in MuseScore, Guitar Pro and other viewers) is a
+possible future addition and is tracked in the backlog; it would live in a
+single converter without changing this format.
 
 A worked example covering every construct is in
 [`schemas/examples/sample.gts.json`](../../schemas/examples/sample.gts.json).
@@ -91,8 +91,8 @@ score
 | Level | Captured | Enables |
 | --- | --- | --- |
 | 1 | Pages, sections, measures with regions, repeats and navigation | Measure highlighting, auto page turn, bar counting |
-| 2 | + chords (with beat positions) and lyrics | Chord charts, ChordPro export, practice by section |
-| 3 | + rhythm and tab notes per beat | MusicXML/alphaTex export, rendering, audio playback |
+| 2 | + chords (with beat positions) and lyrics | Chord charts, practice by section |
+| 3 | + rhythm and tab notes per beat | Rendering and audio playback (e.g. via a future MusicXML export) |
 
 `meta.fidelity` states the level the whole score reaches; individual
 measures may go further.
@@ -111,7 +111,7 @@ measures may go further.
   order. Playback order is derived by expanding `repeat-start`/`repeat-end`
   with `repeatTimes`, `volta`, and `segno`/`to-coda`/`ds-al-coda`/`coda`.
 - **Simile** (`%`) measures keep `simile: 1|2` and no content of their own;
-  exporters expand them.
+  consumers (playback order, a future exporter) expand them.
 - **Regions** are `[x0, y0, x1, y1]` normalized to 0..1 on the page after
   applying `source.pages[].rotation`, independent of render resolution.
 
@@ -142,7 +142,7 @@ measures may go further.
 ```
 PDF ──▶ 1. rasterize + orient ──▶ 2. layout ──▶ 3. content ──▶ 4. validate ──▶ 5. review ──▶ gts.json
                                       │              │                                         │
-                                      └─ level 1 ────┴─ level 2/3                               └─▶ exporters / GuitarMR
+                                      └─ level 1 ────┴─ level 2/3                               └─▶ GuitarMR
 ```
 
 1. **Rasterize and orient** (Python, PyMuPDF): render pages at ~300 dpi and
@@ -164,8 +164,8 @@ PDF ──▶ 1. rasterize + orient ──▶ 2. layout ──▶ 3. content ─
    balance, unique measure ids. Failures mark the measure
    `needs-attention` and can be retried with the error fed back.
 5. **Review**: a static HTML tool that shows each measure crop next to its
-   rendering (via the alphaTex export), sorted by lowest confidence, and
-   edits the JSON in place.
+   extracted content, sorted by lowest confidence, and edits the JSON in
+   place.
 
 ## 7. Storage and copyright
 
@@ -181,10 +181,13 @@ check `source.sha256` to detect a replaced PDF).
 2. **Layout extraction**: `tools/tabscan` Python CLI producing level-1
    skeletons with regions; verify on the surveyed scores.
 3. **Content extraction**: LLM step for levels 2/3 + validators.
-4. **Review tool and exporters**: HTML reviewer, alphaTex/MusicXML/ChordPro.
+4. **Review tool**: HTML reviewer.
 5. **App integration**: load the sidecar JSON in GuitarMR (Domain model in
    C#), highlight the current measure and turn pages in sync with the
    metronome.
+
+MusicXML export is not on this roadmap; it stays in the backlog
+(docs/project) until viewing scores in other apps becomes a need.
 
 ## 9. Open questions
 

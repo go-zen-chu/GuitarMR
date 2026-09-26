@@ -22,8 +22,11 @@ project starts taking external contributions.
 - [ ] **A-B loop count-in**: count-in bar before the metronome starts.
 - [ ] **Handwritten tab digitization** (ADR-008, docs/design/tab-digitization.md):
       format defined; next are the layout extractor (level 1), LLM content
-      extraction (levels 2/3), the review tool/exporters, and loading the
-      sidecar `.gts.json` in the app.
+      extraction (levels 2/3), the review tool, and loading the sidecar
+      `.gts.json` in the app.
+- [ ] **MusicXML export for gts**: one-way converter so digitized scores
+      open in MuseScore / Guitar Pro and other viewers (level 3 as tab,
+      level 2 as chord symbols over slashes). Not needed yet (ADR-008).
 - [ ] **CI**: run EditMode tests headless on GitHub Actions
       (needs a Unity license secret, e.g. game-ci/unity-test-runner).
 

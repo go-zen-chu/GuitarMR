@@ -190,8 +190,9 @@ Score), validated by `schemas/gts.schema.json`, as the canonical
 representation. It stores
 what is written on the page (capo-relative frets and chords, simile signs,
 repeats and navigation in written order), the page region of every measure,
-per-measure confidence/review status, and colored annotations. MusicXML,
-alphaTex and ChordPro are export targets. Full rationale, data model and the
+per-measure confidence/review status, and colored annotations. No
+exporter is built for now; a one-way MusicXML export for other viewers is a
+possible future addition (backlog). Full rationale, data model and the
 recognition pipeline outline: [tab-digitization.md](tab-digitization.md).
 
 **Consequences**:
@@ -201,7 +202,8 @@ recognition pipeline outline: [tab-digitization.md](tab-digitization.md).
   renders, without re-engraving the score.
 - The schema doubles as the structured-output contract for LLM-based
   extraction and as the validation gate.
-- We own exporters and a review viewer instead of reusing an editor's
-  native format.
+- We own the review viewer instead of reusing an editor's native format;
+  until a MusicXML exporter exists, the data is not viewable in other
+  apps.
 - Real transcriptions are copyrighted and stay out of the repository; they
   live next to the PDF as `<name>.gts.json`.
