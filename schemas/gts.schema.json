@@ -82,7 +82,7 @@
       "pattern": "^[0-9]{1,2}/(1|2|4|8|16|32)$"
     },
     "region": {
-      "description": "Where an element sits on the upright page; bbox is [x0, y0, x1, y1] normalized to 0..1 from the top-left corner.",
+      "description": "Where an element sits on the upright page; bbox is [x0, y0, x1, y1] normalized to 0..1 from the top-left corner. For a measure it spans its bar lines horizontally and its system's band vertically (including chord names above and rhythm/lyrics below the staves).",
       "type": "object",
       "required": ["page", "bbox"],
       "additionalProperties": false,

@@ -15,6 +15,7 @@ Android platform API, so no offline conversion is needed.
 - [docs/development](docs/development/README.md) — setup, build and verification steps
 - [docs/project](docs/project/README.md) — feature backlog and known issues
 - [schemas](schemas/gts.schema.json) — `gts` (Guitar Tab Score) JSON format for digitized handwritten tabs (ADR-008)
+- [tools/layoutscan](tools/layoutscan/README.md) — extracts measure layout from scanned score PDFs into gts
 
 ## Features
 

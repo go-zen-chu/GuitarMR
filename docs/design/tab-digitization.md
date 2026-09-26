@@ -167,7 +167,8 @@ PDF ──▶ 1. rasterize + orient ──▶ 2. layout ──▶ 3. content ─
    is dropped so teacher comments overlapping the TAB do not confuse it.
 2. **Layout** (classic CV, deterministic): find staff line groups (5-line
    staff vs 6-line TAB) → systems; vertical bar lines → measures with
-   regions. Output is the `layout` layer.
+   regions. Output is the `layout` layer. Implemented by
+   [`tools/layoutscan`](../../tools/layoutscan/README.md).
    A page where no system is found (e.g. a printed chord-over-lyrics sheet)
    is logged as a warning with its page index and skipped: it is left out
    of `source.pages` and the rest of the PDF is processed normally.
@@ -197,8 +198,9 @@ check `source.sha256` to detect a replaced PDF).
 ## 8. Roadmap
 
 1. **Format** (this change): schema, example, design.
-2. **`layout` layer**: `tools/tabscan` Python CLI producing measures with
-   regions; verify on the surveyed scores.
+2. **`layout` layer** (done): [`tools/layoutscan`](../../tools/layoutscan/README.md)
+   Python CLI producing measures with regions; all systems and all but one
+   measure of the surveyed scores are found (details in its README).
 3. **`structure`, `chords`, `tab` layers**: LLM steps + validators.
 4. **Review tool**: HTML reviewer.
 5. **App integration**: load the sidecar JSON in GuitarMR (Domain model in

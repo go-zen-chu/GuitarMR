@@ -21,9 +21,9 @@ project starts taking external contributions.
       structured logs first, UI later).
 - [ ] **A-B loop count-in**: count-in bar before the metronome starts.
 - [ ] **Handwritten tab digitization** (ADR-008, docs/design/tab-digitization.md):
-      format defined; next are the `layout` layer extractor, LLM
-      extraction of the `structure`/`chords`/`tab` layers, the review tool, and loading the sidecar
-      `.gts.json` in the app.
+      format and the `layout` layer extractor (tools/layoutscan) done; next
+      are LLM extraction of the `structure`/`chords`/`tab` layers, the review
+      tool, and loading the sidecar `.gts.json` in the app.
 - [ ] **MusicXML export for gts**: one-way converter so digitized scores
       open in MuseScore / Guitar Pro and other viewers (the `tab` layer as
       tab, otherwise chord symbols over slashes). Not needed yet (ADR-008).

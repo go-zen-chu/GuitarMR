@@ -37,3 +37,10 @@ sysinfo.txt
 *.aab
 *.unitypackage
 *.app
+
+# Python tools (tools/*)
+.venv/
+__pycache__/
+.pytest_cache/
+*.gts.json
+!schemas/examples/*.gts.json
