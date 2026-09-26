@@ -57,8 +57,8 @@ from, so a person can review it quickly against the scan.
 
 ## 4. Decision
 
-Use a project-specific JSON format, **gmrscore**, as the canonical
-representation, defined by [`schemas/gmrscore.schema.json`](../../schemas/gmrscore.schema.json)
+Use a project-specific JSON format, **gts** (Guitar Tab Score), as the
+canonical representation, defined by [`schemas/gts.schema.json`](../../schemas/gts.schema.json)
 (JSON Schema 2020-12). Established formats are **export targets**, not the
 source of truth:
 
@@ -67,7 +67,7 @@ source of truth:
 - ChordPro → chord sheets
 
 A worked example covering every construct is in
-[`schemas/examples/sample.gmrscore.json`](../../schemas/examples/sample.gmrscore.json).
+[`schemas/examples/sample.gts.json`](../../schemas/examples/sample.gts.json).
 
 ## 5. Data model
 
@@ -117,7 +117,7 @@ measures may go further.
 
 ### Mapping handwritten marks to fields
 
-| On the page | gmrscore |
+| On the page | gts |
 | --- | --- |
 | Boxed `A`, `Intro` | `sections[].label` |
 | Fret number on TAB line | `notes[{string, fret}]` |
@@ -140,7 +140,7 @@ measures may go further.
 ## 6. Recognition pipeline (outline)
 
 ```
-PDF ──▶ 1. rasterize + orient ──▶ 2. layout ──▶ 3. content ──▶ 4. validate ──▶ 5. review ──▶ gmrscore.json
+PDF ──▶ 1. rasterize + orient ──▶ 2. layout ──▶ 3. content ──▶ 4. validate ──▶ 5. review ──▶ gts.json
                                       │              │                                         │
                                       └─ level 1 ────┴─ level 2/3                               └─▶ exporters / GuitarMR
 ```
@@ -171,7 +171,7 @@ PDF ──▶ 1. rasterize + orient ──▶ 2. layout ──▶ 3. content ─
 
 The scores are copyrighted songs. Real transcriptions (and their PDFs) stay
 out of this repository; only the schema, tools and synthetic examples live
-here. The planned convention is to keep `song.gmrscore.json` next to
+here. The planned convention is to keep `song.gts.json` next to
 `song.pdf`, so the app's picker can find the data for a selected PDF (and
 check `source.sha256` to detect a replaced PDF).
 

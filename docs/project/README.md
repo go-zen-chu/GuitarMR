@@ -23,7 +23,7 @@ project starts taking external contributions.
 - [ ] **Handwritten tab digitization** (ADR-008, docs/design/tab-digitization.md):
       format defined; next are the layout extractor (level 1), LLM content
       extraction (levels 2/3), the review tool/exporters, and loading the
-      sidecar `.gmrscore.json` in the app.
+      sidecar `.gts.json` in the app.
 - [ ] **CI**: run EditMode tests headless on GitHub Actions
       (needs a Unity license secret, e.g. game-ci/unity-test-runner).
 

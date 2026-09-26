@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/go-zen-chu/GuitarMR/schemas/gmrscore.schema.json",
-  "title": "GuitarMR score (gmrscore)",
+  "$id": "https://github.com/go-zen-chu/GuitarMR/schemas/gts.schema.json",
+  "title": "Guitar Tab Score (gts)",
   "description": "Structured digitization of a (handwritten) guitar score PDF. See docs/design/tab-digitization.md for the design rationale.",
   "type": "object",
   "required": ["format", "version", "meta", "source", "sections"],
   "additionalProperties": false,
   "properties": {
-    "format": { "const": "gmrscore" },
+    "format": { "const": "gts" },
     "version": { "const": "0.1" },
     "meta": { "$ref": "#/$defs/meta" },
     "source": { "$ref": "#/$defs/source" },

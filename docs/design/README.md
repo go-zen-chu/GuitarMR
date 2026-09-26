@@ -173,7 +173,7 @@ this picker is now the only way scores enter the app.
   to SAF (option 1) behind the same `IScoreRepository`/`IStoragePermission`
   ports.
 
-## ADR-008: Canonical JSON format (gmrscore) for digitized handwritten tabs
+## ADR-008: Canonical JSON format (gts, Guitar Tab Score) for digitized handwritten tabs
 
 **Status**: Proposed (2026-09-25)
 
@@ -185,8 +185,9 @@ handwriting is imperfect, so the data must be reviewable against the scan and
 may be only partially complete. Candidates were MusicXML, Guitar Pro,
 alphaTex, ChordPro and a project-specific JSON format.
 
-**Decision**: Define a project-specific JSON format, `gmrscore`, validated by
-`schemas/gmrscore.schema.json`, as the canonical representation. It stores
+**Decision**: Define a project-specific JSON format, `gts` (Guitar Tab
+Score), validated by `schemas/gts.schema.json`, as the canonical
+representation. It stores
 what is written on the page (capo-relative frets and chords, simile signs,
 repeats and navigation in written order), the page region of every measure,
 per-measure confidence/review status, and colored annotations. MusicXML,
@@ -203,4 +204,4 @@ recognition pipeline outline: [tab-digitization.md](tab-digitization.md).
 - We own exporters and a review viewer instead of reusing an editor's
   native format.
 - Real transcriptions are copyrighted and stay out of the repository; they
-  live next to the PDF as `<name>.gmrscore.json`.
+  live next to the PDF as `<name>.gts.json`.
