@@ -21,7 +21,7 @@ Surveyed from three real scores (4, 5 and 7 pages):
 | Lyrics | Up to two verses per system, marked with circled 1/2 | Out of scope for now (§5) |
 | Header | Title, `Capo 4`, `Key = G`, page number | Score-level metadata |
 | Annotations | Teacher comments in red/green/blue pen, strum arrows (↓↑) | Arrows become stroke directions; colored ink is filtered out, comments are out of scope for now (§5) |
-| Other layout | One score is a printed chord-over-lyrics sheet with no barlines | Out of scope for now (§5) |
+| Other layout | One score opens with a printed chord-over-lyrics page with no staves (its remaining pages are regular staff + TAB) | Out of scope for now (§5); pages without systems are logged and skipped (§6) |
 
 Handwriting recognition will never be perfect, so the format must also be
 able to say **how sure** it is and **where on the page** each element came
@@ -91,7 +91,7 @@ can be added later as an optional field without breaking existing files.
 | --- | --- |
 | Roman numeral degrees (`IV`, `VIm`) | `chords[].degree` |
 | Lyrics (verses ①②) | `measures[].lyrics[{verse, text}]` |
-| Barline-free printed chord sheets | a `lines[]` section body of `{chord, lyric}` segments |
+| Barline-free printed chord sheets (skipped pages today) | a `lines[]` section body of `{chord, lyric}` segments |
 | Colored pen comments | top-level `annotations[{text, color, measure/region}]` |
 
 ### Fidelity levels
@@ -158,6 +158,9 @@ PDF ──▶ 1. rasterize + orient ──▶ 2. layout ──▶ 3. content ─
 2. **Layout** (classic CV, deterministic): find staff line groups (5-line
    staff vs 6-line TAB) → systems; vertical bar lines → measures with
    regions; boxed labels → section boundaries. Output is a level-1 skeleton.
+   A page where no system is found (e.g. a printed chord-over-lyrics sheet)
+   is logged as a warning with its page index and skipped: it is left out
+   of `source.pages` and the rest of the PDF is processed normally.
 3. **Content** (multimodal LLM): per system, send the measure crops plus
    system context and ask for the measure objects with the JSON Schema as a
    structured-output contract, including per-measure confidence. Handwritten
