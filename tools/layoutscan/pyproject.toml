@@ -17,6 +17,7 @@ layoutscan = "layoutscan.cli:main"
 dev = [
     "pytest>=8",
     "jsonschema>=4.21",
+    "pillow>=10",
 ]
 
 [build-system]

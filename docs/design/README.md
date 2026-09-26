@@ -190,14 +190,15 @@ Score), validated by `schemas/gts.schema.json`, as the canonical
 representation. It stores
 what is written on the page (capo-relative frets and chords, simile signs,
 repeats and navigation in written order), the page region of every measure,
-and per-measure confidence/review status. Degrees, lyrics, barline-free
-chord sheets and colored pen comments are out of scope for now. No
+per-measure confidence/review status and, for personal use, lyrics per
+verse. Degrees, barline-free chord sheets and colored pen comments are out
+of scope for now. No
 exporter is built for now; a one-way MusicXML export for other viewers is a
 possible future addition (backlog). Full rationale, data model and the
 recognition pipeline outline: [tab-digitization.md](tab-digitization.md).
 
 **Consequences**:
-- Partial data (only some of the layers: layout, structure, chords, tab) is a valid
+- Partial data (only some of the layers: layout, structure, chords, tab, lyrics) is a valid
   document, so value is delivered before tab recognition is solved.
 - Page regions let the app map playback position to the PDF it already
   renders, without re-engraving the score.

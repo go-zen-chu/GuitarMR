@@ -18,7 +18,7 @@ Surveyed from three real scores (4, 5 and 7 pages):
 | Tab content | Pencil fret numbers, beams/stems for rhythm, `x` dead notes, `H`/`P`, ties, rests, rhythm slashes, `%` simile signs, circled chord stacks | Rhythm and tab need a per-beat model; simile kept as-is |
 | Structure | Boxed rehearsal marks (Intro, A, B, C, Coda), repeat bars with `2x`/`4回`, 1st/2nd endings, segno, coda, D.S. | Navigation must be modeled to derive playback order |
 | Harmony | Chord names above each measure, often with Roman numeral degrees (`IV`, `VIm`, `IIIm7`) | Chords carry a beat position; degrees are out of scope for now (§5) |
-| Lyrics | Up to two verses per system, marked with circled 1/2 | Out of scope for now (§5) |
+| Lyrics | Up to two verses per system, marked with circled 1/2, written inside the empty standard staff | A `lyrics` layer with a verse number per entry (§5); private files only |
 | Header | Title, `Capo 4`, `Key = G`, page number | Score-level metadata |
 | Annotations | Teacher comments in red/green/blue pen, strum arrows (↓↑) | Arrows become stroke directions; colored ink is filtered out, comments are out of scope for now (§5) |
 | Other layout | One score opens with a printed chord-over-lyrics page with no staves (its remaining pages are regular staff + TAB) | Out of scope for now (§5); pages without systems are logged and skipped (§6) |
@@ -68,12 +68,18 @@ single converter without changing this format.
 
 A worked example covering every construct is in
 [`schemas/examples/sample.gts.json`](../../schemas/examples/sample.gts.json).
-A complete real-song example with all four layers is
-[`twinkle-twinkle.gts.json`](../../schemas/examples/twinkle-twinkle.gts.json)
-together with the scanned-looking PDF it describes
-([`twinkle-twinkle.pdf`](../../schemas/examples/twinkle-twinkle.pdf)). The
-melody is public domain, so unlike real transcriptions (§7) it can live in
-the repository and serve as the end-to-end test fixture.
+Complete real-song examples, each with the scanned-looking PDF it
+describes, are the end-to-end test fixtures. Their melodies and lyrics are
+public domain, so unlike real transcriptions (§7) they can live in the
+repository:
+
+- [`twinkle-twinkle`](../../schemas/examples/twinkle-twinkle.gts.json)
+  ([PDF](../../schemas/examples/twinkle-twinkle.pdf)): layout, structure,
+  chords and tab; one page scanned sideways.
+- [`sakura-sakura`](../../schemas/examples/sakura-sakura.gts.json)
+  ([PDF](../../schemas/examples/sakura-sakura.pdf)): all five layers with
+  two verses of Japanese lyrics, 1st/2nd endings, slash/sus4/M7/m7-5
+  chords and off-beat chord changes; two pages, the second upside down.
 
 ## 5. Data model
 
@@ -85,6 +91,7 @@ score
 └── sections[]    label ("Intro", "A", "Coda", ...; absent when unknown)
     └── measures[]  id, region, bars/repeats/volta/navigation, simile,
                     chords[{symbol, beat, shape}],
+                    lyrics[{verse, text}],
                     beats[{duration, rest|slash|notes[], stroke}],
                     review{status, confidence, comment}
 ```
@@ -97,17 +104,16 @@ can be added later as an optional field without breaking existing files.
 | Element | Later shape (sketch) |
 | --- | --- |
 | Roman numeral degrees (`IV`, `VIm`) | `chords[].degree` |
-| Lyrics (verses ①②) | a `lyrics` layer: `measures[].lyrics[{verse, text}]`, private files only (backlog) |
 | Barline-free printed chord sheets (skipped pages today) | a `lines[]` section body of `{chord, lyric}` segments |
 | Colored pen comments | top-level `annotations[{text, color, measure/region}]` |
 
 ### Layers
 
-The data is organized in four layers. Each layer is extracted by its own
+The data is organized in five layers. Each layer is extracted by its own
 pipeline step and fills its own fields; `meta.layers` lists the layers that
 are filled for the whole score. `layout` is the base every other layer
-attaches to; `structure`, `chords` and `tab` only need `layout`, not each
-other, so they can be built and improved in any order.
+attaches to; `structure`, `chords`, `tab` and `lyrics` only need `layout`,
+not each other, so they can be built and improved in any order.
 
 | Layer | What it captures | gts fields | Extracted by | Expected accuracy | Enables |
 | --- | --- | --- | --- | --- | --- |
@@ -115,6 +121,7 @@ other, so they can be built and improved in any order.
 | `structure` | Header info, rehearsal marks, meter, repeats and navigation | `meta.title/key/capo/timeSignature/tempo`, `sections[].label`, `measures[].timeSignature/barStart/barEnd/repeatTimes/volta/navigation/simile` | Vision LLM on system crops | Header and rehearsal marks high; repeat/volta/D.S. spans medium to high | Playback order (unrolled repeats), so the app can follow the metronome and turn pages |
 | `chords` | Chord names and drawn voicings | `measures[].chords[{symbol, beat, shape}]`, `chordShapes` | Vision LLM on measure crops | High for names; beat positions approximate | Chord display for the current measure |
 | `tab` | Rhythm and tab notes | `measures[].beats[]` (durations, rests, slashes, strings/frets, techniques, strokes) | Vision LLM on enlarged measure crops, checked by the validators | Low to medium: a draft to be reviewed | Audio playback, future MusicXML export |
+| `lyrics` | Lyric text per measure and verse (personal use only) | `measures[].lyrics[{verse, text}]` | Pasted lyrics text aligned to measure crops by a vision LLM; reading the handwriting is the fallback (backlog) | High when aligning known text; medium when read from handwriting | Lyrics display for the current measure |
 
 Cross-cutting: `measures[].review` (status, confidence) is written by
 whichever step touched the measure last. Until the `structure` layer is
@@ -157,6 +164,7 @@ label.
 | 1st/2nd ending brackets | `measure.volta` |
 | 𝄋 / 𝄌 / `D.S.` / `to Coda` | `measure.navigation` |
 | Chord name | `chords[{symbol, beat}]` |
+| Lyric lines inside the staff, circled ①② | `lyrics[{verse, text}]` |
 | Circled vertical fret stack | `chordShapes` entry + `chords[].shape` |
 
 ## 6. Recognition pipeline (outline)

@@ -45,9 +45,9 @@
         "tempo": { "type": "number", "exclusiveMinimum": 0 },
         "timeSignature": { "$ref": "#/$defs/timeSignature" },
         "layers": {
-          "description": "Layers filled for the whole score (see docs/design/tab-digitization.md): layout = measures and page regions, structure = header, sections, repeats and navigation, chords = chord symbols, tab = rhythm and tab notes.",
+          "description": "Layers filled for the whole score (see docs/design/tab-digitization.md): layout = measures and page regions, structure = header, sections, repeats and navigation, chords = chord symbols, tab = rhythm and tab notes, lyrics = lyric text per measure and verse.",
           "type": "array",
-          "items": { "enum": ["layout", "structure", "chords", "tab"] },
+          "items": { "enum": ["layout", "structure", "chords", "tab", "lyrics"] },
           "uniqueItems": true
         }
       }
@@ -159,6 +159,19 @@
               "symbol": { "$ref": "#/$defs/chordSymbol" },
               "beat": { "description": "1-based beat position in the measure; fractional for off-beats.", "type": "number", "minimum": 1, "default": 1 },
               "shape": { "description": "Key into chordShapes when a voicing is drawn.", "type": "string" }
+            }
+          }
+        },
+        "lyrics": {
+          "description": "Lyrics sung in this measure (lyrics layer), one entry per verse. Lyrics are copyrighted for most songs: keep such files private.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["verse", "text"],
+            "additionalProperties": false,
+            "properties": {
+              "verse": { "description": "Verse number (the circled 1/2 marks).", "type": "integer", "minimum": 1 },
+              "text": { "type": "string", "minLength": 1 }
             }
           }
         },

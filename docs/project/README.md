@@ -27,12 +27,12 @@ project starts taking external contributions.
 - [ ] **MusicXML export for gts**: one-way converter so digitized scores
       open in MuseScore / Guitar Pro and other viewers (the `tab` layer as
       tab, otherwise chord symbols over slashes). Not needed yet (ADR-008).
-- [ ] **gts: `lyrics` layer** (personal use only): add
-      `measures[].lyrics[{verse, text}]` and `lyrics` to `meta.layers`,
-      depending only on `layout`. Preferred input: paste the correct lyrics
-      text and let an LLM assign lines to measures by looking at the measure
-      crops (no handwriting OCR); reading lyrics from the scan is the
-      fallback. Lyrics are copyrighted: fine as a private sidecar
+- [ ] **gts: `lyrics` layer extraction** (personal use only): the format
+      is done (`measures[].lyrics[{verse, text}]`, see the sakura-sakura
+      sample); the extraction tool is not. Preferred input: paste the
+      correct lyrics text and let an LLM assign lines to measures by
+      looking at the measure crops (no handwriting OCR); reading lyrics from
+      the scan is the fallback. Lyrics are copyrighted: fine as a private sidecar
       `.gts.json` next to the PDF, never committed or shared (`*.gts.json`
       is git-ignored).
 - [ ] **gts: extract more of the page**: Roman numeral degrees,

@@ -78,24 +78,35 @@ uv run --group dev pytest
 The tests draw synthetic staff paper (rotated, skewed, upside down, with
 stems and colored pen) and also validate the output against the gts schema.
 
-### Public-domain sample
+### Public-domain samples
 
-`schemas/examples/twinkle-twinkle.pdf` and `.gts.json` are an end-to-end
-fixture that may be committed: "Twinkle, Twinkle, Little Star" (melody "Ah!
-vous dirai-je, maman", 18th century, public domain) with chords and tab
-written for this project. The gts file holds all four layers; the PDF is
-engraved from it on staff + TAB paper and made to look like a sideways,
-slightly skewed scan with red teacher notes. `tests/test_twinkle.py` checks
-that the committed files agree (PDF hash, 4/4 beat sums) and that
-layoutscan reproduces the stored layout layer and finds every measure where
-it was drawn.
+`schemas/examples/*.pdf` and their `.gts.json` files are end-to-end
+fixtures that may be committed: the melodies and lyrics are public domain,
+the chords and tab are written for this project.
 
-Regenerate both files after changing the engraver or the detector:
+| Sample | Layers | What it exercises |
+| --- | --- | --- |
+| `twinkle-twinkle` ("Ah! vous dirai-je, maman", 18th c.) | layout, structure, chords, tab | one page scanned sideways (90°), repeat of the whole song, red teacher notes |
+| `sakura-sakura` (さくらさくら, Japanese traditional; verse 2 is the 1941 text) | all five, incl. lyrics | two pages (upright, then upside down), two verses of Japanese lyrics inside the staff, 1st/2nd endings, final bar line, a 3-measure last system, minor key, slash/sus4/M7/m7-5 chords, four chords in one measure, an off-beat change, rests, a six-string chord with fermata, Japanese red/green/blue pen notes |
+
+Each gts file holds every layer it lists; the PDF is engraved from it
+(`tests/engrave.py`) on staff + TAB paper and made to look like a scan.
+`tests/test_samples.py` checks that the committed files agree (schema,
+PDF hash, 4/4 beat sums, verses vs. endings) and that layoutscan
+reproduces the stored layout layer and finds every measure where it was
+drawn.
+
+Regenerate the files after changing the engraver, a song table or the
+detector (all samples, or name some):
 
 ```sh
-uv run python tests/make_twinkle_sample.py
+uv run --group dev python tests/make_samples.py [twinkle-twinkle sakura-sakura]
 ```
 
-The output is deterministic for a given OpenCV version, so an unchanged
-detector leaves the files untouched. Real (copyrighted) scores stay out of
-the repository.
+The output is deterministic for a given OpenCV/Pillow version and font, so
+an unchanged setup leaves the files untouched. Japanese text needs a CJK
+font: a common system font (IPA Gothic, Noto Sans CJK, Hiragino, Meiryo) is
+found automatically, or set `GTS_JP_FONT=/path/to/font`. Without one, the
+test that re-engraves the Japanese sample is skipped; the tests on the
+committed files still run. Real (copyrighted) scores stay out of the
+repository.
