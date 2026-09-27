@@ -209,3 +209,47 @@ recognition pipeline outline: [tab-digitization.md](tab-digitization.md).
   apps.
 - Real transcriptions are copyrighted and stay out of the repository; they
   live next to the PDF as `<name>.gts.json`.
+
+## ADR-009: Digitize and view on phone/tablet as a client-only PWA in TypeScript
+
+**Status**: Accepted (2026-09-27)
+
+**Context**: Digitizing handwritten scores (ADR-008) should be possible with
+only a phone or tablet, while practice stays on the Quest 3 (MR). Scores
+are copyrighted, so they should never be uploaded to a server we run.
+Options were a web app processing files on the device, a native app
+(Flutter etc.), or a server-side pipeline. For the web app, the detection
+core could be TypeScript or Rust compiled to WebAssembly.
+
+**Decision**:
+- **Split**: the phone/tablet digitizes and views (score + detected
+  measures + extracted layers); practice happens in the Quest app. The
+  `.gts.json` file next to the PDF is the hand-off between them.
+- **PWA, client-only**: a static site (installable, offline-capable) that
+  opens a PDF from the device, runs every step in the browser (Web Worker)
+  and saves results locally, exporting `song.gts.json` through the share
+  sheet / download. No server of ours ever sees a score.
+- **Input**: PDF only. Camera capture is in the backlog.
+- **Users**: the author only for now. Distribution to others (a key relay
+  server, store packaging) is in the backlog.
+- **LLM steps**: the user's own Claude API key is stored on the device and
+  the browser calls the Claude API directly (the API's direct browser
+  access mode). Scores go only to Anthropic, under the user's own account.
+- **One language, TypeScript**: the PWA, the detection core, the Node CLI
+  and the sample/test tooling are all TypeScript in one workspace under
+  `web/`. The detection core is a pure function over RGBA pixels, used by
+  the browser worker and the CLI alike. The Python `tools/layoutscan` is
+  ported and then retired; the committed public-domain samples guard that
+  the port detects the same layout.
+
+**Consequences**:
+- One codebase for iOS, Android and desktop, updated instantly, with no
+  store review; Rust/WebAssembly stays an option for the detection core
+  alone if a phone turns out too slow (it sits behind one function).
+- Image processing (thresholding, line morphology, rotation) is written by
+  hand instead of calling OpenCV; it only needs a few simple operations.
+- iOS may evict site storage of rarely used web apps; installing to the
+  home screen and requesting persistent storage mitigates it, and exported
+  `.gts.json` files are the durable copy.
+- The API key lives in the browser; acceptable for a single personal user,
+  not for distribution (hence the relay server in the backlog).

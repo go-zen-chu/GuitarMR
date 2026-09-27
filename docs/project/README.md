@@ -39,6 +39,17 @@ project starts taking external contributions.
       barline-free printed chord sheets and colored pen comments are left
       out of the format for now (sketches in docs/design/tab-digitization.md,
       "Out of scope for now").
+- [ ] **Phone/tablet PWA** (ADR-009): TypeScript workspace under `web/` -
+      port layoutscan (then retire the Python version), PDF import, score
+      viewer with detected measures, LLM layer extraction with the user's
+      own API key, export of `.gts.json` for the Quest app.
+- [ ] **PWA: camera capture**: photograph handwritten pages directly
+      (perspective correction and lighting normalization before layout
+      detection) instead of importing a PDF.
+- [ ] **PWA: distribution to other users**: a small relay server so no API
+      key sits in the browser (it must not store scores), and optionally a
+      store-packaged wrapper (e.g. Capacitor) if iOS storage or file
+      integration proves insufficient.
 - [ ] **CI**: run EditMode tests headless on GitHub Actions
       (needs a Unity license secret, e.g. game-ci/unity-test-runner).
 
