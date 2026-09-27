@@ -68,16 +68,15 @@ single converter without changing this format.
 
 A worked example covering every construct is in
 [`schemas/examples/sample.gts.json`](../../schemas/examples/sample.gts.json).
-Complete real-song examples, each with the scanned-looking PDF it
-describes, are the end-to-end test fixtures. Their melodies and lyrics are
-public domain, so unlike real transcriptions (§7) they can live in the
-repository:
+Complete real-song examples are the end-to-end test fixtures. Their
+melodies and lyrics are public domain, so unlike real transcriptions (§7)
+they can live in the repository. Only the gts files are committed; the
+scanned-looking PDF each one describes is generated from it on demand
+(`@guitarmr/samples`), keeping binaries out of git:
 
-- [`twinkle-twinkle`](../../schemas/examples/twinkle-twinkle.gts.json)
-  ([PDF](../../schemas/examples/twinkle-twinkle.pdf)): layout, structure,
+- [`twinkle-twinkle`](../../schemas/examples/twinkle-twinkle.gts.json): layout, structure,
   chords and tab; one page scanned sideways.
-- [`sakura-sakura`](../../schemas/examples/sakura-sakura.gts.json)
-  ([PDF](../../schemas/examples/sakura-sakura.pdf)): all five layers with
+- [`sakura-sakura`](../../schemas/examples/sakura-sakura.gts.json): all five layers with
   two verses of Japanese lyrics, 1st/2nd endings, slash/sus4/M7/m7-5
   chords and off-beat chord changes; two pages, the second upside down.
 

@@ -1,7 +1,8 @@
 /**
  * Regenerate the public-domain samples in schemas/examples/: engrave each
  * song, simulate a scan, write the PDF, then run layoutscan on that PDF and
- * store the detected layout layer and PDF hash in the gts file.
+ * store the detected layout layer and PDF hash in the gts file. Only the
+ * gts files are committed; the PDFs are regenerated on demand.
  *
  *   pnpm --filter @guitarmr/samples make-samples [name ...]
  */
@@ -95,11 +96,20 @@ export function compactJson(value: unknown, indent = 0, width = 100): string {
   return `{\n${items.join(",\n")}\n${" ".repeat(indent)}}`;
 }
 
-export async function makeSample(name: string): Promise<void> {
+/** The sample's scanned-looking PDF, generated deterministically from its song. */
+export async function generatePdf(name: string): Promise<Uint8Array> {
   const sample = SAMPLES[name];
   if (!sample) throw new Error(`unknown sample ${name}; known: ${Object.keys(SAMPLES).join(", ")}`);
-  const document = sample.build();
-  const pdf = await writePdf(scanPages(sample, document));
+  return writePdf(scanPages(sample, sample.build()));
+}
+
+/**
+ * Write `<name>.pdf` (git-ignored: regenerated on demand, never committed)
+ * and `<name>.gts.json` (committed) into schemas/examples.
+ */
+export async function makeSample(name: string): Promise<void> {
+  const document = SAMPLES[name]!.build();
+  const pdf = await generatePdf(name);
   writeFileSync(new URL(`${name}.pdf`, EXAMPLES), pdf);
   await fillLayout(document, `${name}.pdf`, pdf);
   const result = validate(document);

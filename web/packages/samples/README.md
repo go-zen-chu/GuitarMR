@@ -1,9 +1,11 @@
 # @guitarmr/samples
 
 Public-domain sample scores used as end-to-end fixtures, and the tools that
-make them. `schemas/examples/*.pdf` and their `.gts.json` files may be
-committed: the melodies and lyrics are public domain, the chords and tab
-are written for this project.
+make them. The `schemas/examples/*.gts.json` files are committed (the
+melodies and lyrics are public domain, the chords and tab are written for
+this project). The scanned-looking PDFs they describe are **not**
+committed: they are generated deterministically from the songs, by the
+tests and by `make-samples`, so no binaries end up in git.
 
 | Sample | Layers | What it exercises |
 | --- | --- | --- |
@@ -19,21 +21,25 @@ are written for this project.
 - `src/make-samples.ts`: regenerates the files, filling the layout layer
   by running layoutscan on the generated PDF.
 
-`pnpm test` checks that the committed files agree (schema, PDF hash, 4/4
-beat sums, verses vs. endings), that layoutscan reproduces the stored
-layout layer and finds every measure where it was drawn, and runs the
-layoutscan CLI end to end.
+`pnpm test` checks the committed gts files (schema, 4/4 beat sums, verses
+vs. endings), regenerates each PDF and checks that layoutscan reproduces
+the stored layout layer (within 0.003 of the page size; the PDF hash may
+differ across platforms) and finds every measure where it was drawn, and
+runs the layoutscan CLI end to end.
 
-Regenerate after changing the engraver, a song or the detector (all
-samples, or name some):
+To get the PDFs (e.g. to try the CLI or open them on the Quest), or to
+update the gts files after changing the engraver, a song or the detector
+(all samples, or name some):
 
 ```sh
 cd web
 pnpm --filter @guitarmr/samples make-samples [twinkle-twinkle sakura-sakura]
 ```
 
-The output is deterministic for a given `@napi-rs/canvas` version and
-font, so an unchanged setup leaves the files untouched. Japanese text
+This writes `schemas/examples/<name>.pdf` (git-ignored) and
+`<name>.gts.json`. The output is deterministic for a given
+`@napi-rs/canvas` version and font, so an unchanged setup leaves the gts
+files untouched. Japanese text
 needs a CJK font: a common system font (IPA Gothic, Noto Sans CJK,
 Hiragino, Meiryo) is found automatically, or set
 `GTS_JP_FONT=/path/to/font`. Without one, the test that re-engraves the
