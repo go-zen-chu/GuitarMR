@@ -1,0 +1,25 @@
+{
+  "name": "@guitarmr/gts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Types, validation and helpers for gts (Guitar Tab Score) documents",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "tsx scripts/generate-types.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "ajv": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "json-schema-to-typescript": "^16.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}

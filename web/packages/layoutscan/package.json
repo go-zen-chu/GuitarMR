@@ -1,0 +1,30 @@
+{
+  "name": "@guitarmr/layoutscan",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Detect page orientation, systems and measures of scanned guitar score PDFs and write the gts layout layer",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "layoutscan": "./src/cli.ts"
+  },
+  "scripts": {
+    "layoutscan": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "ajv": "^8.20.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  },
+  "dependencies": {
+    "@guitarmr/gts": "workspace:*",
+    "@napi-rs/canvas": "^1.0.9",
+    "pdfjs-dist": "^6.3.289"
+  }
+}

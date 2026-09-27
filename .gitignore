@@ -44,3 +44,7 @@ __pycache__/
 .pytest_cache/
 *.gts.json
 !schemas/examples/*.gts.json
+
+# TypeScript workspace (web/)
+node_modules/
+dist/
