@@ -240,7 +240,8 @@ core could be TypeScript or Rust compiled to WebAssembly.
   `web/`. The detection core is a pure function over RGBA pixels, used by
   the browser worker and the CLI alike. The Python `tools/layoutscan` is
   ported and then retired; the committed public-domain samples guard that
-  the port detects the same layout.
+  the port detects the same layout. (Done 2026-09-27: the port matched
+  the Python version on every surveyed page and replaced it.)
 
 **Consequences**:
 - One codebase for iOS, Android and desktop, updated instantly, with no

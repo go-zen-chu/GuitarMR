@@ -41,7 +41,7 @@ from, so a person can review it quickly against the scan.
    turning (backlog item).
 4. **Review metadata**: confidence and review status per measure.
 5. **Machine-friendly**: easy to validate, easy to emit from an LLM with
-   structured output, easy to load in Unity (C#) and Python.
+   structured output, easy to load in Unity (C#) and TypeScript.
 6. **Convertible later**: rich enough (with the `tab` layer) that a one-way export
    to an established format for rendering and playback in other viewers
    is possible without changing the model.
@@ -54,7 +54,7 @@ from, so a person can review it quickly against the scan.
 | Guitar Pro (.gp) | Best tab tooling | Proprietary zipped XML; same gaps as MusicXML |
 | alphaTex (alphaTab) | Compact text syntax built for tab; renders and plays in the browser | Niche grammar with a single implementation; no geometry/review metadata; hard to validate outside alphaTab |
 | ChordPro | Perfect for chord-over-lyrics sheets | No measures, rhythm or tab |
-| **Own JSON + JSON Schema** | Carries geometry, confidence and partial data (layers) natively; schema-validated; direct LLM structured-output target; trivial to load in C#/Python | Needs our own viewer; other apps need an exporter (MusicXML, backlog) |
+| **Own JSON + JSON Schema** | Carries geometry, confidence and partial data (layers) natively; schema-validated; direct LLM structured-output target; trivial to load in C#/TypeScript | Needs our own viewer; other apps need an exporter (MusicXML, backlog) |
 
 ## 4. Decision
 
@@ -175,14 +175,14 @@ PDF ──▶ 1. rasterize + orient ──▶ 2. layout ──▶ 3. content ─
                                       └─ layout ─────┴─ structure/chords/tab                     └─▶ GuitarMR
 ```
 
-1. **Rasterize and orient** (Python, PyMuPDF): render pages at ~300 dpi and
+1. **Rasterize and orient** (TypeScript, pdf.js): render pages at ~3000 px and
    pick the rotation whose horizontal projection shows long staff lines.
    Split ink by color: pencil/black stays for recognition, red/green/blue
    is dropped so teacher comments overlapping the TAB do not confuse it.
 2. **Layout** (classic CV, deterministic): find staff line groups (5-line
    staff vs 6-line TAB) → systems; vertical bar lines → measures with
    regions. Output is the `layout` layer. Implemented by
-   [`tools/layoutscan`](../../tools/layoutscan/README.md).
+   [`web/packages/layoutscan`](../../web/packages/layoutscan/README.md).
    A page where no system is found (e.g. a printed chord-over-lyrics sheet)
    is logged as a warning with its page index and skipped: it is left out
    of `source.pages` and the rest of the PDF is processed normally.
@@ -211,12 +211,16 @@ check `source.sha256` to detect a replaced PDF).
 
 ## 8. Roadmap
 
-1. **Format** (this change): schema, example, design.
-2. **`layout` layer** (done): [`tools/layoutscan`](../../tools/layoutscan/README.md)
-   Python CLI producing measures with regions; all systems and all but one
-   measure of the surveyed scores are found (details in its README).
-3. **`structure`, `chords`, `tab` layers**: LLM steps + validators.
-4. **Review tool**: HTML reviewer.
+1. **Format** (done): schema, examples, design.
+2. **`layout` layer** (done):
+   [`web/packages/layoutscan`](../../web/packages/layoutscan/README.md),
+   a TypeScript library + CLI producing measures with regions; all systems
+   and all but one measure of the surveyed scores are found.
+3. **Phone/tablet PWA** (ADR-009): PDF import, layout detection in a Web
+   Worker, score viewer with the detected measures, `.gts.json` export.
+4. **`structure`, `chords`, `tab`, `lyrics` layers**: LLM steps in the PWA
+   (the user's own API key) + validators; the review step is part of the
+   PWA viewer.
 5. **App integration**: load the sidecar JSON in GuitarMR (Domain model in
    C#), highlight the current measure and turn pages in sync with the
    metronome.

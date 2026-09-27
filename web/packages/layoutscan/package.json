@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Detect page orientation, systems and measures of scanned guitar score PDFs and write the gts layout layer",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./cli": "./src/cli.ts"
   },
   "bin": {
     "layoutscan": "./src/cli.ts"

@@ -38,10 +38,7 @@ sysinfo.txt
 *.unitypackage
 *.app
 
-# Python tools (tools/*)
-.venv/
-__pycache__/
-.pytest_cache/
+# Digitized scores are copyrighted: only the public-domain samples are committed
 *.gts.json
 !schemas/examples/*.gts.json
 

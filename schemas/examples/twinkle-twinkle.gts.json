@@ -12,7 +12,7 @@
   },
   "source": {
     "file": "twinkle-twinkle.pdf",
-    "sha256": "ae2ff94ef0b62fd37be00e7087661dcfe2ab1ad76613109b0b173b4dc8201a0e",
+    "sha256": "fe63b46a45d5326677db6ff627fae47ae2429374a15f9d13b094e984ef053083",
     "pages": [{"index": 0, "rotation": 90}]
   },
   "sections": [
@@ -21,7 +21,7 @@
       "measures": [
         {
           "id": "m1",
-          "region": {"page": 0, "bbox": [0.0697, 0.0777, 0.2851, 0.2575]},
+          "region": {"page": 0, "bbox": [0.0698, 0.0775, 0.2848, 0.2575]},
           "barStart": "repeat-start",
           "chords": [{"symbol": "C", "beat": 1}],
           "beats": [
@@ -33,7 +33,7 @@
         },
         {
           "id": "m2",
-          "region": {"page": 0, "bbox": [0.2851, 0.0777, 0.4995, 0.2575]},
+          "region": {"page": 0, "bbox": [0.2848, 0.0775, 0.4993, 0.2575]},
           "chords": [{"symbol": "F", "beat": 1}, {"symbol": "C", "beat": 3}],
           "beats": [
             {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 2}]},
@@ -43,7 +43,7 @@
         },
         {
           "id": "m3",
-          "region": {"page": 0, "bbox": [0.4995, 0.0777, 0.7139, 0.2575]},
+          "region": {"page": 0, "bbox": [0.4993, 0.0775, 0.7138, 0.2575]},
           "chords": [{"symbol": "F", "beat": 1}, {"symbol": "C", "beat": 3}],
           "beats": [
             {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 3}]},
@@ -54,7 +54,7 @@
         },
         {
           "id": "m4",
-          "region": {"page": 0, "bbox": [0.7139, 0.0777, 0.9293, 0.2575]},
+          "region": {"page": 0, "bbox": [0.7138, 0.0775, 0.9288, 0.2575]},
           "chords": [{"symbol": "G7", "beat": 1}, {"symbol": "C", "beat": 3}],
           "beats": [
             {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 0}]},
@@ -69,7 +69,7 @@
       "measures": [
         {
           "id": "m5",
-          "region": {"page": 0, "bbox": [0.0697, 0.2575, 0.2846, 0.4376]},
+          "region": {"page": 0, "bbox": [0.0698, 0.2575, 0.2848, 0.4374]},
           "chords": [{"symbol": "C", "beat": 1}, {"symbol": "F", "beat": 3}],
           "beats": [
             {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 0}]},
@@ -80,7 +80,7 @@
         },
         {
           "id": "m6",
-          "region": {"page": 0, "bbox": [0.2846, 0.2575, 0.4995, 0.4376]},
+          "region": {"page": 0, "bbox": [0.2848, 0.2575, 0.4993, 0.4374]},
           "chords": [{"symbol": "C", "beat": 1}, {"symbol": "G7", "beat": 3}],
           "beats": [
             {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 2}]},
@@ -90,7 +90,7 @@
         },
         {
           "id": "m7",
-          "region": {"page": 0, "bbox": [0.4995, 0.2575, 0.7139, 0.4376]},
+          "region": {"page": 0, "bbox": [0.4993, 0.2575, 0.7138, 0.4374]},
           "chords": [{"symbol": "C", "beat": 1}, {"symbol": "F", "beat": 3}],
           "beats": [
             {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 0}]},
@@ -101,7 +101,7 @@
         },
         {
           "id": "m8",
-          "region": {"page": 0, "bbox": [0.7139, 0.2575, 0.9288, 0.4376]},
+          "region": {"page": 0, "bbox": [0.7138, 0.2575, 0.9288, 0.4374]},
           "chords": [{"symbol": "C", "beat": 1}, {"symbol": "G7", "beat": 3}],
           "beats": [
             {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 2}]},
@@ -116,7 +116,7 @@
       "measures": [
         {
           "id": "m9",
-          "region": {"page": 0, "bbox": [0.0697, 0.4376, 0.2851, 0.6176]},
+          "region": {"page": 0, "bbox": [0.0698, 0.4374, 0.2848, 0.6176]},
           "chords": [{"symbol": "C", "beat": 1}],
           "beats": [
             {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 5, "fret": 3}]},
@@ -127,7 +127,7 @@
         },
         {
           "id": "m10",
-          "region": {"page": 0, "bbox": [0.2851, 0.4376, 0.4995, 0.6176]},
+          "region": {"page": 0, "bbox": [0.2848, 0.4374, 0.4993, 0.6176]},
           "chords": [{"symbol": "F", "beat": 1}, {"symbol": "C", "beat": 3}],
           "beats": [
             {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 3, "fret": 2}]},
@@ -137,7 +137,7 @@
         },
         {
           "id": "m11",
-          "region": {"page": 0, "bbox": [0.4995, 0.4376, 0.7139, 0.6176]},
+          "region": {"page": 0, "bbox": [0.4993, 0.4374, 0.7138, 0.6176]},
           "chords": [{"symbol": "F", "beat": 1}, {"symbol": "C", "beat": 3}],
           "beats": [
             {"duration": {"value": 4}, "stroke": "down", "notes": [{"string": 4, "fret": 3}]},
@@ -148,7 +148,7 @@
         },
         {
           "id": "m12",
-          "region": {"page": 0, "bbox": [0.7139, 0.4376, 0.9288, 0.6176]},
+          "region": {"page": 0, "bbox": [0.7138, 0.4374, 0.9283, 0.6176]},
           "barEnd": "repeat-end",
           "repeatTimes": 2,
           "chords": [{"symbol": "G7", "beat": 1}, {"symbol": "C", "beat": 3}],
