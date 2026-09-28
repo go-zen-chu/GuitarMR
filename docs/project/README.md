@@ -5,6 +5,23 @@ project starts taking external contributions.
 
 ## TODO (feature backlog)
 
+- [ ] **Photo input (camera / image files)** alongside PDFs, in two steps.
+      The detector already takes plain RGBA pixels, so only the input and
+      the photo-specific distortions are new.
+      1. *Image files* (small): accept JPEG/PNG (iOS hands camera photos to
+         a file input as JPEG) and decode them with the platform
+         (`createImageBitmap` in the browser, `@napi-rs/canvas` in Node;
+         no new dependency). Each image becomes one page; the gts `source`
+         needs a per-page file name (e.g. `source.pages[].file`). Works as
+         is for flat, frame-filling photos and document-scanner output.
+      2. *Photo correction* (medium): before detection, find the paper
+         outline (largest bright quadrilateral), undo the perspective with
+         a 4-point homography, and flatten uneven lighting (divide by a
+         blurred background), all hand-written like the rest of
+         layoutscan. Record the paper corners per page so regions map back
+         to the original photo. Test fixtures: the sample engraver plus a
+         simulated photo (perspective, shading, background around the
+         page), then a few real photos checked by eye.
 - [x] **Score file picker**: done — left Menu button opens an in-app picker
       listing PDFs from Download/Documents (ADR-007); the legacy adb-push
       path was removed.
@@ -44,9 +61,6 @@ project starts taking external contributions.
       next are the PWA shell (PDF import, detection in a Web Worker), the
       score viewer with detected measures, LLM layer extraction with the
       user's own API key, and export of `.gts.json` for the Quest app.
-- [ ] **PWA: camera capture**: photograph handwritten pages directly
-      (perspective correction and lighting normalization before layout
-      detection) instead of importing a PDF.
 - [ ] **PWA: distribution to other users**: a small relay server so no API
       key sits in the browser (it must not store scores), and optionally a
       store-packaged wrapper (e.g. Capacitor) if iOS storage or file

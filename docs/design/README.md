@@ -229,7 +229,8 @@ core could be TypeScript or Rust compiled to WebAssembly.
   opens a PDF from the device, runs every step in the browser (Web Worker)
   and saves results locally, exporting `song.gts.json` through the share
   sheet / download. No server of ours ever sees a score.
-- **Input**: PDF only. Camera capture is in the backlog.
+- **Input**: PDF only for now. Photo input (image files, then perspective
+  and lighting correction for camera photos) is at the top of the backlog.
 - **Users**: the author only for now. Distribution to others (a key relay
   server, store packaging) is in the backlog.
 - **LLM steps**: the user's own Claude API key is stored on the device and
