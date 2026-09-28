@@ -12,20 +12,17 @@
     "layoutscan": "./src/cli.ts"
   },
   "scripts": {
-    "layoutscan": "tsx src/cli.ts",
-    "test": "vitest run",
+    "layoutscan": "node src/cli.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
     "typecheck": "tsc -p ."
   },
   "devDependencies": {
-    "@types/node": "^26.6.3",
-    "ajv": "^8.20.0",
-    "tsx": "^4.23.15",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.2"
+    "@napi-rs/canvas": "1.0.9",
+    "@types/node": "22.20.4",
+    "typescript": "7.0.2"
   },
   "dependencies": {
     "@guitarmr/gts": "workspace:*",
-    "@napi-rs/canvas": "^1.0.9",
-    "pdfjs-dist": "^6.3.289"
+    "pdfjs-dist": "6.3.289"
   }
 }

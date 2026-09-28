@@ -254,3 +254,6 @@ core could be TypeScript or Rust compiled to WebAssembly.
   `.gts.json` files are the durable copy.
 - The API key lives in the browser; acceptable for a single personal user,
   not for distribution (hence the relay server in the backlog).
+- Dependencies are kept minimal to limit vulnerability maintenance: the PWA
+  ships only pdf.js; tests use Node's built-in runner and scripts run with
+  plain `node` (type stripping). The policy is in web/README.md.

@@ -1,20 +1,23 @@
+import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { describe, expect, it } from "vitest";
-import { type GtsDocument, measureLength, measures, validate } from "../src/index.ts";
+import { describe, it } from "node:test";
+import { type GtsDocument, measureLength, measures } from "../src/index.ts";
+import { validate } from "../src/validate.ts";
 
 const examples = new URL("../../../../schemas/examples/", import.meta.url);
 const load = (name: string): GtsDocument => JSON.parse(readFileSync(new URL(name, examples), "utf8"));
 const names = readdirSync(examples).filter((f) => f.endsWith(".gts.json"));
 
 describe("gts examples", () => {
-  it.each(names)("If %s is validated it should match the schema", (name) => {
-    expect(validate(load(name))).toEqual({ valid: true, errors: [] });
-  });
+  for (const name of names) {
+    it(`If ${name} is validated it should match the schema`, () => {
+      assert.deepEqual(validate(load(name)), { valid: true, errors: [] });
+    });
 
-  it.each(names)("If %s tab is read every measure should fill 4/4", (name) => {
-    const doc = load(name);
-    for (const m of measures(doc).filter((m) => m.beats)) expect(measureLength(m), m.id).toEqual([1, 1]);
-  });
+    it(`If ${name} tab is read every measure should fill 4/4`, () => {
+      for (const m of measures(load(name)).filter((m) => m.beats)) assert.deepEqual(measureLength(m), [1, 1], m.id);
+    });
+  }
 });
 
 describe("validate", () => {
@@ -22,8 +25,8 @@ describe("validate", () => {
     const doc = load("twinkle-twinkle.gts.json");
     (doc.sections[0].measures[0]!.beats![0]!.notes![0]! as { string: number }).string = 7;
     const result = validate(doc);
-    expect(result.valid).toBe(false);
-    expect(result.errors.join("\n")).toContain("/sections/0/measures/0/beats/0/notes/0/string");
+    assert.equal(result.valid, false);
+    assert.match(result.errors.join("\n"), /\/sections\/0\/measures\/0\/beats\/0\/notes\/0\/string/);
   });
 });
 
@@ -39,6 +42,6 @@ describe("measureLength", () => {
         { duration: { value: 2 }, rest: true },
       ],
     } as GtsDocument["sections"][0]["measures"][0];
-    expect(measureLength(m)).toEqual([1, 1]);
+    assert.deepEqual(measureLength(m), [1, 1]);
   });
 });

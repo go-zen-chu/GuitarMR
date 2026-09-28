@@ -1,30 +1,13 @@
 /**
- * gts (Guitar Tab Score) documents: generated types, schema validation and
- * small helpers shared by the tools and the PWA.
+ * gts (Guitar Tab Score) documents: generated types and small helpers
+ * shared by the tools and the PWA. Schema validation lives in
+ * "@guitarmr/gts/validate" so that ajv stays a development dependency.
  */
 
-import { Ajv2020 } from "ajv/dist/2020.js";
-import schema from "../../../../schemas/gts.schema.json" with { type: "json" };
 import type { Beat, GuitarTabScoreGts, Measure } from "./types.generated.ts";
 
 export type * from "./types.generated.ts";
 export type GtsDocument = GuitarTabScoreGts;
-export { schema };
-
-const ajv = new Ajv2020({ allErrors: true, strict: false });
-const validator = ajv.compile<GtsDocument>(schema);
-
-export interface ValidationResult {
-  valid: boolean;
-  errors: string[];
-}
-
-/** Validate a parsed JSON value against schemas/gts.schema.json. */
-export function validate(document: unknown): ValidationResult {
-  const valid = validator(document);
-  const errors = (validator.errors ?? []).map((e) => `${e.instancePath || "/"} ${e.message ?? ""}`.trim());
-  return { valid, errors: valid ? [] : errors };
-}
 
 /** Every measure in written order. */
 export function measures(document: GtsDocument): Measure[] {

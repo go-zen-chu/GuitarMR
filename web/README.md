@@ -14,14 +14,35 @@ The PWA itself is the next step (see docs/project).
 
 ## Setup
 
-Requires Node 22+ and pnpm 10 (`corepack enable` provides the pinned pnpm).
+Requires Node 22.18+ (runs TypeScript directly via type stripping) and
+pnpm 10 (`corepack enable` provides the pinned pnpm).
 
 ```sh
 cd web
 pnpm install
-pnpm test        # all packages (vitest)
+pnpm test        # all packages (Node's built-in test runner, node:test)
 pnpm typecheck   # all packages (tsc)
 ```
 
 After changing `schemas/gts.schema.json`, regenerate the types with
-`pnpm --filter @guitarmr/gts generate`.
+`pnpm --filter @guitarmr/gts generate` (fetches json-schema-to-typescript
+on demand through `pnpm dlx`; it is not a dependency).
+
+## Dependency policy
+
+Every dependency is a vulnerability-maintenance cost, so the workspace
+keeps them to what cannot reasonably be written by hand:
+
+| Dependency | Where | Why |
+| --- | --- | --- |
+| `pdfjs-dist` | runtime (the only one the PWA ships) | Rendering PDFs to pixels in the browser |
+| `@napi-rs/canvas` | dev (Node tools and tests only) | A canvas for pdf.js and for drawing samples in Node |
+| `ajv` | dev (`@guitarmr/gts/validate`, tests and tools) | Schema validation |
+| `typescript`, `@types/node` | dev | Type checking |
+
+Tests use `node:test`/`node:assert` and scripts run with plain `node`
+(no test framework, no TS runner). Versions are pinned exactly
+(`save-exact`), `minimumReleaseAge` only accepts versions published at
+least 7 days ago, and no dependency may run install scripts
+(`onlyBuiltDependencies: []`). When the pinned `@types/node` or others are
+bumped, pick a version older than 7 days or the install is rejected.

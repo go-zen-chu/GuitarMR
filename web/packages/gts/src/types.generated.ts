@@ -1,4 +1,4 @@
-/* Generated from schemas/gts.schema.json by `pnpm --filter @guitarmr/gts generate`. Do not edit. */
+/* Generated from schemas/gts.schema.json by: pnpm --filter @guitarmr/gts generate. Do not edit. */
 
 export type TimeSignature = string;
 /**

@@ -8,20 +8,16 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "make-samples": "tsx src/make-samples.ts",
-    "test": "vitest run",
+    "make-samples": "node src/make-samples.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
     "typecheck": "tsc -p ."
   },
-  "dependencies": {
+  "devDependencies": {
     "@guitarmr/gts": "workspace:*",
     "@guitarmr/layoutscan": "workspace:*",
-    "@napi-rs/canvas": "^1.0.9",
-    "pdfjs-dist": "^6.3.289"
-  },
-  "devDependencies": {
-    "@types/node": "^26.6.3",
-    "tsx": "^4.23.15",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.2"
+    "@napi-rs/canvas": "1.0.9",
+    "@types/node": "22.20.4",
+    "pdfjs-dist": "6.3.289",
+    "typescript": "7.0.2"
   }
 }

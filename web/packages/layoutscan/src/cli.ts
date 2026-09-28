@@ -1,11 +1,10 @@
-#!/usr/bin/env -S npx tsx
+#!/usr/bin/env node
 /** Command line entry point: PDF in, gts JSON (layout layer) out. */
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { createCanvas } from "@napi-rs/canvas";
-import { validate } from "@guitarmr/gts";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { analyzePage, measureSpans, uprightImage } from "./detect.ts";
 import { type ScannedPage, buildDocument } from "./gts.ts";
@@ -95,11 +94,6 @@ export async function main(argv: string[]): Promise<number> {
     return 1;
   }
   const document = buildDocument(name, await sha256Hex(bytes), scanned);
-  const result = validate(document);
-  if (!result.valid) {
-    log("ERROR", `generated document does not match the gts schema:\n${result.errors.join("\n")}`);
-    return 1;
-  }
   writeFileSync(output, `${JSON.stringify(document, null, 2)}\n`);
   log("INFO", `wrote ${output} (${scanned.length} pages, ${document.sections[0].measures.length} measures)`);
   return 0;

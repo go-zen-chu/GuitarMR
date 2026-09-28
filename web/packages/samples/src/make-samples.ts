@@ -8,7 +8,8 @@
  */
 
 import { writeFileSync } from "node:fs";
-import { validate, type GtsDocument, type Measure } from "@guitarmr/gts";
+import type { GtsDocument, Measure } from "@guitarmr/gts";
+import { validate } from "@guitarmr/gts/validate";
 import { type ScannedPage, analyzePage, buildDocument, renderPages, sha256Hex } from "@guitarmr/layoutscan";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { type SKRSContext2D } from "@napi-rs/canvas";

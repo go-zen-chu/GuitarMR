@@ -5,21 +5,17 @@
   "type": "module",
   "description": "Types, validation and helpers for gts (Guitar Tab Score) documents",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./validate": "./src/validate.ts"
   },
   "scripts": {
-    "generate": "tsx scripts/generate-types.ts",
-    "test": "vitest run",
+    "generate": "pnpm dlx json-schema-to-typescript@16.0.0 --input ../../../schemas/gts.schema.json --output src/types.generated.ts --bannerComment \"/* Generated from schemas/gts.schema.json by: pnpm --filter @guitarmr/gts generate. Do not edit. */\" --no-additionalProperties",
+    "test": "node --test \"test/**/*.test.ts\"",
     "typecheck": "tsc -p ."
   },
-  "dependencies": {
-    "ajv": "^8.20.0"
-  },
   "devDependencies": {
-    "@types/node": "^26.6.3",
-    "json-schema-to-typescript": "^16.0.0",
-    "tsx": "^4.23.15",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.2"
+    "@types/node": "22.20.4",
+    "ajv": "8.20.0",
+    "typescript": "7.0.2"
   }
 }
