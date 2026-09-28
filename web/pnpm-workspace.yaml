@@ -1,0 +1,6 @@
+packages:
+  - "packages/*"
+# Supply-chain hygiene: only install versions published at least 7 days ago
+# (minutes), and let no dependency run install scripts.
+minimumReleaseAge: 10080
+onlyBuiltDependencies: []

@@ -37,3 +37,13 @@ sysinfo.txt
 *.aab
 *.unitypackage
 *.app
+
+# Digitized scores are copyrighted: only the public-domain samples are committed
+*.gts.json
+!schemas/examples/*.gts.json
+# Sample PDFs are generated from the songs on demand (no binaries in git)
+schemas/examples/*.pdf
+
+# TypeScript workspace (web/)
+node_modules/
+dist/

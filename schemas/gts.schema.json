@@ -1,0 +1,266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/go-zen-chu/GuitarMR/schemas/gts.schema.json",
+  "title": "Guitar Tab Score (gts)",
+  "description": "Structured digitization of a (handwritten) guitar score PDF. See docs/design/tab-digitization.md for the design rationale.",
+  "type": "object",
+  "required": ["format", "version", "meta", "source", "sections"],
+  "additionalProperties": false,
+  "properties": {
+    "format": { "const": "gts" },
+    "version": { "const": "0.1" },
+    "meta": { "$ref": "#/$defs/meta" },
+    "source": { "$ref": "#/$defs/source" },
+    "chordShapes": {
+      "description": "Chord voicings drawn on the score (circled stacks, diagrams), referenced by name from chord symbols.",
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/chordShape" }
+    },
+    "sections": {
+      "description": "Sections in written (not played) order. Playback order is derived from navigation marks.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/section" }
+    }
+  },
+  "$defs": {
+    "meta": {
+      "type": "object",
+      "required": ["title"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "artist": { "type": "string" },
+        "key": {
+          "description": "Key as written on the score (relative to the capo shapes), e.g. \"G\", \"Em\".",
+          "type": "string"
+        },
+        "capo": { "type": "integer", "minimum": 0, "maximum": 12, "default": 0 },
+        "tuning": {
+          "description": "Open-string pitches from string 1 (high) to string 6 (low).",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-G][#b]?[0-9]$" },
+          "default": ["E4", "B3", "G3", "D3", "A2", "E2"]
+        },
+        "tempo": { "type": "number", "exclusiveMinimum": 0 },
+        "timeSignature": { "$ref": "#/$defs/timeSignature" },
+        "layers": {
+          "description": "Layers filled for the whole score (see docs/design/tab-digitization.md): layout = measures and page regions, structure = header, sections, repeats and navigation, chords = chord symbols, tab = rhythm and tab notes, lyrics = lyric text per measure and verse.",
+          "type": "array",
+          "items": { "enum": ["layout", "structure", "chords", "tab", "lyrics"] },
+          "uniqueItems": true
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": ["file", "pages"],
+      "additionalProperties": false,
+      "properties": {
+        "file": { "description": "PDF file name the data was extracted from.", "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "pages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["index", "rotation"],
+            "additionalProperties": false,
+            "properties": {
+              "index": { "description": "0-based page index in the PDF.", "type": "integer", "minimum": 0 },
+              "rotation": {
+                "description": "Clockwise degrees to rotate the rendered page to make it upright. Regions are expressed in upright coordinates.",
+                "enum": [0, 90, 180, 270]
+              }
+            }
+          }
+        }
+      }
+    },
+    "timeSignature": {
+      "type": "string",
+      "pattern": "^[0-9]{1,2}/(1|2|4|8|16|32)$"
+    },
+    "region": {
+      "description": "Where an element sits on the upright page; bbox is [x0, y0, x1, y1] normalized to 0..1 from the top-left corner. For a measure it spans its bar lines horizontally and its system's band vertically (including chord names above and rhythm/lyrics below the staves).",
+      "type": "object",
+      "required": ["page", "bbox"],
+      "additionalProperties": false,
+      "properties": {
+        "page": { "type": "integer", "minimum": 0 },
+        "bbox": {
+          "type": "array",
+          "items": { "type": "number", "minimum": 0, "maximum": 1 },
+          "minItems": 4,
+          "maxItems": 4
+        }
+      }
+    },
+    "review": {
+      "description": "Provenance of the extracted data, so uncertain parts can be surfaced for human review.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["auto", "reviewed", "needs-attention"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "comment": { "type": "string" }
+      }
+    },
+    "section": {
+      "type": "object",
+      "required": ["measures"],
+      "additionalProperties": false,
+      "properties": {
+        "label": { "description": "Rehearsal mark as written, e.g. \"Intro\", \"A\", \"B\", \"Coda\". Absent until the structure layer is filled or when the section is unmarked.", "type": "string" },
+        "measures": { "type": "array", "items": { "$ref": "#/$defs/measure" } },
+        "review": { "$ref": "#/$defs/review" }
+      }
+    },
+    "chordSymbol": {
+      "description": "Chord name as written (capo-relative shape), e.g. \"G/B\", \"F#m7\", \"Dsus4\", \"Eb7\".",
+      "type": "string",
+      "pattern": "^(N\\.C\\.|[A-G][#b]?[^\\s/]*(/[A-G][#b]?)?)$"
+    },
+    "measure": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "description": "Stable identifier, unique within the score (e.g. \"m12\").", "type": "string" },
+        "region": { "$ref": "#/$defs/region" },
+        "timeSignature": { "$ref": "#/$defs/timeSignature" },
+        "barStart": { "enum": ["repeat-start"] },
+        "barEnd": { "enum": ["single", "double", "final", "repeat-end"] },
+        "repeatTimes": {
+          "description": "Total number of plays for a repeat-end bar (e.g. \"2x\" = 2, \"4回\" = 4).",
+          "type": "integer",
+          "minimum": 2
+        },
+        "volta": {
+          "description": "Ending bracket numbers this measure belongs to (1st/2nd endings).",
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1 },
+          "minItems": 1
+        },
+        "navigation": {
+          "type": "array",
+          "items": { "enum": ["segno", "coda", "to-coda", "ds", "ds-al-coda", "dc", "dc-al-coda", "fine"] }
+        },
+        "simile": {
+          "description": "Measure-repeat sign: repeat the previous 1 or 2 measures. Content fields must then be empty.",
+          "enum": [1, 2]
+        },
+        "chords": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["symbol"],
+            "additionalProperties": false,
+            "properties": {
+              "symbol": { "$ref": "#/$defs/chordSymbol" },
+              "beat": { "description": "1-based beat position in the measure; fractional for off-beats.", "type": "number", "minimum": 1, "default": 1 },
+              "shape": { "description": "Key into chordShapes when a voicing is drawn.", "type": "string" }
+            }
+          }
+        },
+        "lyrics": {
+          "description": "Lyrics sung in this measure (lyrics layer), one entry per verse. Lyrics are copyrighted for most songs: keep such files private.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["verse", "text"],
+            "additionalProperties": false,
+            "properties": {
+              "verse": { "description": "Verse number (the circled 1/2 marks).", "type": "integer", "minimum": 1 },
+              "text": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "beats": {
+          "description": "Rhythm and tab content (tab layer), a single voice in time order.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/beat" }
+        },
+        "review": { "$ref": "#/$defs/review" }
+      }
+    },
+    "duration": {
+      "type": "object",
+      "required": ["value"],
+      "additionalProperties": false,
+      "properties": {
+        "value": { "enum": [1, 2, 4, 8, 16, 32, 64], "description": "Note value denominator: 4 = quarter, 8 = eighth." },
+        "dots": { "type": "integer", "minimum": 0, "maximum": 2, "default": 0 },
+        "tuplet": {
+          "description": "[actual, normal], e.g. [3, 2] for a triplet.",
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1 },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    },
+    "beat": {
+      "type": "object",
+      "required": ["duration"],
+      "additionalProperties": false,
+      "properties": {
+        "duration": { "$ref": "#/$defs/duration" },
+        "rest": { "type": "boolean" },
+        "slash": {
+          "description": "Rhythm slash / strum without explicit frets (plays the current chord).",
+          "type": "boolean"
+        },
+        "notes": { "type": "array", "items": { "$ref": "#/$defs/note" } },
+        "stroke": { "enum": ["down", "up"], "description": "Picking/strumming direction arrow." },
+        "brush": { "enum": ["arpeggio-up", "arpeggio-down"] },
+        "fermata": { "type": "boolean" }
+      },
+      "oneOf": [
+        { "required": ["rest"], "properties": { "rest": { "const": true } }, "not": { "anyOf": [{ "required": ["notes"] }, { "required": ["slash"] }] } },
+        { "required": ["slash"], "properties": { "slash": { "const": true } }, "not": { "required": ["rest"] } },
+        { "required": ["notes"], "properties": { "notes": { "minItems": 1 } }, "not": { "anyOf": [{ "required": ["rest"] }, { "required": ["slash"] }] } }
+      ]
+    },
+    "note": {
+      "type": "object",
+      "required": ["string"],
+      "additionalProperties": false,
+      "properties": {
+        "string": { "description": "1 = high E, 6 = low E.", "type": "integer", "minimum": 1, "maximum": 6 },
+        "fret": { "description": "Fret as written, relative to the capo. Omit for dead notes.", "type": "integer", "minimum": 0, "maximum": 24 },
+        "dead": { "description": "Muted \"x\" note.", "type": "boolean" },
+        "tie": { "description": "Tied from the previous note on the same string.", "type": "boolean" },
+        "slur": {
+          "description": "Legato into the next note on the same string: hammer-on (H), pull-off (P), slide (/ \\).",
+          "enum": ["hammer-on", "pull-off", "slide"]
+        },
+        "bend": { "description": "Bend amount in semitones.", "type": "number", "exclusiveMinimum": 0 },
+        "vibrato": { "type": "boolean" },
+        "harmonic": { "enum": ["natural", "artificial"] },
+        "palmMute": { "type": "boolean" },
+        "letRing": { "type": "boolean" },
+        "accent": { "type": "boolean" },
+        "ghost": { "description": "Parenthesized note.", "type": "boolean" },
+        "finger": { "description": "Fretting finger if written (T = thumb).", "enum": ["T", "1", "2", "3", "4"] }
+      },
+      "if": { "properties": { "dead": { "const": true } }, "required": ["dead"] },
+      "then": { "not": { "required": ["fret"] } },
+      "else": { "required": ["fret"] }
+    },
+    "chordShape": {
+      "type": "object",
+      "required": ["frets"],
+      "additionalProperties": false,
+      "properties": {
+        "frets": {
+          "description": "Fret per string from 1 (high) to 6 (low); null = not played, -1 = muted.",
+          "type": "array",
+          "items": { "type": ["integer", "null"], "minimum": -1, "maximum": 24 },
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "comment": { "type": "string" }
+      }
+    }
+  }
+}

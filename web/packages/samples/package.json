@@ -1,0 +1,23 @@
+{
+  "name": "@guitarmr/samples",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Public-domain sample scores: engraving, scan simulation and the committed fixtures in schemas/examples",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "make-samples": "node src/make-samples.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@guitarmr/gts": "workspace:*",
+    "@guitarmr/layoutscan": "workspace:*",
+    "@napi-rs/canvas": "1.0.9",
+    "@types/node": "26.6.2",
+    "pdfjs-dist": "6.3.289",
+    "typescript": "7.0.2"
+  }
+}

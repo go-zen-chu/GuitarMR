@@ -1,0 +1,229 @@
+{
+  "format": "gts",
+  "version": "0.1",
+  "meta": {
+    "title": "さくらさくら",
+    "artist": "日本古謡",
+    "key": "Am",
+    "capo": 2,
+    "tempo": 72,
+    "timeSignature": "4/4",
+    "layers": ["layout", "structure", "chords", "tab", "lyrics"]
+  },
+  "source": {
+    "file": "sakura-sakura.pdf",
+    "sha256": "b84c5c0ce9aed2e1deee96361fb9d9e7c6f32f51c8cf47508a36dfad6a26a615",
+    "pages": [{"index": 0, "rotation": 0}, {"index": 1, "rotation": 180}]
+  },
+  "sections": [
+    {
+      "label": "A",
+      "measures": [
+        {
+          "id": "m1",
+          "region": {"page": 0, "bbox": [0.0698, 0.0774, 0.2848, 0.2574]},
+          "barStart": "repeat-start",
+          "chords": [{"symbol": "Am", "beat": 1}, {"symbol": "Esus4", "beat": 3}],
+          "lyrics": [{"verse": 1, "text": "さくら"}, {"verse": 2, "text": "さくら"}],
+          "beats": [
+            {"duration": {"value": 4}, "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 4}, "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 2}, "notes": [{"string": 2, "fret": 0}]}
+          ]
+        },
+        {
+          "id": "m2",
+          "region": {"page": 0, "bbox": [0.2848, 0.0774, 0.4993, 0.2574]},
+          "chords": [{"symbol": "Am", "beat": 1}, {"symbol": "E7", "beat": 3}],
+          "lyrics": [{"verse": 1, "text": "さくら"}, {"verse": 2, "text": "さくら"}],
+          "beats": [
+            {"duration": {"value": 4}, "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 4}, "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 2}, "notes": [{"string": 2, "fret": 0}]}
+          ]
+        },
+        {
+          "id": "m3",
+          "region": {"page": 0, "bbox": [0.4993, 0.0774, 0.7138, 0.2574]},
+          "chords": [{"symbol": "Am", "beat": 1}, {"symbol": "Am/G", "beat": 3}],
+          "lyrics": [{"verse": 1, "text": "やよいの"}, {"verse": 2, "text": "のやまも"}],
+          "beats": [
+            {"duration": {"value": 4}, "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 4}, "notes": [{"string": 2, "fret": 0}]},
+            {"duration": {"value": 4}, "notes": [{"string": 2, "fret": 1}]},
+            {"duration": {"value": 4}, "notes": [{"string": 2, "fret": 0}]}
+          ]
+        },
+        {
+          "id": "m4",
+          "region": {"page": 0, "bbox": [0.7138, 0.0774, 0.9288, 0.2574]},
+          "chords": [{"symbol": "Dm7", "beat": 1}, {"symbol": "FM7", "beat": 3}],
+          "lyrics": [{"verse": 1, "text": "そらは"}, {"verse": 2, "text": "さとも"}],
+          "beats": [
+            {"duration": {"value": 4}, "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 8}, "notes": [{"string": 2, "fret": 0}]},
+            {"duration": {"value": 8}, "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 2}, "notes": [{"string": 4, "fret": 3}]}
+          ]
+        }
+      ]
+    },
+    {
+      "label": "B",
+      "measures": [
+        {
+          "id": "m5",
+          "region": {"page": 0, "bbox": [0.0698, 0.2574, 0.2848, 0.4374]},
+          "chords": [{"symbol": "Am", "beat": 1}, {"symbol": "Dm", "beat": 3}],
+          "lyrics": [{"verse": 1, "text": "みわたす"}, {"verse": 2, "text": "みわたす"}],
+          "beats": [
+            {"duration": {"value": 4}, "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 4}, "notes": [{"string": 5, "fret": 3}]},
+            {"duration": {"value": 4}, "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 4}, "notes": [{"string": 4, "fret": 3}]}
+          ]
+        },
+        {
+          "id": "m6",
+          "region": {"page": 0, "bbox": [0.2848, 0.2574, 0.4993, 0.4374]},
+          "chords": [{"symbol": "E7sus4", "beat": 1}, {"symbol": "E7", "beat": 3}],
+          "lyrics": [{"verse": 1, "text": "かぎり"}, {"verse": 2, "text": "かぎり"}],
+          "beats": [
+            {"duration": {"value": 4}, "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 8}, "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 8}, "notes": [{"string": 5, "fret": 3}]},
+            {"duration": {"value": 2}, "notes": [{"string": 5, "fret": 2}]}
+          ]
+        },
+        {
+          "id": "m7",
+          "region": {"page": 0, "bbox": [0.4993, 0.2574, 0.7138, 0.4374]},
+          "chords": [{"symbol": "Am", "beat": 1}, {"symbol": "Am/G", "beat": 3}],
+          "lyrics": [{"verse": 1, "text": "かすみか"}, {"verse": 2, "text": "かすみか"}],
+          "beats": [
+            {"duration": {"value": 4}, "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 4}, "notes": [{"string": 2, "fret": 0}]},
+            {"duration": {"value": 4}, "notes": [{"string": 2, "fret": 1}]},
+            {"duration": {"value": 4}, "notes": [{"string": 2, "fret": 0}]}
+          ]
+        },
+        {
+          "id": "m8",
+          "region": {"page": 0, "bbox": [0.7138, 0.2574, 0.9288, 0.4374]},
+          "chords": [{"symbol": "Dm7", "beat": 1}, {"symbol": "FM7", "beat": 3}],
+          "lyrics": [{"verse": 1, "text": "くもか"}, {"verse": 2, "text": "くもか"}],
+          "beats": [
+            {"duration": {"value": 4}, "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 8}, "notes": [{"string": 2, "fret": 0}]},
+            {"duration": {"value": 8}, "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 2}, "notes": [{"string": 4, "fret": 3}]}
+          ]
+        },
+        {
+          "id": "m9",
+          "region": {"page": 1, "bbox": [0.0698, 0.0773, 0.2848, 0.2574]},
+          "chords": [{"symbol": "Am", "beat": 1}, {"symbol": "Dm", "beat": 3}],
+          "lyrics": [{"verse": 1, "text": "においぞ"}, {"verse": 2, "text": "あさひに"}],
+          "beats": [
+            {"duration": {"value": 4}, "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 4}, "notes": [{"string": 5, "fret": 3}]},
+            {"duration": {"value": 4}, "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 4}, "notes": [{"string": 4, "fret": 3}]}
+          ]
+        },
+        {
+          "id": "m10",
+          "region": {"page": 1, "bbox": [0.2848, 0.0773, 0.4993, 0.2574]},
+          "chords": [{"symbol": "Esus4", "beat": 1}, {"symbol": "E", "beat": 3}],
+          "lyrics": [{"verse": 1, "text": "いずる"}, {"verse": 2, "text": "におう"}],
+          "beats": [
+            {"duration": {"value": 4}, "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 8}, "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 8}, "notes": [{"string": 5, "fret": 3}]},
+            {"duration": {"value": 2}, "notes": [{"string": 5, "fret": 2}]}
+          ]
+        }
+      ]
+    },
+    {
+      "label": "C",
+      "measures": [
+        {
+          "id": "m11",
+          "region": {"page": 1, "bbox": [0.4993, 0.0773, 0.7138, 0.2574]},
+          "chords": [{"symbol": "Am", "beat": 1}, {"symbol": "E7", "beat": 2.5}],
+          "lyrics": [{"verse": 1, "text": "いざや"}, {"verse": 2, "text": "さくら"}],
+          "beats": [
+            {"duration": {"value": 4}, "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 4}, "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 2}, "notes": [{"string": 2, "fret": 0}]}
+          ]
+        },
+        {
+          "id": "m12",
+          "region": {"page": 1, "bbox": [0.7138, 0.0773, 0.9288, 0.2574]},
+          "chords": [{"symbol": "Am", "beat": 1}, {"symbol": "E7", "beat": 3}],
+          "lyrics": [{"verse": 1, "text": "いざや"}, {"verse": 2, "text": "さくら"}],
+          "beats": [
+            {"duration": {"value": 4}, "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 4}, "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 2}, "notes": [{"string": 2, "fret": 0}]}
+          ]
+        },
+        {
+          "id": "m13",
+          "region": {"page": 1, "bbox": [0.0698, 0.2574, 0.2848, 0.4374]},
+          "chords": [
+            {"symbol": "C", "beat": 1},
+            {"symbol": "Dm", "beat": 2},
+            {"symbol": "Bm7-5", "beat": 3},
+            {"symbol": "E7", "beat": 4}
+          ],
+          "lyrics": [{"verse": 1, "text": "みにゆか"}, {"verse": 2, "text": "はなざか"}],
+          "beats": [
+            {"duration": {"value": 4}, "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 4}, "notes": [{"string": 4, "fret": 3}]},
+            {"duration": {"value": 8}, "notes": [{"string": 2, "fret": 0}]},
+            {"duration": {"value": 8}, "notes": [{"string": 3, "fret": 2}]},
+            {"duration": {"value": 4}, "notes": [{"string": 4, "fret": 3}]}
+          ]
+        },
+        {
+          "id": "m14",
+          "region": {"page": 1, "bbox": [0.2848, 0.2574, 0.4941, 0.4374]},
+          "barEnd": "repeat-end",
+          "repeatTimes": 2,
+          "volta": [1],
+          "chords": [{"symbol": "E7sus4", "beat": 1}, {"symbol": "E7", "beat": 3}],
+          "lyrics": [{"verse": 1, "text": "ん"}],
+          "beats": [
+            {"duration": {"value": 2}, "notes": [{"string": 4, "fret": 2}]},
+            {"duration": {"value": 2}, "rest": true}
+          ]
+        },
+        {
+          "id": "m15",
+          "region": {"page": 1, "bbox": [0.4941, 0.2574, 0.7138, 0.4374]},
+          "barEnd": "final",
+          "volta": [2],
+          "chords": [{"symbol": "E", "beat": 1}],
+          "lyrics": [{"verse": 2, "text": "り"}],
+          "beats": [
+            {
+              "duration": {"value": 1},
+              "notes": [
+                {"string": 6, "fret": 0},
+                {"string": 5, "fret": 2},
+                {"string": 4, "fret": 2},
+                {"string": 3, "fret": 1},
+                {"string": 2, "fret": 0},
+                {"string": 1, "fret": 0}
+              ],
+              "fermata": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
