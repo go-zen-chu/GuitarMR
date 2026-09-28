@@ -15,7 +15,7 @@ describe("gts examples", () => {
     });
 
     it(`If ${name} tab is read every measure should fill 4/4`, () => {
-      for (const m of measures(load(name)).filter((m) => m.beats)) assert.deepEqual(measureLength(m), [1, 1], m.id);
+      for (const m of measures(load(name)).filter((m) => m.beats)) assert.deepEqual(measureLength(m), [1, 1], m.id ?? "");
     });
   }
 });

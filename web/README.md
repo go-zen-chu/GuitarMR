@@ -14,8 +14,10 @@ The PWA itself is the next step (see docs/project).
 
 ## Setup
 
-Requires Node 22.18+ (runs TypeScript directly via type stripping) and
-pnpm 10 (`corepack enable` provides the pinned pnpm).
+Requires Node 26 (the latest stable line; the exact version is pinned in
+`.node-version` for nvm/fnm/volta/setup-node) and pnpm 10 (`corepack
+enable` provides the pinned pnpm). TypeScript runs directly on Node (type
+stripping); `engine-strict` makes `pnpm install` refuse older Node.
 
 ```sh
 cd web
@@ -45,4 +47,5 @@ Tests use `node:test`/`node:assert` and scripts run with plain `node`
 (`save-exact`), `minimumReleaseAge` only accepts versions published at
 least 7 days ago, and no dependency may run install scripts
 (`onlyBuiltDependencies: []`). When the pinned `@types/node` or others are
-bumped, pick a version older than 7 days or the install is rejected.
+bumped, pick a version older than 7 days or the install is rejected;
+`@types/node` follows the Node major in `.node-version`.

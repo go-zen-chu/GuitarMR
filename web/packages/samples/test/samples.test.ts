@@ -33,13 +33,13 @@ for (const name of Object.keys(SAMPLES)) {
       for (const layer of ["layout", "structure", "chords", "tab"] as const) assert.ok(layers.includes(layer), layer);
       assert.ok(doc.sections.every((s) => s.label));
       for (const m of measures(doc)) {
-        assert.ok(m.region && m.chords?.length && m.beats?.length, m.id);
-        assert.equal("lyrics" in m, layers.includes("lyrics"), m.id);
+        assert.ok(m.region && m.chords?.length && m.beats?.length, m.id ?? "");
+        assert.equal("lyrics" in m, layers.includes("lyrics"), m.id ?? "");
       }
     });
 
     it("If its tab is read every measure should fill 4/4", () => {
-      for (const m of measures(load(name))) assert.deepEqual(measureLength(m), [1, 1], m.id);
+      for (const m of measures(load(name))) assert.deepEqual(measureLength(m), [1, 1], m.id ?? "");
     });
 
     it("If its PDF is regenerated layoutscan should reproduce the layout layer", async () => {
