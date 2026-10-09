@@ -144,7 +144,7 @@ export interface Measure {
   volta?: [number, ...number[]];
   navigation?: ("segno" | "coda" | "to-coda" | "ds" | "ds-al-coda" | "dc" | "dc-al-coda" | "fine")[];
   /**
-   * Measure-repeat sign: repeat the previous 1 or 2 measures. Content fields must then be empty.
+   * Measure-repeat sign: repeat the rhythm and notes (tab layer) of the previous 1 or 2 measures; the measure then has no beats of its own. Chord names may still be written over it (the same pattern on a new chord).
    */
   simile?: 1 | 2;
   chords?: {

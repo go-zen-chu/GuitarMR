@@ -41,7 +41,8 @@ export function rebuildSections(document: GtsDocument, starts: ReadonlyMap<strin
 
 /**
  * Change one measure: fields set to undefined (or an empty list) are
- * removed. A simile measure keeps no chords, as the schema requires.
+ * removed. A simile measure keeps no beats of its own (it repeats the
+ * previous measure's rhythm and notes); its chords stay.
  */
 export function updateMeasure(document: GtsDocument, id: string, patch: Partial<Measure>): GtsDocument {
   const doc: GtsDocument = structuredClone(document);
@@ -51,7 +52,7 @@ export function updateMeasure(document: GtsDocument, id: string, patch: Partial<
     if (value === undefined || (Array.isArray(value) && value.length === 0 && key !== "chords")) delete m[key];
     else (m as Record<string, unknown>)[key] = value;
   }
-  if (m.simile) delete m.chords;
+  if (m.simile) delete m.beats;
   return doc;
 }
 

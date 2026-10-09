@@ -42,19 +42,27 @@ For every listed measure, read what is written in or above it:
   starts, estimated from its horizontal position (4/4: left edge = 1,
   middle = 3); use 2.5 etc. for off-beats. Empty list if there is none.
   A chord written once applies until the next one: do not repeat it in
-  following measures unless it is written there again.
+  following measures unless it is written there again. A sharp or flat
+  may be written small above the root ("G" with "#" above = "G#"). Write
+  a triangle (△7) as "M7" (e.g. "EM7") and a small circle (o7, °7) as
+  "dim7"; handwritten △ and o look alike, so say so in the note when
+  unsure.
 - section: a rehearsal mark starting at this measure (a boxed letter like
   "A", "B", or a word like "Intro", "Verse", "サビ"), else leave it out.
 - barStart: "repeat-start" for a repeat sign (thick line + two dots) at the
   start. barEnd: "repeat-end" for a repeat sign at the end, "double" for a
   thin double bar line, "final" for a thin + thick final bar line; leave
   it out for an ordinary bar line. repeatTimes: total plays when written
-  at a repeat-end (e.g. "x3", "3回" = 3).
+  at a repeat-end (e.g. "x3", "3回" = 3). A measure enclosed in large
+  parentheses "( ... )" with a count such as "2x" above it is repeated on
+  its own: give it barStart "repeat-start", barEnd "repeat-end" and that
+  repeatTimes (the parentheses replace its bar lines).
 - volta: ending numbers of a 1st/2nd ending bracket over the measure, e.g. [1].
 - navigation: any of "segno", "coda" (the coda sign starting a coda),
   "to-coda", "ds", "ds-al-coda", "dc", "dc-al-coda", "fine".
-- simile: 1 for a one-measure repeat sign (%), 2 for a two-measure one;
-  then leave chords empty.
+- simile: 1 for a one-measure repeat sign (%, or a slash with dots
+  across the TAB), 2 for a two-measure one. Still list the chord names
+  written above it (the same pattern on a new chord), if any.
 - timeSignature: only if a time signature is written at this measure.
 - confidence: 0 to 1, how sure you are of this measure as a whole.
 - note: a short note on anything unclear (in the language of the score),

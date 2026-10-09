@@ -61,13 +61,16 @@ Rendering plus detection takes about 2 s per page in Node.
 
 ## Results on the surveyed scores
 
-Checked against the scans by eye (three private PDFs, 16 pages):
+Checked against the scans by eye (six private PDFs, 24 pages):
 
 | Score | Pages | Orientation | Systems | Measures |
 | --- | --- | --- | --- | --- |
 | TAB only, hand-drawn bar lines (rotated 90°) | 4 | 4/4 | 16/16 | 65/66: one boundary drawn as a parenthesis `( )` is not a line |
 | Staff + TAB, two songs | 7 | 7/7 | 42/42 | 168/168 |
 | Chord sheet page + staff + TAB | 5 | 4/4 + chord sheet skipped | 24/24 | 96/96 |
+| The first score, rescanned (rotated 270°) | 4 | 4/4 | 16/16 | 66/66 + 1 false: an oval around a stacked chord |
+| Staff + TAB on TAB paper, chord names written on the staff lines | 2 | 2/2 | 12/12 | 47/48: one faint bar line missed |
+| TAB only, hand-drawn (rotated 270°) | 2 | 2/2 | 8/8 | 33/33 + 2 false: an oval around the last chord, one straight stroke |
 
 This TypeScript version replaced the original Python/OpenCV prototype
 after matching it on these scores and the public-domain samples (same
@@ -77,8 +80,14 @@ measure counts, regions within 0.0014 of the page size).
 
 Known limits:
 
-- Measure boundaries that are not straight vertical lines (parentheses,
-  curved repeat brackets) are not detected.
+- Curved strokes across the TAB are kept as boundaries (some writers draw
+  a parenthesis instead of a bar line), unless they are part of a closed
+  loop such as an oval around a stacked chord. The loop is found by
+  following the ink; when it touches nearby digits or has gaps it is
+  missed and the oval splits the measure.
+- Staff and TAB are told apart by line count, or by line spacing when the
+  page has TAB paper (TAB lines wider apart): chord names written on a
+  staff line can hide part of it.
 - On staff + TAB paper, a bar line drawn only through the TAB is ignored
   (the staff-crossing rule trades it for robustness against stems).
 - Region coordinates are in the upright page after the 90° rotation; the

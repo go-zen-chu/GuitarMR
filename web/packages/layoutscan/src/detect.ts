@@ -370,6 +370,22 @@ function cleanGroup(group: Line[]): Line[] {
 }
 
 /**
+ * Whether each group is a TAB or a standard staff. Normally by its line
+ * count (6 or 5), but chord names written on a staff line can hide part of
+ * it, leaving 4 or 5 lines. TAB paper spaces the TAB lines wider than the
+ * staff lines, so when the full groups of a page show two clearly
+ * different spacings, every group is classified by the nearer one.
+ */
+function staffKinds(staves: Staff[]): ("tab" | "staff")[] {
+  const byCount = staves.map((st) => (st.lines.length === 6 ? "tab" : "staff") as "tab" | "staff");
+  const sixSpacing = median(staves.filter((st) => st.lines.length === 6).map(staffSpacing));
+  const fiveSpacing = median(staves.filter((st) => st.lines.length === 5).map(staffSpacing));
+  if (!(sixSpacing > 0 && fiveSpacing > 0) || sixSpacing / fiveSpacing < 1.12) return byCount;
+  const split = Math.sqrt(sixSpacing * fiveSpacing);
+  return staves.map((st) => (staffSpacing(st) >= split ? "tab" : "staff"));
+}
+
+/**
  * Pair each TAB with its own standard staff: the nearer of the 5-line
  * staves directly above and below (the gap to the neighboring system is
  * larger than the gap inside a system). Also reports whether the page looks
@@ -380,14 +396,15 @@ export function buildSystems(staves: Staff[]): { systems: System[]; upsideDown: 
   let above = 0;
   let below = 0;
   const used = new Set<number>();
+  const kinds = staffKinds(staves);
   staves.forEach((st, i) => {
-    if (st.lines.length !== 6) return;
+    if (kinds[i] !== "tab") return;
     const system: System = { tab: st, staff: null, barlines: [] };
     const limit = 12 * staffSpacing(st);
     const prev = staves[i - 1];
     const next = staves[i + 1];
-    const gapAbove = prev && prev.lines.length === 5 ? staffTop(st) - staffBottom(prev) : null;
-    const gapBelow = next && next.lines.length === 5 ? staffTop(next) - staffBottom(st) : null;
+    const gapAbove = prev && kinds[i - 1] === "staff" ? staffTop(st) - staffBottom(prev) : null;
+    const gapBelow = next && kinds[i + 1] === "staff" ? staffTop(next) - staffBottom(st) : null;
     if (gapAbove !== null && gapAbove < limit && (gapBelow === null || gapAbove <= gapBelow)) {
       system.staff = prev!;
       used.add(i - 1);
@@ -401,7 +418,7 @@ export function buildSystems(staves: Staff[]): { systems: System[]; upsideDown: 
   // Groups that are neither a TAB nor a staff paired with one: a TAB with a
   // missed line. Keep them as TABs so their measures are not lost.
   staves.forEach((st, i) => {
-    if (st.lines.length !== 6 && !used.has(i)) systems.push({ tab: st, staff: null, barlines: [] });
+    if (kinds[i] !== "tab" && !used.has(i)) systems.push({ tab: st, staff: null, barlines: [] });
   });
   systems.sort((a, b) => systemTop(a) - systemTop(b));
   return { systems, upsideDown: below > above };
@@ -444,7 +461,7 @@ function columnOf(mask: Plane, x0: number, x1: number): Uint8Array {
  * vertical ink combined with the staff lines, so crossing a staff line does
  * not interrupt a bar line.
  */
-export function findBarlines(strokes: Plane, system: System): number[] {
+export function findBarlines(strokes: Plane, system: System, content: Plane | null = null): number[] {
   const s = systemSpacing(system);
   if (!(s > 0)) return [];
   // Tolerate slightly slanted hand-drawn lines by widening strokes first.
@@ -485,10 +502,159 @@ export function findBarlines(strokes: Plane, system: System): number[] {
     } else if (continues(tabTop - 1.2 * s, tabTop - 0.3 * s)) {
       continue; // a stem above the TAB
     }
+    // Ovals drawn around stacked chords: curved, and closed. (A parenthesis
+    // is curved too, but some writers use one as the measure boundary.)
+    if (content) {
+      const bend = Math.min(...cluster.map((cx) => strokeBend(strokes, cx, tabTop, tabBottom)));
+      if (bend > MAX_BEND * s && closedLoop(content, x, tabTop, tabBottom, s)) continue;
+    }
     accepted.push(x);
   }
   const edge = 1.5 * s; // the lines closing the system at both ends are not inner bar lines
   return mergeClose(accepted, 1.2 * s).filter((x) => left + edge < x && x < right - edge);
+}
+
+/**
+ * Largest bend of a bar line, in staff spacings (see strokeBend). Measured
+ * on real scans: bar lines bend up to 0.11; parentheses (0.13 to 0.21) and
+ * ovals around stacked chords (0.19 to 0.26) bend more.
+ */
+export const MAX_BEND = 0.12;
+
+/**
+ * How far a stroke bends away from a straight line between rows y0..y1, in
+ * pixels: the stroke is followed row by row from its middle (one pixel
+ * sideways at most per row), then a line is fitted to its positions. Ruled
+ * or hand-drawn bar lines stay close to straight even when slanted;
+ * parentheses and the ovals drawn around stacked chords bulge.
+ */
+export function strokeBend(strokes: Plane, x: number, y0: number, y1: number): number {
+  const { width, data } = strokes;
+  const top = Math.max(Math.round(y0), 0);
+  const bottom = Math.min(Math.round(y1), strokes.height - 1);
+  if (bottom - top < 4) return 0;
+  const mid = (top + bottom) >> 1;
+  const ink = (xx: number, y: number) => xx >= 0 && xx < width && data[y * width + xx] === 1;
+  // Start on the ink nearest to x in the middle row.
+  let start = x;
+  for (let d = 0; d <= 3; d++) {
+    if (ink(x - d, mid)) {
+      start = x - d;
+      break;
+    }
+    if (ink(x + d, mid)) {
+      start = x + d;
+      break;
+    }
+  }
+  const xs = new Map<number, number>();
+  for (const step of [-1, 1]) {
+    let at = start;
+    for (let y = mid; step < 0 ? y >= top : y <= bottom; y += step) {
+      // Follow the edge facing x's side: a stroke crossing a staff line
+      // meets a long horizontal run, so prefer staying put.
+      if (ink(at, y)) {
+        xs.set(y, at);
+      } else if (ink(at - 1, y)) {
+        xs.set(y, --at);
+      } else if (ink(at + 1, y)) {
+        xs.set(y, ++at);
+      }
+    }
+  }
+  if (xs.size < (bottom - top) / 2) return Infinity; // not one connected stroke
+  const ys = [...xs.keys()];
+  const vs = [...xs.values()];
+  const my = mean(ys);
+  const mx = mean(vs);
+  let sxy = 0;
+  let syy = 0;
+  ys.forEach((y, i) => {
+    sxy += (y - my) * (vs[i]! - mx);
+    syy += (y - my) ** 2;
+  });
+  const slope = syy ? sxy / syy : 0;
+  return Math.max(...ys.map((y, i) => Math.abs(vs[i]! - (mx + slope * (y - my)))));
+}
+
+/**
+ * Whether the stroke at x is one side of a closed loop, such as an oval
+ * drawn around a stacked chord: following its ink (staff lines removed,
+ * small gaps bridged) reaches a second side at least 0.8 spacings away
+ * that runs along much of the TAB. A parenthesis is one open arc, and the
+ * digits next to it are too short to count as a side.
+ */
+export function closedLoop(content: Plane, x: number, top: number, bottom: number, s: number): boolean {
+  const x0 = Math.max(Math.round(x - 3 * s), 0);
+  const x1 = Math.min(Math.round(x + 3 * s), content.width - 1);
+  const y0 = Math.max(Math.round(top - s), 0);
+  const y1 = Math.min(Math.round(bottom + s), content.height - 1);
+  const w = x1 - x0 + 1;
+  const h = y1 - y0 + 1;
+  if (w < 3 || h < 3) return false;
+  // Local copy, dilated by 2 px to bridge the gaps where staff lines crossed.
+  const local = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let xx = 0; xx < w; xx++) {
+      if (!content.data[(y0 + y) * content.width + x0 + xx]) continue;
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const yy = y + dy;
+          const xd = xx + dx;
+          if (yy >= 0 && yy < h && xd >= 0 && xd < w) local[yy * w + xd] = 1;
+        }
+      }
+    }
+  }
+  // Seed on the stroke near x, around the middle of the TAB.
+  const cx = Math.round(x) - x0;
+  const mid = Math.round((top + bottom) / 2) - y0;
+  let seed = -1;
+  for (let dy = 0; dy <= Math.round(s) && seed < 0; dy++) {
+    for (const y of [mid - dy, mid + dy]) {
+      for (let dx = 0; dx <= 3 && seed < 0; dx++) {
+        for (const xx of [cx - dx, cx + dx]) {
+          if (seed < 0 && y >= 0 && y < h && xx >= 0 && xx < w && local[y * w + xx]) seed = y * w + xx;
+        }
+      }
+    }
+  }
+  if (seed < 0) return false;
+  const seen = new Uint8Array(w * h);
+  const stack = [seed];
+  seen[seed] = 1;
+  const rowsAt = new Map<number, Set<number>>(); // column → rows with ink
+  while (stack.length) {
+    const i = stack.pop()!;
+    const px = i % w;
+    const py = (i - px) / w;
+    let rows = rowsAt.get(px);
+    if (!rows) rowsAt.set(px, (rows = new Set()));
+    rows.add(py);
+    for (const [nx, ny] of [
+      [px - 1, py],
+      [px + 1, py],
+      [px, py - 1],
+      [px, py + 1],
+    ] as const) {
+      if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+      const j = ny * w + nx;
+      if (local[j] && !seen[j]) {
+        seen[j] = 1;
+        stack.push(j);
+      }
+    }
+  }
+  const columns = [...rowsAt.keys()];
+  const minX = Math.min(...columns);
+  const maxX = Math.max(...columns);
+  if (maxX - minX < 0.8 * s) return false;
+  // The far side from the stroke must run along much of the TAB.
+  const band = Math.max(Math.round(0.3 * s), 2);
+  const [lo, hi] = cx - minX < maxX - cx ? [maxX - band, maxX] : [minX, minX + band];
+  const rows = new Set<number>();
+  for (let c = lo; c <= hi; c++) for (const r of rowsAt.get(c) ?? []) rows.add(r);
+  return rows.size >= 0.4 * (bottom - top);
 }
 
 function clusters(xs: number[], maxGap: number): number[][] {
@@ -561,8 +727,10 @@ export function analyzePage(image: RgbaImage): PageLayout {
     const turned = rotatePlane90(p, rotation);
     return { ...turned, data: rotateSmall(turned.data, turned.width, turned.height, skew, 1, 255) };
   };
-  const strokes = or(verticalInk(upright(gray), upright(saturation)), horizontalLines(mask));
-  for (const system of systems) system.barlines = findBarlines(strokes, system);
+  const lines = horizontalLines(mask);
+  const strokes = or(verticalInk(upright(gray), upright(saturation)), lines);
+  const content = subtract(mask, lines);
+  for (const system of systems) system.barlines = findBarlines(strokes, system, content);
   return { rotation: rotation % 360, skew, width: mask.width, height: mask.height, systems };
 }
 

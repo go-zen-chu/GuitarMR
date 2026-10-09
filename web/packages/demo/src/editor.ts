@@ -68,7 +68,6 @@ export function createEditor(host: EditorHost) {
     f.note.hidden = !m.review?.comment;
     f.note.textContent = m.review?.comment ? `AIのメモ: ${m.review.comment}` : "";
     f.chords.value = formatChordLine(m.chords, perBar(m));
-    f.chords.disabled = Boolean(m.simile);
     f.chordsError.textContent = "";
     f.section.value = sectionLabels(host.doc()).get(m.id) ?? "";
     f.repeatStart.checked = m.barStart === "repeat-start";
@@ -135,7 +134,7 @@ export function createEditor(host: EditorHost) {
   });
   f.simile.addEventListener("change", () => {
     const value = Number(f.simile.value);
-    apply(value === 1 || value === 2 ? { simile: value, chords: undefined } : { simile: undefined });
+    apply({ simile: value === 1 || value === 2 ? value : undefined });
   });
   for (const n of NAV_IDS) {
     f.nav[n]!.addEventListener("change", () =>

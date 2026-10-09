@@ -94,10 +94,7 @@ export function parseReading(answer: unknown, ids: readonly string[]): PageReadi
       if (navigation.length) reading.navigation = [...new Set(navigation)];
       if (navigation.length < raw.navigation.length) drop("navigation", raw.navigation);
     }
-    if (raw.simile === 1 || raw.simile === 2) {
-      reading.simile = raw.simile;
-      reading.chords = [];
-    }
+    if (raw.simile === 1 || raw.simile === 2) reading.simile = raw.simile;
     if (typeof raw.timeSignature === "string" && TIME_SIGNATURE.test(raw.timeSignature)) {
       reading.timeSignature = raw.timeSignature;
     }

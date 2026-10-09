@@ -43,6 +43,10 @@ project starts taking external contributions.
       (web/packages/extract, web/packages/demo) are done. Next:
       - Check the reading on the real scores and tune the prompt from
         the misses (measure ids, beat positions, repeats/D.S.).
+      - Merge and split measures in the review editor: layout misses on
+        real scores are about 1 in 50 measures (an oval around a stacked
+        chord taken as a bar line, a faint bar line missed), and today
+        they can only be fixed by hand in the JSON.
       - `tab` layer: rhythm and frets per measure, with beat-sum and
         string/fret validators feeding `needs-attention`.
       - Semantic checks across measures: repeat/volta balance, sections.

@@ -140,8 +140,11 @@ label.
 - **Written vs played order**: sections and measures are stored in written
   order. Playback order is derived by expanding `repeat-start`/`repeat-end`
   with `repeatTimes`, `volta`, and `segno`/`to-coda`/`ds-al-coda`/`coda`.
-- **Simile** (`%`) measures keep `simile: 1|2` and no content of their own;
-  consumers (playback order, a future exporter) expand them.
+- **Simile** (`%`, or a slash with dots across the TAB) measures keep
+  `simile: 1|2` and no beats of their own; consumers (playback, a future
+  exporter) repeat the previous measures' rhythm and notes. Chord names
+  written over a simile measure are kept: the scores use this for "the
+  same pattern on a new chord".
 - **Regions** are `[x0, y0, x1, y1]` normalized to 0..1 on the page after
   applying `source.pages[].rotation`, independent of render resolution.
 

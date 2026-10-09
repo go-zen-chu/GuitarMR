@@ -18,6 +18,11 @@ export interface SystemSpec {
   withStaff?: boolean;
   stems?: number[]; // x of note stems hanging below the TAB
   redLines?: number[]; // x of red pen strokes across the TAB
+  ovals?: number[]; // x of ovals drawn around stacked chords on the TAB
+  parens?: number[]; // x of "(" drawn instead of a bar line (a measure boundary)
+  tabSpacing?: number; // TAB line spacing, when wider than the staff's
+  staffTopFrom?: number; // the top staff line is hidden left of this x (chord names written on it)
+  tabTopFrom?: number; // the same for the top TAB line
 }
 
 export const tabTop = (spec: SystemSpec): number =>
@@ -39,9 +44,18 @@ export function drawPage(systems: SystemSpec[]): RgbaImage {
   for (const spec of systems) {
     const withStaff = spec.withStaff ?? true;
     const tTop = tabTop(spec);
-    const tBottom = tTop + 5 * SPACING;
-    if (withStaff) for (let i = 0; i < 5; i++) line(LEFT, spec.top + i * SPACING, RIGHT, spec.top + i * SPACING, INK, 2);
-    for (let i = 0; i < 6; i++) line(LEFT, tTop + i * SPACING, RIGHT, tTop + i * SPACING, INK, 2);
+    const tabSpacing = spec.tabSpacing ?? SPACING;
+    const tBottom = tTop + 5 * tabSpacing;
+    if (withStaff) {
+      for (let i = 0; i < 5; i++) {
+        const from = i === 0 ? (spec.staffTopFrom ?? LEFT) : LEFT;
+        line(from, spec.top + i * SPACING, RIGHT, spec.top + i * SPACING, INK, 2);
+      }
+    }
+    for (let i = 0; i < 6; i++) {
+      const from = i === 0 ? (spec.tabTopFrom ?? LEFT) : LEFT;
+      line(from, tTop + i * tabSpacing, RIGHT, tTop + i * tabSpacing, INK, 2);
+    }
     // "TAB" clef letters just inside the left edge.
     ctx.fillStyle = "rgb(30, 30, 30)";
     ctx.font = "bold 30px sans-serif";
@@ -54,6 +68,20 @@ export function drawPage(systems: SystemSpec[]): RgbaImage {
       line(x, tBottom + 3 * SPACING, x + 60, tBottom + 3 * SPACING, INK, 4);
     }
     for (const x of spec.redLines ?? []) line(x, tTop - 10, x, tBottom + 10, RED, 3);
+    for (const x of spec.ovals ?? []) {
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(x, (tTop + tBottom) / 2, 0.7 * tabSpacing, 3 * tabSpacing, 0, 0, 2 * Math.PI);
+      ctx.stroke();
+    }
+    for (const x of spec.parens ?? []) {
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(x + 0.7 * tabSpacing, (tTop + tBottom) / 2, 0.7 * tabSpacing, 3 * tabSpacing, 0, Math.PI / 2, (3 * Math.PI) / 2);
+      ctx.stroke();
+    }
     // Chord names above the system.
     ctx.fillStyle = "rgb(30, 30, 30)";
     ctx.font = "40px sans-serif";

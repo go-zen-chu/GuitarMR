@@ -121,7 +121,8 @@ describe("checking answers", () => {
       { symbol: "G", beat: 1 },
     ].sort((a, b) => a.beat - b.beat));
     assert.equal(m1!.barEnd, undefined);
-    assert.deepEqual([m2!.simile, m2!.chords, m2!.repeatTimes], [1, [], undefined]);
+    // A simile measure keeps the chord written over it (same pattern, new chord).
+    assert.deepEqual([m2!.simile, m2!.chords, m2!.repeatTimes], [1, [{ symbol: "C", beat: 1 }], undefined]);
     assert.deepEqual([m3!.navigation, m3!.volta], [["ds"], [1]]);
     assert.equal(reading.measures.length, 3);
     assert.ok(reading.warnings.some((w) => w.startsWith("m4: no answer")));
@@ -155,10 +156,11 @@ describe("editing", () => {
     assert.equal(measures(moved).length, measures(doc).length);
   });
 
-  it("If a measure is updated empty fields should be removed and simile should clear chords", () => {
+  it("If a measure is updated empty fields should be removed and simile should drop its own beats", () => {
     const edited = updateMeasure(doc, "m2", { barStart: undefined, navigation: [], simile: 1, review: { status: "reviewed" } });
     const m2 = measures(edited)[1]!;
-    assert.equal("chords" in m2, false);
+    assert.equal("beats" in m2, false);
+    assert.deepEqual(m2.chords, measures(doc)[1]!.chords);
     assert.equal(m2.simile, 1);
     assert.equal("navigation" in m2, false);
     assert.equal(validate(edited).valid, true);

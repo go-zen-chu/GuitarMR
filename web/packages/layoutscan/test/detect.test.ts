@@ -83,6 +83,34 @@ describe("analyzePage", () => {
     assert.deepEqual(analyzePage(drawPage([])).systems, []);
   });
 
+  for (const withStaff of [true, false]) {
+    it(`If ovals are drawn around stacked chords they should not split measures (with staff: ${withStaff})`, () => {
+      const layout = analyzePage(drawPage([{ top: 400, barlines: [1060], withStaff, ovals: [400, 1300, 1700] }]));
+      assert.deepEqual(measureCounts(layout), [2]);
+    });
+  }
+
+  it("If a parenthesis is drawn instead of a bar line it should still split the measures", () => {
+    const layout = analyzePage(drawPage([{ top: 400, barlines: [1060], withStaff: false, parens: [600] }]));
+    assert.deepEqual(measureCounts(layout), [3]);
+  });
+
+  it("If chord names hide part of a staff line it should still pair the staff with its TAB", () => {
+    // TAB paper: TAB lines wider apart than staff lines. Writing on the top
+    // lines leaves 4 full staff lines in one system and 5 full TAB lines
+    // (which look like a staff by count) in another.
+    const specs = [0, 1, 2, 3].map((i) => ({
+      top: 300 + i * 620,
+      barlines: [1060],
+      tabSpacing: 22,
+      ...(i === 1 ? { staffTopFrom: 1300 } : {}),
+      ...(i === 2 ? { tabTopFrom: 1300 } : {}),
+    }));
+    const layout = analyzePage(drawPage(specs));
+    assert.deepEqual(measureCounts(layout), [2, 2, 2, 2]);
+    assert.ok(layout.systems.every((s) => s.staff));
+  });
+
   it("If a start repeat follows the clef it should not create a tiny measure", () => {
     const layout = analyzePage(drawPage([{ top: 400, barlines: [LEFT + 45, LEFT + 52, 1060] }]));
     assert.deepEqual(measureCounts(layout), [2]);
