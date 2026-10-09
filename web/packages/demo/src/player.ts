@@ -114,6 +114,7 @@ export function createPlayer() {
     const sounding: SoundingChords[] = soundingChords(steps);
     totalBeats = steps.length ? steps[steps.length - 1]!.start + steps[steps.length - 1]!.beats : 0;
     const shapes = doc.chordShapes ?? {};
+    const hasLyrics = steps.some((s) => s.measure.lyrics?.length);
     el.title.textContent = doc.meta.title;
     const facts = [
       doc.meta.key ? `Key ${prettyChord(doc.meta.key)}` : "",
@@ -179,19 +180,22 @@ export function createPlayer() {
         lane.append(chord);
       });
       cell.append(head, lane);
+      // Lyrics get their line in every measure of a song that has lyrics, so
+      // chords and lyrics sit at the same height across a row; diagrams,
+      // which only some measures have, come last.
+      const lyric = lyricsFor(step);
+      if (hasLyrics) {
+        const p = document.createElement("div");
+        p.className = "lyric";
+        p.textContent = lyric ?? "";
+        cell.append(p);
+      }
       const withShapes = chords.filter((c) => c.shape && shapes[c.shape]);
       if (withShapes.length && !carried) {
         const row = document.createElement("div");
         row.className = "diagrams";
         for (const c of withShapes) row.append(diagram(shapes[c.shape!]!.frets as (number | null)[]));
         cell.append(row);
-      }
-      const lyric = lyricsFor(step);
-      if (lyric) {
-        const p = document.createElement("div");
-        p.className = "lyric";
-        p.textContent = lyric;
-        cell.append(p);
       }
       const beat = document.createElement("div");
       beat.className = "beat";
@@ -205,14 +209,36 @@ export function createPlayer() {
     fit();
   }
 
-  /** Shrink chord lanes whose names do not fit their measure (two steps). */
+  /**
+   * Shrink chord names (and lyrics) that do not fit their measure, in two
+   * steps; every measure of a row takes the step its tightest measure
+   * needs, so a row keeps one size and its baselines line up.
+   */
   function fit() {
-    for (const lane of el.bars.querySelectorAll<HTMLElement>(".chords")) {
-      lane.classList.remove("fit-1", "fit-2");
-      if (lane.scrollWidth > lane.clientWidth + 1) lane.classList.add("fit-1");
-      if (lane.scrollWidth > lane.clientWidth + 1) lane.classList.replace("fit-1", "fit-2");
+    const levels = (selector: string) =>
+      [...el.bars.querySelectorAll<HTMLElement>(selector)].map((node) => {
+        node.classList.remove("fit-1", "fit-2");
+        let level = 0;
+        for (const cls of ["fit-1", "fit-2"]) {
+          if (node.scrollWidth <= node.clientWidth + 1) break;
+          node.classList.remove("fit-1");
+          node.classList.add(cls);
+          level++;
+        }
+        node.classList.remove("fit-1", "fit-2");
+        return { node, level, top: node.closest<HTMLElement>(".bar")!.offsetTop };
+      });
+    for (const selector of [".chords", ".lyric"]) {
+      const items = levels(selector);
+      const rowLevel = new Map<number, number>();
+      for (const { level, top } of items) rowLevel.set(top, Math.max(rowLevel.get(top) ?? 0, level));
+      for (const { node, top } of items) {
+        const level = rowLevel.get(top)!;
+        if (level) node.classList.add(`fit-${level}`);
+      }
     }
   }
+
 
   function stepAt(beat: number): number {
     let lo = 0;

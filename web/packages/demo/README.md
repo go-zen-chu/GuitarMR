@@ -24,7 +24,10 @@ first step toward the phone/tablet PWA (ADR-009):
    (Web Audio, scheduled ahead); the current measure and beat are
    highlighted and the view scrolls to keep the current line near the
    top. Measures per row and text sizes follow the screen and each
-   measure's width (container query units), with A−/A＋ on top. A gts file
+   measure's width (container query units), with A−/A＋ on top. Inside a
+   measure the marks, chord and lyric lines have fixed heights, and a row
+   shrinks long names as a whole, so chords and lyrics stay level across
+   a row for the eye to follow. A gts file
    can be opened in it on its own, without the PDF; the committed
    public-domain samples are built in.
 

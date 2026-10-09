@@ -179,17 +179,21 @@ body.in-player { overflow: hidden; }
 .zoom { display: flex; gap: 4px; }
 .player-bars { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--cell) * var(--zoom))), 1fr)); gap: 10px 0; padding: 14px 16px 60vh; }
 /* Text sizes follow each measure's own width (container units), times the zoom. */
-.bar { container-type: inline-size; --chord: clamp(1.15rem, 15cqi, 2.1rem); position: relative; display: grid; align-content: start; gap: 4px; min-height: calc(5.2rem * var(--zoom)); padding: 4px 10px 10px; border-left: 2px solid var(--ink); cursor: pointer; outline: none; }
+/* Each measure stacks fixed-height lines (marks, chords, lyrics), so these
+   lines sit at the same height across a row whatever the text size. */
+.bar { container-type: inline-size; --chord: clamp(1.15rem, 15cqi, 2.1rem); position: relative; display: grid; align-content: start; gap: 2px; padding: 4px 10px 10px; border-left: 2px solid var(--ink); cursor: pointer; outline: none; }
 .bar:focus-visible { box-shadow: inset 0 0 0 2px var(--system); }
 .bar.repeat-start { border-left: 5px double var(--ink); }
 .bar.repeat-end { border-right: 5px double var(--ink); }
 .bar.double { border-right: 4px double var(--ink); }
 .bar.final { border-right: 5px solid var(--ink); }
 .bar.current { background: var(--now-bg); box-shadow: inset 0 0 0 3px var(--now); border-radius: 4px; }
-.bar-head { display: flex; flex-wrap: wrap; gap: 4px 8px; min-height: 1.2em; font-size: calc(0.8rem * var(--zoom)); color: var(--muted); }
+.bar-head { display: flex; flex-wrap: nowrap; gap: 8px; height: 1.5em; overflow: hidden; white-space: nowrap; font-size: calc(0.8rem * var(--zoom)); line-height: 1.5; color: var(--muted); }
 .mark.section { font-family: var(--font-display); font-weight: 700; color: var(--ink); }
 .mark.pass { color: var(--now); }
-.chords { display: flex; align-items: baseline; gap: 0.35em; overflow: hidden; height: calc(var(--chord) * var(--zoom) * 1.3); font-size: calc(var(--chord) * var(--zoom)); line-height: 1.3; font-family: var(--font-display); font-weight: 700; }
+/* The chord line keeps the height of the full size; smaller text sits on the
+   same baseline at its bottom. */
+.chords { display: flex; align-items: flex-end; gap: 0.35em; overflow: hidden; height: calc(var(--chord) * var(--zoom) * 1.25); font-size: calc(var(--chord) * var(--zoom)); line-height: 1.1; font-family: var(--font-display); font-weight: 700; }
 .chords.fit-1 { font-size: calc(var(--chord) * var(--zoom) * 0.78); }
 .chords.fit-2 { font-size: calc(var(--chord) * var(--zoom) * 0.6); }
 .chords .lead { flex: 0 1 0; }
@@ -203,7 +207,9 @@ body.in-player { overflow: hidden; }
 .diagram .dg-dot { fill: var(--ink); }
 .diagram .dg-open { fill: none; stroke: var(--ink); stroke-width: 1.2; }
 .diagram .dg-text { fill: var(--muted); font-size: 9px; font-family: var(--font-mono); }
-.lyric { font-size: calc(0.95rem * var(--zoom)); line-height: 1.4; color: var(--ink); overflow-wrap: anywhere; }
+.lyric { --lyric: calc(0.95rem * var(--zoom)); height: calc(var(--lyric) * 1.5); display: flex; align-items: flex-end; overflow: hidden; white-space: nowrap; font-size: var(--lyric); line-height: 1.2; color: var(--ink); }
+.lyric.fit-1 { font-size: calc(var(--lyric) * 0.82); }
+.lyric.fit-2 { font-size: calc(var(--lyric) * 0.66); }
 .beat { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--now); transform-origin: left; transform: scaleX(var(--progress, 0)); opacity: 0; }
 .bar.current .beat { opacity: 1; }
 .player-count { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; font-family: var(--font-mono); font-weight: 600; font-size: min(40vw, 14rem); color: var(--now); opacity: 0.85; }
