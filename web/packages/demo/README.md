@@ -16,6 +16,17 @@ first step toward the phone/tablet PWA (ADR-009):
    bar lines and signs; "確認済みにして次へ" marks it reviewed.
 4. Save `<name>.gts.json`. Work in progress is also kept as a draft in the
    browser, and a saved gts file can be opened again to continue.
+5. Play it: the play view (`src/player.ts`) shows the measures in play
+   order (repeats, endings and D.S./D.C./Coda expanded by `playOrder` in
+   `@guitarmr/gts`), each with its chords spread by duration, the verse
+   for the current pass and chord diagrams from `chordShapes`. Playing
+   follows the tempo with a one-measure count-in and an optional click
+   (Web Audio, scheduled ahead); the current measure and beat are
+   highlighted and the view scrolls to keep the current line near the
+   top. Measures per row and text sizes follow the screen and each
+   measure's width (container query units), with A−/A＋ on top. A gts file
+   can be opened in it on its own, without the PDF; the committed
+   public-domain samples are built in.
 
 ```sh
 pnpm --filter @guitarmr/demo build              # dist/layoutscan-demo.html

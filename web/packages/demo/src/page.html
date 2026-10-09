@@ -31,6 +31,9 @@
   --ov-text: #14161a;
   --ov-halo: #ffffff;
   --scrim: rgba(20, 22, 26, 0.18);
+  /* Play view: the measure being played. */
+  --now: #d0167a;
+  --now-bg: #fbe4ef;
   --font-display: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
   --font-body: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -39,14 +42,14 @@
   :root:not([data-theme="light"]) {
     --paper: #14161a; --surface: #1c1f24; --ink: #e9eae6; --muted: #9ba2ac; --rule: #2e3238;
     --measure: #ff6a5c; --system: #8aa2ff; --button: #e9eae6; --button-ink: #14161a; --on-measure: #14161a;
-    --st-unread: #ff7a6e; --st-auto: #6cc3d8; --st-attention: #f0b24a; --st-reviewed: #6fd39a; --scrim: rgba(0, 0, 0, 0.5);
+    --st-unread: #ff7a6e; --st-auto: #6cc3d8; --st-attention: #f0b24a; --st-reviewed: #6fd39a; --scrim: rgba(0, 0, 0, 0.5); --now: #ff5fa8; --now-bg: #3b1d2c;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --paper: #14161a; --surface: #1c1f24; --ink: #e9eae6; --muted: #9ba2ac; --rule: #2e3238;
   --measure: #ff6a5c; --system: #8aa2ff; --button: #e9eae6; --button-ink: #14161a; --on-measure: #14161a;
-    --st-unread: #ff7a6e; --st-auto: #6cc3d8; --st-attention: #f0b24a; --st-reviewed: #6fd39a; --scrim: rgba(0, 0, 0, 0.5);
+    --st-unread: #ff7a6e; --st-auto: #6cc3d8; --st-attention: #f0b24a; --st-reviewed: #6fd39a; --scrim: rgba(0, 0, 0, 0.5); --now: #ff5fa8; --now-bg: #3b1d2c;
   color-scheme: dark;
 }
 body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6; }
@@ -159,6 +162,52 @@ body.editing main { padding-bottom: 70dvh; }
 .sheet-actions .primary { background: var(--st-reviewed); border-color: var(--st-reviewed); color: var(--surface); font-weight: 700; }
 .page.skipped p { color: var(--muted); font-size: 0.85rem; }
 footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 12px; }
+/* Play view: full screen, measures flow in rows sized to the screen. */
+body.in-player { overflow: hidden; }
+.player { position: fixed; inset: 0; z-index: 20; overflow-y: auto; background: var(--paper); color: var(--ink); --zoom: 1; --cell: clamp(8.5rem, 22vw, 13rem); }
+.player-bar { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px; background: var(--surface); border-bottom: 1px solid var(--rule); }
+.player-titles { flex: 1 1 12rem; min-width: 0; }
+.player-titles h2 { font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player-titles p { font-size: 0.8rem; color: var(--muted); font-family: var(--font-mono); }
+.player-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.player-controls button { min-width: 44px; min-height: 44px; border-radius: 10px; border: 1px solid var(--rule); background: transparent; cursor: pointer; }
+.player-controls .play { min-width: 6.5rem; background: var(--now); border-color: var(--now); color: var(--surface); font-weight: 700; font-family: var(--font-display); }
+.tempo { display: flex; align-items: center; gap: 4px; }
+.tempo label { display: flex; align-items: baseline; gap: 4px; font-size: 0.8rem; color: var(--muted); }
+.tempo input { width: 3.6rem; min-height: 40px; font: inherit; font-size: 16px; font-family: var(--font-mono); text-align: center; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; }
+.toggle { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; min-height: 44px; }
+.zoom { display: flex; gap: 4px; }
+.player-bars { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--cell) * var(--zoom))), 1fr)); gap: 10px 0; padding: 14px 16px 60vh; }
+/* Text sizes follow each measure's own width (container units), times the zoom. */
+.bar { container-type: inline-size; --chord: clamp(1.15rem, 15cqi, 2.1rem); position: relative; display: grid; align-content: start; gap: 4px; min-height: calc(5.2rem * var(--zoom)); padding: 4px 10px 10px; border-left: 2px solid var(--ink); cursor: pointer; outline: none; }
+.bar:focus-visible { box-shadow: inset 0 0 0 2px var(--system); }
+.bar.repeat-start { border-left: 5px double var(--ink); }
+.bar.repeat-end { border-right: 5px double var(--ink); }
+.bar.double { border-right: 4px double var(--ink); }
+.bar.final { border-right: 5px solid var(--ink); }
+.bar.current { background: var(--now-bg); box-shadow: inset 0 0 0 3px var(--now); border-radius: 4px; }
+.bar-head { display: flex; flex-wrap: wrap; gap: 4px 8px; min-height: 1.2em; font-size: calc(0.8rem * var(--zoom)); color: var(--muted); }
+.mark.section { font-family: var(--font-display); font-weight: 700; color: var(--ink); }
+.mark.pass { color: var(--now); }
+.chords { display: flex; align-items: baseline; gap: 0.35em; overflow: hidden; height: calc(var(--chord) * var(--zoom) * 1.3); font-size: calc(var(--chord) * var(--zoom)); line-height: 1.3; font-family: var(--font-display); font-weight: 700; }
+.chords.fit-1 { font-size: calc(var(--chord) * var(--zoom) * 0.78); }
+.chords.fit-2 { font-size: calc(var(--chord) * var(--zoom) * 0.6); }
+.chords .lead { flex: 0 1 0; }
+.chords.carried { color: var(--muted); font-weight: 500; }
+.chords.carried .chord::before { content: "("; } .chords.carried .chord::after { content: ")"; }
+.chord { flex-shrink: 0; flex-basis: auto; white-space: nowrap; letter-spacing: 0.01em; }
+.diagrams { display: flex; gap: 6px; }
+.diagram { width: calc(2.6rem * var(--zoom)); height: auto; }
+.diagram .dg-line { stroke: var(--muted); stroke-width: 1; }
+.diagram .dg-nut { stroke: var(--ink); stroke-width: 3; }
+.diagram .dg-dot { fill: var(--ink); }
+.diagram .dg-open { fill: none; stroke: var(--ink); stroke-width: 1.2; }
+.diagram .dg-text { fill: var(--muted); font-size: 9px; font-family: var(--font-mono); }
+.lyric { font-size: calc(0.95rem * var(--zoom)); line-height: 1.4; color: var(--ink); overflow-wrap: anywhere; }
+.beat { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--now); transform-origin: left; transform: scaleX(var(--progress, 0)); opacity: 0; }
+.bar.current .beat { opacity: 1; }
+.player-count { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; font-family: var(--font-mono); font-weight: 600; font-size: min(40vw, 14rem); color: var(--now); opacity: 0.85; }
+@media (prefers-reduced-motion: reduce) { .player * { scroll-behavior: auto; } }
 </style>
 
 <main>
@@ -172,6 +221,7 @@ footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--rul
     <label class="file-button">PDFを選ぶ<input id="pdf-file" type="file" aria-label="PDFを選ぶ"></label>
     <p class="pick-hint">ファイルを選ぶ画面が開かないときは、このリンクを Safari や Chrome で開いてください（Claude アプリの中では選べないことがあります）。パソコンでは PDF をこのページにドラッグしても読み込めます。</p>
     <div class="samples-row" id="samples"><p>サンプル（パブリックドメインの曲から自動生成したスキャン風PDF）</p></div>
+    <div class="samples-row" id="play-samples"><p>演奏ビュー：読み取ったコードを順に表示し、テンポに合わせて自動スクロールします（gts だけで開けます）</p><label class="file-link">gts.json を演奏ビューで開く<input id="play-gts" type="file" aria-label="gts.json を演奏ビューで開く"></label></div>
   </section>
 
   <div class="status" aria-live="polite"><p id="status"></p><progress id="progress" max="1" value="0" hidden></progress></div>
@@ -190,6 +240,7 @@ footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--rul
     <div class="actions">
       <button type="button" class="primary" id="save">gts.json を保存</button>
       <button type="button" id="copy">JSONをコピー</button>
+      <button type="button" id="play-open">演奏ビューで開く</button>
       <label class="file-link">保存した gts.json を開く<input id="gts-file" type="file" aria-label="保存した gts.json を開く"></label>
     </div>
     <p class="save-note" id="save-note" aria-live="polite"></p>
@@ -233,7 +284,27 @@ footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--rul
   </div>
 </aside>
 
+<section class="player" id="player" hidden aria-label="演奏ビュー">
+  <div class="player-bar">
+    <div class="player-titles"><h2 id="player-title"></h2><p id="player-meta"></p></div>
+    <div class="player-controls">
+      <button type="button" class="play" id="player-play" aria-pressed="false">再生</button>
+      <div class="tempo">
+        <button type="button" id="player-slower" aria-label="テンポを遅く">−</button>
+        <label><input type="number" id="player-bpm" inputmode="numeric" min="30" max="300" aria-label="テンポ（BPM）"><span>BPM</span></label>
+        <button type="button" id="player-faster" aria-label="テンポを速く">＋</button>
+      </div>
+      <label class="toggle"><input type="checkbox" id="player-click">クリック音</label>
+      <div class="zoom"><button type="button" id="player-smaller" aria-label="文字を小さく">A−</button><button type="button" id="player-larger" aria-label="文字を大きく">A＋</button></div>
+      <button type="button" class="close" id="player-close" aria-label="演奏ビューを閉じる">×</button>
+    </div>
+  </div>
+  <div class="player-bars" id="player-bars"></div>
+  <div class="player-count" id="player-count" hidden></div>
+</section>
+
 <script type="application/json" id="samples-data">/*@SAMPLES@*/</script>
+<script type="application/json" id="scores-data">/*@SCORES@*/</script>
 <script id="layoutscan-core">/*@CORE@*/</script>
 <script type="text/plain" id="layoutscan-worker">/*@WORKER@*/</script>
 <script type="module">/*@APP@*/</script>

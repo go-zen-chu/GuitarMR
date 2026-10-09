@@ -15,6 +15,7 @@ import { reviewSummary } from "@guitarmr/extract";
 import { type RgbaImage, type ScannedPage, buildDocument, renderPages, sha256Hex } from "@guitarmr/layoutscan";
 import * as pdfjs from "pdfjs-dist";
 import { createEditor } from "./editor.ts";
+import { createPlayer } from "./player.ts";
 import type { DetectResult } from "./preview.ts";
 import { type Sample, readPages } from "./reader.ts";
 import { type PageView, drawPage, statusOf } from "./score-view.ts";
@@ -57,6 +58,9 @@ const ui = {
   openGts: $<HTMLInputElement>("gts-file"),
   saveNote: $<HTMLParagraphElement>("save-note"),
   json: $<HTMLTextAreaElement>("json"),
+  playOpen: $<HTMLButtonElement>("play-open"),
+  playGts: $<HTMLInputElement>("play-gts"),
+  playSamples: $<HTMLElement>("play-samples"),
   pages: $<HTMLOListElement>("pages"),
 };
 
@@ -463,6 +467,38 @@ async function openGts(file: File) {
     ui.saveNote.textContent = `${file.name} を開けませんでした（${(e as Error).message}）。`;
   }
 }
+
+// The play view: from the score being worked on, a gts file alone, or a sample.
+const player = createPlayer();
+
+/** A gts file picked for the play view (no PDF needed). */
+async function playFile(file: File) {
+  try {
+    const doc = JSON.parse(await file.text()) as GtsDocument;
+    if (doc?.format !== "gts" || !Array.isArray(doc.sections) || !doc.meta) throw new Error("gts ではありません");
+    player.open(doc);
+  } catch (e) {
+    setStatus(`${file.name} を演奏ビューで開けませんでした（${(e as Error).message}）。`);
+  }
+}
+
+const scores: { label: string; note: string; gts: GtsDocument }[] = JSON.parse($("scores-data").textContent!);
+for (const s of scores) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "sample";
+  button.innerHTML = "<span></span><small></small>";
+  button.querySelector("span")!.textContent = s.label;
+  button.querySelector("small")!.textContent = s.note;
+  button.addEventListener("click", () => player.open(structuredClone(s.gts)));
+  ui.playSamples.insertBefore(button, ui.playSamples.querySelector(".file-link"));
+}
+ui.playOpen.addEventListener("click", () => state.doc && player.open(state.doc));
+ui.playGts.addEventListener("change", () => {
+  const file = ui.playGts.files?.[0];
+  ui.playGts.value = "";
+  if (file) void playFile(file);
+});
 
 const decode = (b64: string): Uint8Array => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 

@@ -23,6 +23,7 @@ const PDFJS_CDN = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/lega
  * They run in the worker and, as globals, under the page script.
  */
 export const CORE = [
+  "../../gts/src/playback.ts",
   "../../gts/src/index.ts",
   "../../layoutscan/src/image.ts",
   "../../layoutscan/src/detect.ts",
@@ -36,7 +37,14 @@ export const CORE = [
 ];
 
 /** The page script (one module): app.ts last, it starts everything. */
-export const APP = ["../src/score-view.ts", "../src/editor.ts", "../src/reader.ts", "../src/app.ts"];
+export const APP = ["../src/score-view.ts", "../src/editor.ts", "../src/reader.ts", "../src/player.ts", "../src/app.ts"];
+
+/** Committed public-domain gts files offered in the play view. */
+export const SCORES = [
+  { file: "sakura-sakura.gts.json", label: "さくらさくら", note: "歌詞・1番/2番カッコ" },
+  { file: "twinkle-twinkle.gts.json", label: "きらきら星", note: "全体をリピート" },
+  { file: "sample.gts.json", label: "練習曲", note: "D.S. al Coda・押さえかた" },
+];
 
 export const SAMPLES = [
   { file: "sakura-sakura.pdf", label: "さくらさくら", note: "2ページ・2ページ目は上下逆" },
@@ -48,6 +56,7 @@ export function scriptOf(path: string): string {
   const js = stripTypeScriptTypes(readFileSync(src(path), "utf8"));
   return js
     .replace(/^import\s[^;]*?\sfrom\s+"[^"]+";\s*$/gms, (m) => (/from\s+"pdfjs-dist"/.test(m) ? m : ""))
+    .replace(/^export \* from\s+"[^"]+";\s*$/gm, "") // re-exports: the files are concatenated anyway
     .replace(/^export (?=(async |const |function|let |class ))/gm, "");
 }
 
@@ -72,9 +81,14 @@ export async function build(withSamples = true): Promise<string> {
   const app = appScript()
     .replace('from "pdfjs-dist"', `from "${PDFJS_CDN}pdf.min.mjs"`)
     .replace('"@PDFJS_WORKER@"', JSON.stringify(`${PDFJS_CDN}pdf.worker.min.mjs`));
+  const scores = SCORES.map((s) => ({
+    ...s,
+    gts: JSON.parse(readFileSync(src(`../../../../schemas/examples/${s.file}`), "utf8")),
+  }));
   // Placeholders are replaced with functions so `$` in the code stays literal.
   return readFileSync(src("../src/page.html"), "utf8")
     .replace("/*@SAMPLES@*/", () => inline(JSON.stringify(samples)))
+    .replace("/*@SCORES@*/", () => inline(JSON.stringify(scores)))
     .replace("/*@CORE@*/", () => inline(coreScript()))
     .replace("/*@WORKER@*/", () => inline(scriptOf("../src/worker.ts")))
     .replace("/*@APP@*/", () => inline(app));

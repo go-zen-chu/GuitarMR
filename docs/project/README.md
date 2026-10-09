@@ -51,6 +51,11 @@ project starts taking external contributions.
         string/fret validators feeding `needs-attention`.
       - Semantic checks across measures: repeat/volta balance, sections.
       - Loading the sidecar `.gts.json` in the Quest app.
+- [ ] **Play view** (web/packages/demo, `src/player.ts`): chords in play
+      order with tempo-following auto-scroll is done, with lyrics and chord
+      diagrams when the gts file has them. Next: show the `tab` layer
+      (rhythm/frets) once it is read, a loop of a chosen range, and the
+      same follow-along on the Quest app from `playOrder`.
 - [ ] **MusicXML export for gts**: one-way converter so digitized scores
       open in MuseScore / Guitar Pro and other viewers (the `tab` layer as
       tab, otherwise chord symbols over slashes). Not needed yet (ADR-008).
