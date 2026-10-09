@@ -7,8 +7,8 @@
 import { type PageLayout, analyzePage, uprightImage } from "@guitarmr/layoutscan";
 import type { RgbaImage } from "@guitarmr/layoutscan";
 
-/** Long side of the preview image shown on screen. */
-export const PREVIEW_LONG_SIDE = 1600;
+/** Long side of the preview image: shown on screen and cut into the images Claude reads. */
+export const PREVIEW_LONG_SIDE = 2400;
 
 export interface DetectRequest {
   index: number;

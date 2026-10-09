@@ -16,6 +16,21 @@
   --button: #1c2027;
   --button-ink: #f3f4f0;
   --on-measure: #ffffff;
+  /* Review states, for chips on the page surface. */
+  --st-unread: #c0281f;
+  --st-auto: #1f6f84;
+  --st-attention: #a85f00;
+  --st-reviewed: #23784a;
+  /* Drawn over the scanned paper, which is light in either theme. */
+  --ov-system: #2343c8;
+  --ov-unread: #d42a20;
+  --ov-auto: #1f7f96;
+  --ov-attention: #e08a00;
+  --ov-reviewed: #23884f;
+  --ov-selected: #d0167a;
+  --ov-text: #14161a;
+  --ov-halo: #ffffff;
+  --scrim: rgba(20, 22, 26, 0.18);
   --font-display: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
   --font-body: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -24,12 +39,14 @@
   :root:not([data-theme="light"]) {
     --paper: #14161a; --surface: #1c1f24; --ink: #e9eae6; --muted: #9ba2ac; --rule: #2e3238;
     --measure: #ff6a5c; --system: #8aa2ff; --button: #e9eae6; --button-ink: #14161a; --on-measure: #14161a;
+    --st-unread: #ff7a6e; --st-auto: #6cc3d8; --st-attention: #f0b24a; --st-reviewed: #6fd39a; --scrim: rgba(0, 0, 0, 0.5);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --paper: #14161a; --surface: #1c1f24; --ink: #e9eae6; --muted: #9ba2ac; --rule: #2e3238;
   --measure: #ff6a5c; --system: #8aa2ff; --button: #e9eae6; --button-ink: #14161a; --on-measure: #14161a;
+    --st-unread: #ff7a6e; --st-auto: #6cc3d8; --st-attention: #f0b24a; --st-reviewed: #6fd39a; --scrim: rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 }
 body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6; }
@@ -38,6 +55,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 700; margin: 0; text
 h1 { font-size: 1.6rem; letter-spacing: 0.01em; }
 h1 .tool { font-family: var(--font-mono); font-weight: 600; font-size: 0.75em; color: var(--muted); display: block; letter-spacing: 0.04em; }
 p { margin: 0; }
+[hidden] { display: none !important; }
 .intro { display: grid; gap: 10px; }
 .lead { color: var(--muted); max-width: 60ch; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.85rem; color: var(--muted); }
@@ -77,16 +95,75 @@ textarea { width: 100%; box-sizing: border-box; min-height: 12em; margin-top: 8p
 .page-head dl div { display: flex; gap: 6px; }
 .page-head dt { color: var(--muted); }
 .page-head dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.page canvas { width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--rule); background: #fff; }
+.figure { position: relative; border-radius: 6px; border: 1px solid var(--rule); overflow: hidden; background: var(--ov-halo); }
+.figure img { display: block; width: 100%; height: auto; }
+.overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+.overlay .system { fill: none; stroke: var(--ov-system); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.overlay .measure { cursor: pointer; outline: none; scroll-margin-top: 16px; }
+.overlay .box { fill: transparent; stroke: var(--ov-unread); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.overlay .num { fill: var(--ov-unread); font-family: var(--font-mono); font-weight: 600; }
+.overlay .line { fill: var(--ov-text); font-family: var(--font-body); font-weight: 700; paint-order: stroke; stroke: var(--ov-halo); stroke-width: 8px; stroke-linejoin: round; }
+.overlay .s-auto .box { stroke: var(--ov-auto); }
+.overlay .s-auto .num { fill: var(--ov-auto); }
+.overlay .s-attention .box { stroke: var(--ov-attention); stroke-width: 3px; fill: rgba(224, 138, 0, 0.1); }
+.overlay .s-attention .num { fill: var(--ov-attention); }
+.overlay .s-reviewed .box { stroke: var(--ov-reviewed); }
+.overlay .s-reviewed .num { fill: var(--ov-reviewed); }
+.overlay .selected .box, .overlay .measure:focus-visible .box { stroke: var(--ov-selected); stroke-width: 4px; fill: rgba(208, 22, 122, 0.08); }
+.reread { margin-left: auto; min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; font-size: 0.85rem; cursor: pointer; }
+.chip { display: inline-flex; align-items: center; padding: 1px 10px; border-radius: 999px; border: 1px solid currentColor; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.chip.s-unread { color: var(--st-unread); }
+.chip.s-auto { color: var(--st-auto); }
+.chip.s-attention { color: var(--st-attention); }
+.chip.s-reviewed { color: var(--st-reviewed); }
+.review-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.review-row button { min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--st-attention); color: var(--st-attention); background: transparent; cursor: pointer; font-size: 0.85rem; }
+.note-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+.note-row button { min-height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; cursor: pointer; font-size: 0.85rem; }
+.ai { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--rule); }
+.ai h3 { font-size: 1rem; }
+.ai p { font-size: 0.85rem; color: var(--muted); }
+.ai ul { margin: 6px 0 0; padding-left: 1.2em; font-size: 0.8rem; color: var(--muted); }
+.file-link { position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--rule); cursor: pointer; }
+.file-link input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0; }
+.file-link:focus-within { outline: 3px solid var(--system); outline-offset: 2px; }
+/* The editor: a sheet at the bottom; the score scrolls above it. */
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; max-height: 64dvh; overflow-y: auto; background: var(--surface); border-top: 1px solid var(--rule); box-shadow: 0 -8px 24px var(--scrim); padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
+.sheet-inner { max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+body.editing main { padding-bottom: 70dvh; }
+.sheet-head { display: flex; align-items: center; gap: 10px; }
+.sheet-head h2 { font-family: var(--font-mono); font-size: 1rem; }
+.sheet-head .close { margin-left: auto; width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; font-size: 1.2rem; cursor: pointer; }
+/* Keep the measure short enough that the fields stay in view. */
+.crop { aspect-ratio: var(--aspect, 3); width: min(100%, calc(24dvh * var(--aspect, 3))); max-width: 100%; margin-inline: auto; background-repeat: no-repeat; border: 1px solid var(--rule); border-radius: 6px; background-color: var(--ov-halo); }
+.ai-note { font-size: 0.85rem; color: var(--st-attention); }
+.field { display: grid; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+.field input[type="text"], .field input[type="number"], .field select { font: inherit; font-size: 16px; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; min-height: 44px; padding: 0 10px; box-sizing: border-box; width: 100%; }
+#f-chords { font-family: var(--font-mono); font-weight: 600; }
+.field input:focus-visible, .field select:focus-visible { outline: 3px solid var(--system); outline-offset: 1px; }
+.hint { font-size: 0.8rem; color: var(--muted); }
+.hint code { font-family: var(--font-mono); }
+.field-error { font-size: 0.85rem; color: var(--st-unread); }
+.field-error:empty { display: none; }
+.more { display: grid; gap: 10px; }
+.more[open] { padding-bottom: 4px; }
+.more > summary { min-height: 32px; display: flex; align-items: center; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 14px; border: 0; padding: 0; margin: 0; font-size: 0.9rem; }
+.checks legend { font-size: 0.85rem; color: var(--muted); padding: 0; margin-bottom: 4px; }
+.checks label { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.sheet-actions { position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: auto 1fr auto; gap: 8px; padding-block: 8px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--surface); }
+.sheet-actions button { min-height: 48px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--rule); background: transparent; cursor: pointer; }
+.sheet-actions .primary { background: var(--st-reviewed); border-color: var(--st-reviewed); color: var(--surface); font-weight: 700; }
 .page.skipped p { color: var(--muted); font-size: 0.85rem; }
 footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 12px; }
 </style>
 
 <main>
   <header class="intro">
-    <h1><span class="tool">layoutscan</span>手書きTAB譜の小節を見つける</h1>
-    <p class="lead">スキャンしたPDFを選ぶと、ページの向きと傾きを直し、段と小節線を検出します。PDFはこの端末のブラウザの中だけで処理され、どこにも送信されません。</p>
-    <div class="legend" aria-label="凡例"><span class="sys">段（五線＋TAB）</span><span class="mea">小節（番号は段ごと）</span></div>
+    <h1><span class="tool">layoutscan</span>手書きTAB譜をデータにする</h1>
+    <p class="lead">スキャンしたPDFを選ぶと、ページの向きと傾きを直し、段と小節をこの端末の中で見つけます。続けて Claude にコードと構成（リピートや記号）を読ませ、小節をタップして確認・修正できます。</p>
+    <div class="legend" aria-label="凡例"><span class="sys">段（五線＋TAB）</span><span class="mea">小節（番号は通し）</span></div>
   </header>
 
   <section class="pick" aria-label="PDFを選ぶ">
@@ -99,18 +176,60 @@ footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--rul
 
   <section class="summary" id="summary" hidden aria-label="結果">
     <div><h2 id="summary-source"></h2><p class="stats" id="summary-stats"></p></div>
+    <div class="review-row"><span id="review-summary" class="review-row"></span><button type="button" id="next-attention" hidden>要確認へ</button></div>
+    <div class="note-row" id="draft-note" hidden>前回の作業（この端末に残っていた下書き）を開きました。<button type="button" id="discard-draft">下書きを捨てて最初から</button></div>
+    <div class="ai" id="ai" hidden>
+      <h3>Claude でコードと構成を読む</h3>
+      <p>各段の画像を、あなたの claude.ai アカウントの Claude に送って読ませます（1ページ数十秒）。PDFそのものは送りません。</p>
+      <div class="actions"><button type="button" class="primary" id="read">読み取る</button><button type="button" id="stop" hidden>止める</button></div>
+      <p id="read-status" aria-live="polite"></p>
+      <details id="read-warnings" hidden><summary>読み取りのメモ</summary><ul></ul></details>
+    </div>
     <div class="actions">
       <button type="button" class="primary" id="save">gts.json を保存</button>
       <button type="button" id="copy">JSONをコピー</button>
+      <label class="file-link">保存した gts.json を開く<input id="gts-file" type="file" aria-label="保存した gts.json を開く"></label>
     </div>
     <p class="save-note" id="save-note" aria-live="polite"></p>
-    <details><summary>中身を見る（layout レイヤー）</summary><textarea id="json" readonly spellcheck="false" aria-label="gts JSON"></textarea></details>
+    <details><summary>中身を見る（gts JSON）</summary><textarea id="json" readonly spellcheck="false" aria-label="gts JSON"></textarea></details>
   </section>
 
   <ol class="pages" id="pages" aria-label="ページ"></ol>
 
-  <footer>GuitarMR · 検出したのは layout レイヤー（各小節のページ上の位置）だけです。コード・TAB・歌詞の読み取りはこれからです。</footer>
+  <footer>GuitarMR · layout（小節の位置）は端末内で、structure と chords（構成とコード）は Claude で読みます。TAB の数字と歌詞の読み取りはこれからです。作業中の内容はこのブラウザに下書きとして残ります。</footer>
 </main>
+
+<aside class="sheet" id="sheet" hidden aria-label="小節の編集">
+  <div class="sheet-inner">
+    <div class="sheet-head"><h2 id="sheet-title"></h2><span class="chip" id="sheet-status"></span><button type="button" class="close" id="sheet-close" aria-label="閉じる">×</button></div>
+    <div class="crop" id="sheet-crop" role="img" aria-label="この小節の画像"></div>
+    <p class="ai-note" id="sheet-note" hidden></p>
+    <label class="field">コード<input type="text" id="f-chords" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done"></label>
+    <p class="hint">スペース区切り。拍の位置を指定するときは @ を付けます: <code>C G/B@2.5</code></p>
+    <p class="field-error" id="f-chords-error" aria-live="polite"></p>
+    <label class="field">この小節から始まるセクション<input type="text" id="f-section" placeholder="A、サビ など（なければ空）" autocomplete="off" enterkeyhint="done"></label>
+    <details class="more" id="f-more"><summary>小節線・記号</summary>
+      <div class="checks"><label><input type="checkbox" id="f-repeat-start"> リピート開始 ‖:</label></div>
+      <div class="two">
+        <label class="field">終わりの小節線<select id="f-bar-end"><option value="">ふつう</option><option value="double">複縦線 ‖</option><option value="final">終止線</option><option value="repeat-end">リピート終了 :‖</option></select></label>
+        <label class="field">演奏回数（リピート終了）<input type="number" id="f-repeat-times" min="2" inputmode="numeric" placeholder="2"></label>
+        <label class="field">番カッコ<input type="text" id="f-volta" inputmode="numeric" placeholder="1 または 1,2"></label>
+        <label class="field">同じ小節の繰り返し<select id="f-simile"><option value="">なし</option><option value="1">1小節 %</option><option value="2">2小節</option></select></label>
+      </div>
+      <fieldset class="checks"><legend>記号</legend>
+        <label><input type="checkbox" id="f-nav-segno"> セーニョ 𝄋</label>
+        <label><input type="checkbox" id="f-nav-coda"> コーダ 𝄌</label>
+        <label><input type="checkbox" id="f-nav-to-coda"> To Coda</label>
+        <label><input type="checkbox" id="f-nav-ds"> D.S.</label>
+        <label><input type="checkbox" id="f-nav-ds-al-coda"> D.S. al Coda</label>
+        <label><input type="checkbox" id="f-nav-dc"> D.C.</label>
+        <label><input type="checkbox" id="f-nav-dc-al-coda"> D.C. al Coda</label>
+        <label><input type="checkbox" id="f-nav-fine"> Fine</label>
+      </fieldset>
+    </details>
+    <div class="sheet-actions"><button type="button" id="sheet-prev">← 前</button><button type="button" class="primary" id="sheet-ok">確認済みにして次へ</button><button type="button" id="sheet-next">次 →</button></div>
+  </div>
+</aside>
 
 <script type="application/json" id="samples-data">/*@SAMPLES@*/</script>
 <script id="layoutscan-core">/*@CORE@*/</script>

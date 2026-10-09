@@ -38,9 +38,15 @@ project starts taking external contributions.
       structured logs first, UI later).
 - [ ] **A-B loop count-in**: count-in bar before the metronome starts.
 - [ ] **Handwritten tab digitization** (ADR-008, docs/design/tab-digitization.md):
-      format and the `layout` layer extractor (web/packages/layoutscan) done; next
-      are LLM extraction of the `structure`/`chords`/`tab` layers, the review
-      tool, and loading the sidecar `.gts.json` in the app.
+      format, the `layout` layer (web/packages/layoutscan), and reading
+      the `structure`/`chords` layers with Claude plus the review editor
+      (web/packages/extract, web/packages/demo) are done. Next:
+      - Check the reading on the real scores and tune the prompt from
+        the misses (measure ids, beat positions, repeats/D.S.).
+      - `tab` layer: rhythm and frets per measure, with beat-sum and
+        string/fret validators feeding `needs-attention`.
+      - Semantic checks across measures: repeat/volta balance, sections.
+      - Loading the sidecar `.gts.json` in the Quest app.
 - [ ] **MusicXML export for gts**: one-way converter so digitized scores
       open in MuseScore / Guitar Pro and other viewers (the `tab` layer as
       tab, otherwise chord symbols over slashes). Not needed yet (ADR-008).
@@ -58,11 +64,13 @@ project starts taking external contributions.
       "Out of scope for now").
 - [ ] **Phone/tablet PWA** (ADR-009): the TypeScript workspace under
       `web/` exists and layoutscan is ported (Python version retired). A
-      single-file demo (web/packages/demo) already runs layoutscan in the
-      phone browser: PDF import, detection in a Web Worker, measures over
-      the page, `.gts.json` save. Next are the installable PWA shell
-      (offline, local library), LLM layer extraction with the user's own
-      API key, and the review/edit viewer.
+      single-file demo (web/packages/demo) already runs as a claude.ai
+      Artifact: PDF import, detection in a Web Worker, reading chords and
+      structure with Claude on the viewer's claude.ai account, the review
+      editor, drafts in the browser, `.gts.json` save and reopen. Next are
+      the installable PWA shell (offline, local library) and its Claude
+      backend with the user's own API key (the Artifact cannot reach the
+      API directly).
 - [ ] **PWA: distribution to other users**: a small relay server so no API
       key sits in the browser (it must not store scores), and optionally a
       store-packaged wrapper (e.g. Capacitor) if iOS storage or file

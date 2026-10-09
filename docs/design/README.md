@@ -258,3 +258,13 @@ core could be TypeScript or Rust compiled to WebAssembly.
 - Dependencies are kept minimal to limit vulnerability maintenance: the PWA
   ships only pdf.js; tests use Node's built-in runner and scripts run with
   plain `node` (type stripping). The policy is in web/README.md.
+
+**Amendment (2026-10-09)**: the first working version runs as a private
+claude.ai Artifact (web/packages/demo), where a page cannot reach the
+Anthropic API (its network is blocked). There, Claude is reached through
+the Artifact's built-in Claude access instead of an API key: the page asks
+on the viewer's own claude.ai account (the viewer approves it once), and
+only the system images cut from the score are sent, never the PDF. The
+API-key path stays the plan for the standalone PWA. The reader takes the
+model call as a parameter (`readPages(sample, ...)`), so the standalone
+PWA only adds the other backend.

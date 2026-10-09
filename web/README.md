@@ -9,7 +9,8 @@ happens in the Quest app; the `.gts.json` next to the PDF is the hand-off.
 | [`@guitarmr/gts`](packages/gts) | Types generated from `schemas/gts.schema.json`, validation, helpers |
 | [`@guitarmr/layoutscan`](packages/layoutscan/README.md) | Layout detection (orientation, systems, measure regions) + Node CLI |
 | [`@guitarmr/samples`](packages/samples/README.md) | Public-domain sample scores, engraver and end-to-end tests |
-| [`@guitarmr/demo`](packages/demo/README.md) | Single-file browser demo: pick a PDF, detect measures on the device, save the layout layer |
+| [`@guitarmr/extract`](packages/extract/README.md) | Reading the structure and chords layers with Claude (crops, prompt, answer checks, merge) and review edits |
+| [`@guitarmr/demo`](packages/demo/README.md) | Single-file phone page: detect measures, read chords/structure with Claude, review and save the gts file |
 
 The PWA itself is the next step (see docs/project).
 

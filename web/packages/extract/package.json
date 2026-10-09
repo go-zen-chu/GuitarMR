@@ -1,21 +1,23 @@
 {
-  "name": "@guitarmr/demo",
+  "name": "@guitarmr/extract",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Single-file browser demo of layoutscan: pick a PDF, detect systems and measures on the device, save the gts layout layer",
+  "description": "Read the structure and chords layers of a gts document from measure images with Claude, and edit them",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
-    "build": "node scripts/build.ts",
     "test": "node --test \"test/**/*.test.ts\"",
     "typecheck": "tsc -p ."
   },
+  "dependencies": {
+    "@guitarmr/gts": "workspace:*"
+  },
   "devDependencies": {
-    "@guitarmr/extract": "workspace:*",
-    "@guitarmr/gts": "workspace:*",
     "@guitarmr/layoutscan": "workspace:*",
     "@guitarmr/samples": "workspace:*",
     "@types/node": "26.6.2",
-    "pdfjs-dist": "6.3.289",
     "typescript": "7.0.2"
   }
 }

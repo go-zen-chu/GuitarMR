@@ -186,19 +186,27 @@ PDF ──▶ 1. rasterize + orient ──▶ 2. layout ──▶ 3. content ─
    is logged as a warning with its page index and skipped: it is left out
    of `source.pages` and the rest of the PDF is processed normally.
 3. **Content** (multimodal LLM): one step per layer (`structure`,
-   `chords`, `tab`). Per system, send the measure crops plus system
-   context and ask for that layer's fields with the JSON Schema as a
-   structured-output contract, including per-measure confidence. Handwritten
-   OMR engines (e.g. Audiveris) target printed standard notation and do not
-   read handwritten TAB, which is why a vision LLM is the pragmatic choice
-   here; the schema keeps its output checkable.
-4. **Validate**: JSON Schema, then semantic checks — beat sums per time
-   signature, string/fret ranges, chord-symbol grammar, repeat/volta
-   balance, unique measure ids. Failures mark the measure
-   `needs-attention` and can be retried with the error fed back.
-5. **Review**: a static HTML tool that shows each measure crop next to its
-   extracted content, sorted by lowest confidence, and edits the JSON in
-   place.
+   `chords`, `tab`). Handwritten OMR engines (e.g. Audiveris) target
+   printed standard notation and do not read handwritten TAB, which is why
+   a vision LLM is the pragmatic choice here; the schema keeps its output
+   checkable. `structure` and `chords` are read together and implemented
+   by [`web/packages/extract`](../../web/packages/extract/README.md): one
+   request per page, with one image per system cut from the upright page
+   (the band from the layout layer, plus a white strip above it holding a
+   magenta tag with each measure id), and the page top for the header on
+   the first page. The answer is per-measure JSON with a confidence and an
+   optional note; `tab` is not read yet.
+4. **Validate**: every answered field is checked against the schema rules
+   (chord-symbol grammar, enums, ranges) and dropped with a warning when
+   invalid, never guessed. A measure with confidence below 0.7 or a note
+   is marked `needs-attention`. Still to come: beat sums per time
+   signature, string/fret ranges (for `tab`), repeat/volta balance.
+5. **Review**: in the phone page (web/packages/demo), the score shows the
+   read chords and signs over each measure, colored by review state;
+   tapping a measure opens an editor with the measure image and its
+   fields. "Reviewed" is set only by the person, never by the reader.
+   Work in progress is kept as a draft in the browser, and a saved gts
+   file can be opened again to continue.
 
 ## 7. Storage and copyright
 
@@ -217,10 +225,12 @@ check `source.sha256` to detect a replaced PDF).
    and all but one measure of the surveyed scores are found.
 3. **Phone/tablet PWA** (ADR-009): PDF import, layout detection in a Web
    Worker, score viewer with the detected measures, `.gts.json` export.
-4. **`structure`, `chords`, `tab`, `lyrics` layers**: LLM steps in the PWA
-   (the user's own API key) + validators; the review step is part of the
-   PWA viewer.
-5. **App integration**: load the sidecar JSON in GuitarMR (Domain model in
+   A single-file demo of this runs as a claude.ai Artifact.
+4. **`structure` and `chords` layers** (done in the demo): Claude reads
+   them per page, the review editor corrects them.
+5. **`tab` and `lyrics` layers**: further LLM steps + validators (beat
+   sums, string/fret ranges), reviewed in the same editor.
+6. **App integration**: load the sidecar JSON in GuitarMR (Domain model in
    C#), highlight the current measure and turn pages in sync with the
    metronome.
 

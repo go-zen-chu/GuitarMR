@@ -18,15 +18,25 @@ const PDFJS_VERSION: string = JSON.parse(readFileSync(src("../package.json"), "u
 // that current iOS Safari and Chrome do not have yet.
 const PDFJS_CDN = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/legacy/build/`;
 
-/** Core files in dependency order; each only uses names from earlier ones. */
+/**
+ * Core files in dependency order; each only uses names from earlier ones.
+ * They run in the worker and, as globals, under the page script.
+ */
 export const CORE = [
+  "../../gts/src/index.ts",
   "../../layoutscan/src/image.ts",
   "../../layoutscan/src/detect.ts",
   "../../layoutscan/src/gts.ts",
   "../../layoutscan/src/pdf.ts",
-  "../../layoutscan/src/overlay.ts",
   "../src/preview.ts",
+  "../../extract/src/crops.ts",
+  "../../extract/src/edit.ts",
+  "../../extract/src/prompt.ts",
+  "../../extract/src/reading.ts",
 ];
+
+/** The page script (one module): app.ts last, it starts everything. */
+export const APP = ["../src/score-view.ts", "../src/editor.ts", "../src/reader.ts", "../src/app.ts"];
 
 export const SAMPLES = [
   { file: "sakura-sakura.pdf", label: "さくらさくら", note: "2ページ・2ページ目は上下逆" },
@@ -42,6 +52,12 @@ export function scriptOf(path: string): string {
 }
 
 export const coreScript = (): string => CORE.map(scriptOf).join("\n");
+export const appScript = (): string => APP.map(scriptOf).join("\n");
+
+/** Top-level names declared by a script (all files of a bundle share one scope). */
+export function topLevelNames(code: string): string[] {
+  return [...code.matchAll(/^(?:async\s+)?(?:function\*?|const|let|class)\s+([A-Za-z_$][\w$]*)/gm)].map((m) => m[1]!);
+}
 
 const inline = (code: string) => code.replaceAll("</script", "<\\/script");
 
@@ -53,7 +69,7 @@ export async function build(withSamples = true): Promise<string> {
       samples.push({ ...s, pdf: Buffer.from(pdf).toString("base64") });
     }
   }
-  const app = scriptOf("../src/app.ts")
+  const app = appScript()
     .replace('from "pdfjs-dist"', `from "${PDFJS_CDN}pdf.min.mjs"`)
     .replace('"@PDFJS_WORKER@"', JSON.stringify(`${PDFJS_CDN}pdf.worker.min.mjs`));
   // Placeholders are replaced with functions so `$` in the code stays literal.

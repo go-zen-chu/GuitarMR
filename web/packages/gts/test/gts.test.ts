@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, it } from "node:test";
-import { type GtsDocument, measureLength, measures } from "../src/index.ts";
+import { type GtsDocument, formatChordLine, measureLength, measures, parseChordLine } from "../src/index.ts";
 import { validate } from "../src/validate.ts";
 
 const examples = new URL("../../../../schemas/examples/", import.meta.url);
@@ -43,5 +43,32 @@ describe("measureLength", () => {
       ],
     } as GtsDocument["sections"][0]["measures"][0];
     assert.deepEqual(measureLength(m), [1, 1]);
+  });
+});
+
+describe("chord lines", () => {
+  it("If chords sit at even positions the line should omit the beats", () => {
+    assert.equal(formatChordLine([{ symbol: "Am", beat: 1 }, { symbol: "E7", beat: 3 }]), "Am E7");
+    assert.equal(formatChordLine([{ symbol: "C", beat: 1 }, { symbol: "G/B", beat: 2.5 }]), "C G/B@2.5");
+    assert.equal(formatChordLine([{ symbol: "C" }], 3), "C");
+  });
+
+  it("If a line is parsed it should round-trip and use even defaults", () => {
+    assert.deepEqual(parseChordLine("Am　E7@4").chords, [
+      { symbol: "Am", beat: 1 },
+      { symbol: "E7", beat: 4 },
+    ]);
+    assert.deepEqual(
+      parseChordLine("C F G7", 3).chords.map((c) => c.beat),
+      [1, 2, 3],
+    );
+    const line = "Dm7-5 G7@2.5 N.C.@4";
+    assert.equal(formatChordLine(parseChordLine(line).chords), line);
+  });
+
+  it("If a token is not a chord it should be reported and dropped", () => {
+    const { chords, invalid } = parseChordLine("Am H7 C@9");
+    assert.deepEqual(chords, [{ symbol: "Am", beat: 1 }]);
+    assert.deepEqual(invalid, ["H7", "C@9"]);
   });
 });
