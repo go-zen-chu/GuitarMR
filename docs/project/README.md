@@ -57,10 +57,12 @@ project starts taking external contributions.
       out of the format for now (sketches in docs/design/tab-digitization.md,
       "Out of scope for now").
 - [ ] **Phone/tablet PWA** (ADR-009): the TypeScript workspace under
-      `web/` exists and layoutscan is ported (Python version retired);
-      next are the PWA shell (PDF import, detection in a Web Worker), the
-      score viewer with detected measures, LLM layer extraction with the
-      user's own API key, and export of `.gts.json` for the Quest app.
+      `web/` exists and layoutscan is ported (Python version retired). A
+      single-file demo (web/packages/demo) already runs layoutscan in the
+      phone browser: PDF import, detection in a Web Worker, measures over
+      the page, `.gts.json` save. Next are the installable PWA shell
+      (offline, local library), LLM layer extraction with the user's own
+      API key, and the review/edit viewer.
 - [ ] **PWA: distribution to other users**: a small relay server so no API
       key sits in the browser (it must not store scores), and optionally a
       store-packaged wrapper (e.g. Capacitor) if iOS storage or file

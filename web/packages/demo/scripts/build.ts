@@ -1,0 +1,73 @@
+/**
+ * Build the demo as one self-contained HTML file (dist/layoutscan-demo.html):
+ * the layoutscan core and the demo sources with their types stripped, the
+ * sample PDFs as base64, and pdf.js from the jsDelivr CDN. No bundler: the
+ * sources are concatenated into one scope, so the build drops their import
+ * statements and `export` keywords.
+ *
+ *   pnpm --filter @guitarmr/demo build [--no-samples]
+ */
+
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
+import { generatePdf } from "@guitarmr/samples";
+
+const src = (path: string) => new URL(path, import.meta.url);
+const PDFJS_VERSION: string = JSON.parse(readFileSync(src("../package.json"), "utf8")).devDependencies["pdfjs-dist"];
+// The legacy build: the modern one needs very recent JS (e.g. Map.getOrInsertComputed)
+// that current iOS Safari and Chrome do not have yet.
+const PDFJS_CDN = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/legacy/build/`;
+
+/** Core files in dependency order; each only uses names from earlier ones. */
+export const CORE = [
+  "../../layoutscan/src/image.ts",
+  "../../layoutscan/src/detect.ts",
+  "../../layoutscan/src/gts.ts",
+  "../../layoutscan/src/pdf.ts",
+  "../../layoutscan/src/overlay.ts",
+  "../src/preview.ts",
+];
+
+export const SAMPLES = [
+  { file: "sakura-sakura.pdf", label: "さくらさくら", note: "2ページ・2ページ目は上下逆" },
+  { file: "twinkle-twinkle.pdf", label: "きらきら星", note: "1ページ・横向きにスキャン" },
+];
+
+/** A TypeScript module as plain script text sharing one global scope. */
+export function scriptOf(path: string): string {
+  const js = stripTypeScriptTypes(readFileSync(src(path), "utf8"));
+  return js
+    .replace(/^import\s[^;]*?\sfrom\s+"[^"]+";\s*$/gms, (m) => (/from\s+"pdfjs-dist"/.test(m) ? m : ""))
+    .replace(/^export (?=(async |const |function|let |class ))/gm, "");
+}
+
+export const coreScript = (): string => CORE.map(scriptOf).join("\n");
+
+const inline = (code: string) => code.replaceAll("</script", "<\\/script");
+
+export async function build(withSamples = true): Promise<string> {
+  const samples: ((typeof SAMPLES)[number] & { pdf: string })[] = [];
+  if (withSamples) {
+    for (const s of SAMPLES) {
+      const pdf = await generatePdf(s.file.replace(/\.pdf$/, ""));
+      samples.push({ ...s, pdf: Buffer.from(pdf).toString("base64") });
+    }
+  }
+  const app = scriptOf("../src/app.ts")
+    .replace('from "pdfjs-dist"', `from "${PDFJS_CDN}pdf.min.mjs"`)
+    .replace('"@PDFJS_WORKER@"', JSON.stringify(`${PDFJS_CDN}pdf.worker.min.mjs`));
+  // Placeholders are replaced with functions so `$` in the code stays literal.
+  return readFileSync(src("../src/page.html"), "utf8")
+    .replace("/*@SAMPLES@*/", () => inline(JSON.stringify(samples)))
+    .replace("/*@CORE@*/", () => inline(coreScript()))
+    .replace("/*@WORKER@*/", () => inline(scriptOf("../src/worker.ts")))
+    .replace("/*@APP@*/", () => inline(app));
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const out = src("../dist/layoutscan-demo.html");
+  mkdirSync(new URL(".", out), { recursive: true });
+  const html = await build(!process.argv.includes("--no-samples"));
+  writeFileSync(out, html);
+  process.stderr.write(`INFO wrote ${out.pathname} (${(html.length / 1024).toFixed(0)} KiB)\n`);
+}

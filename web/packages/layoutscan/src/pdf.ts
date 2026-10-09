@@ -18,7 +18,10 @@ interface PdfJs {
 interface PdfDocumentProxy {
   numPages: number;
   getPage(n: number): Promise<PdfPageProxy>;
-  canvasFactory: { create(w: number, h: number): { canvas: unknown; context: CanvasLike } };
+  canvasFactory: {
+    create(w: number, h: number): { canvas: unknown; context: CanvasLike };
+    destroy(c: { canvas: unknown; context: CanvasLike }): void;
+  };
 }
 interface PdfPageProxy {
   getViewport(o: { scale: number }): { width: number; height: number };
@@ -45,9 +48,13 @@ export async function* renderPages(
       const viewport = page.getViewport({ scale: longSide / Math.max(base.width, base.height) });
       const width = Math.round(viewport.width);
       const height = Math.round(viewport.height);
-      const { canvas, context } = doc.canvasFactory.create(width, height);
+      const target = doc.canvasFactory.create(width, height);
+      const { canvas, context } = target;
       await page.render({ canvasContext: context, canvas, viewport }).promise;
       const image = context.getImageData(0, 0, width, height);
+      // Release the canvas now: browsers (iOS Safari in particular) cap the
+      // total canvas memory and collect detached canvases late.
+      doc.canvasFactory.destroy(target);
       page.cleanup();
       yield [n - 1, { width: image.width, height: image.height, data: image.data }];
     }

@@ -8,6 +8,27 @@ importers:
 
   .: {}
 
+  packages/demo:
+    devDependencies:
+      '@guitarmr/gts':
+        specifier: workspace:*
+        version: link:../gts
+      '@guitarmr/layoutscan':
+        specifier: workspace:*
+        version: link:../layoutscan
+      '@guitarmr/samples':
+        specifier: workspace:*
+        version: link:../samples
+      '@types/node':
+        specifier: 26.6.2
+        version: 26.6.2
+      pdfjs-dist:
+        specifier: 6.3.289
+        version: 6.3.289
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
   packages/gts:
     devDependencies:
       '@types/node':

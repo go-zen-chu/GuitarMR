@@ -1,0 +1,114 @@
+<title>layoutscan 小節検出</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column of staff-paper cards; the score image is the hero, the
+   overlay colors (blue systems, red measures) double as the legend. */
+:root {
+  --paper: #f3f4f0;
+  --surface: #ffffff;
+  --ink: #1c2027;
+  --muted: #5b626c;
+  --rule: #d7dbd3;
+  --measure: #d42a20;
+  --system: #2343c8;
+  --button: #1c2027;
+  --button-ink: #f3f4f0;
+  --on-measure: #ffffff;
+  --font-display: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --font-body: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #14161a; --surface: #1c1f24; --ink: #e9eae6; --muted: #9ba2ac; --rule: #2e3238;
+    --measure: #ff6a5c; --system: #8aa2ff; --button: #e9eae6; --button-ink: #14161a; --on-measure: #14161a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #14161a; --surface: #1c1f24; --ink: #e9eae6; --muted: #9ba2ac; --rule: #2e3238;
+  --measure: #ff6a5c; --system: #8aa2ff; --button: #e9eae6; --button-ink: #14161a; --on-measure: #14161a;
+  color-scheme: dark;
+}
+body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6; }
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; margin: 0; text-wrap: balance; }
+h1 { font-size: 1.6rem; letter-spacing: 0.01em; }
+h1 .tool { font-family: var(--font-mono); font-weight: 600; font-size: 0.75em; color: var(--muted); display: block; letter-spacing: 0.04em; }
+p { margin: 0; }
+.intro { display: grid; gap: 10px; }
+.lead { color: var(--muted); max-width: 60ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.85rem; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 14px; height: 10px; margin-right: 6px; border: 2px solid currentColor; vertical-align: -1px; }
+.legend .sys { color: var(--system); }
+.legend .mea { color: var(--measure); }
+.pick { display: grid; gap: 12px; }
+.file-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 20px; border-radius: 10px; background: var(--button); color: var(--button-ink); font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; cursor: pointer; }
+.file-button:focus-within { outline: 3px solid var(--system); outline-offset: 2px; }
+.file-button input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.samples-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.samples-row > p { font-size: 0.85rem; color: var(--muted); width: 100%; }
+button { font: inherit; color: inherit; }
+.sample { display: grid; text-align: left; gap: 0; padding: 8px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); cursor: pointer; flex: 1 1 200px; min-width: 0; }
+.sample small { color: var(--muted); font-size: 0.8rem; }
+.sample:hover { border-color: var(--muted); }
+button:focus-visible { outline: 3px solid var(--system); outline-offset: 2px; }
+.status { display: grid; gap: 6px; min-height: 1.6em; color: var(--muted); font-size: 0.9rem; }
+progress { width: 100%; height: 6px; accent-color: var(--measure); }
+.summary { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); }
+.summary h2 { font-size: 1.05rem; overflow-wrap: anywhere; }
+.summary .stats { font-family: var(--font-mono); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions button { min-height: 44px; padding: 0 16px; border-radius: 8px; cursor: pointer; border: 1px solid var(--rule); background: transparent; }
+.actions .primary { background: var(--measure); border-color: var(--measure); color: var(--on-measure); font-weight: 700; overflow-wrap: anywhere; }
+.save-note { font-size: 0.85rem; color: var(--muted); }
+details summary { cursor: pointer; font-size: 0.85rem; color: var(--muted); }
+textarea { width: 100%; box-sizing: border-box; min-height: 12em; margin-top: 8px; padding: 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font-family: var(--font-mono); font-size: 12px; }
+.pages { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.page-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+.page-head h3 { font-family: var(--font-mono); font-size: 1rem; }
+.page-head dl { display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 0; font-size: 0.85rem; }
+.page-head dl div { display: flex; gap: 6px; }
+.page-head dt { color: var(--muted); }
+.page-head dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.page canvas { width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--rule); background: #fff; }
+.page.skipped p { color: var(--muted); font-size: 0.85rem; }
+footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 12px; }
+</style>
+
+<main>
+  <header class="intro">
+    <h1><span class="tool">layoutscan</span>手書きTAB譜の小節を見つける</h1>
+    <p class="lead">スキャンしたPDFを選ぶと、ページの向きと傾きを直し、段と小節線を検出します。PDFはこの端末のブラウザの中だけで処理され、どこにも送信されません。</p>
+    <div class="legend" aria-label="凡例"><span class="sys">段（五線＋TAB）</span><span class="mea">小節（番号は段ごと）</span></div>
+  </header>
+
+  <section class="pick" aria-label="PDFを選ぶ">
+    <label class="file-button">PDFを選ぶ<input id="pdf-file" type="file" accept="application/pdf,.pdf"></label>
+    <div class="samples-row" id="samples"><p>サンプル（パブリックドメインの曲から自動生成したスキャン風PDF）</p></div>
+  </section>
+
+  <div class="status" aria-live="polite"><p id="status"></p><progress id="progress" max="1" value="0" hidden></progress></div>
+
+  <section class="summary" id="summary" hidden aria-label="結果">
+    <div><h2 id="summary-source"></h2><p class="stats" id="summary-stats"></p></div>
+    <div class="actions">
+      <button type="button" class="primary" id="save">gts.json を保存</button>
+      <button type="button" id="copy">JSONをコピー</button>
+    </div>
+    <p class="save-note" id="save-note" aria-live="polite"></p>
+    <details><summary>中身を見る（layout レイヤー）</summary><textarea id="json" readonly spellcheck="false" aria-label="gts JSON"></textarea></details>
+  </section>
+
+  <ol class="pages" id="pages" aria-label="ページ"></ol>
+
+  <footer>GuitarMR · 検出したのは layout レイヤー（各小節のページ上の位置）だけです。コード・TAB・歌詞の読み取りはこれからです。</footer>
+</main>
+
+<script type="application/json" id="samples-data">/*@SAMPLES@*/</script>
+<script id="layoutscan-core">/*@CORE@*/</script>
+<script type="text/plain" id="layoutscan-worker">/*@WORKER@*/</script>
+<script type="module">/*@APP@*/</script>
