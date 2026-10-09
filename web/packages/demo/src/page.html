@@ -45,9 +45,12 @@ p { margin: 0; }
 .legend .sys { color: var(--system); }
 .legend .mea { color: var(--measure); }
 .pick { display: grid; gap: 12px; }
-.file-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 20px; border-radius: 10px; background: var(--button); color: var(--button-ink); font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; cursor: pointer; }
+.file-button { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 20px; border-radius: 10px; background: var(--button); color: var(--button-ink); font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; cursor: pointer; }
 .file-button:focus-within { outline: 3px solid var(--system); outline-offset: 2px; }
-.file-button input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+/* The native input covers the whole button, so a tap lands on it directly
+   (some in-app browsers ignore taps forwarded through a label). */
+.file-button input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0; }
+.pick-hint { font-size: 0.85rem; color: var(--muted); }
 .samples-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .samples-row > p { font-size: 0.85rem; color: var(--muted); width: 100%; }
 button { font: inherit; color: inherit; }
@@ -87,7 +90,8 @@ footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--rul
   </header>
 
   <section class="pick" aria-label="PDFを選ぶ">
-    <label class="file-button">PDFを選ぶ<input id="pdf-file" type="file" accept="application/pdf,.pdf"></label>
+    <label class="file-button">PDFを選ぶ<input id="pdf-file" type="file" aria-label="PDFを選ぶ"></label>
+    <p class="pick-hint">ファイルを選ぶ画面が開かないときは、このリンクを Safari や Chrome で開いてください（Claude アプリの中では選べないことがあります）。パソコンでは PDF をこのページにドラッグしても読み込めます。</p>
     <div class="samples-row" id="samples"><p>サンプル（パブリックドメインの曲から自動生成したスキャン風PDF）</p></div>
   </section>
 

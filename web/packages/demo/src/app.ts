@@ -231,9 +231,36 @@ for (const sample of samples) {
   ui.samples.append(button);
 }
 
-ui.file.addEventListener("change", async () => {
+/** Read a picked or dropped file; any file type is accepted, the bytes decide. */
+async function openFile(file: File) {
+  run++; // stop a running analysis right away
+  setStatus(`${file.name} を読み込み中…`, 0);
+  let bytes: Uint8Array;
+  try {
+    bytes = new Uint8Array(await file.arrayBuffer());
+  } catch (e) {
+    // e.g. an iCloud/Drive file that is not on the device yet
+    setStatus(`${file.name} を読めませんでした（${(e as Error).message}）。端末にダウンロードしてから選んでください。`);
+    return;
+  }
+  if (new TextDecoder().decode(bytes.subarray(0, 1024)).indexOf("%PDF-") < 0) {
+    setStatus(`${file.name} はPDFではないようです。スキャンしたPDFを選んでください。`);
+    return;
+  }
+  await analyze(file.name, bytes);
+}
+
+ui.file.addEventListener("change", () => {
   const file = ui.file.files?.[0];
-  if (file) await analyze(file.name, new Uint8Array(await file.arrayBuffer()));
+  ui.file.value = ""; // picking the same file again still fires change
+  if (file) void openFile(file);
+});
+// Desktop: drop a PDF anywhere on the page.
+addEventListener("dragover", (e) => e.preventDefault());
+addEventListener("drop", (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer?.files[0];
+  if (file) void openFile(file);
 });
 ui.save.addEventListener("click", save);
 ui.copy.addEventListener("click", copy);
