@@ -72,3 +72,11 @@ describe("chord lines", () => {
     assert.deepEqual(invalid, ["H7", "C@9"]);
   });
 });
+
+describe("beat feel", () => {
+  it("If a score names its feel it should accept 4, 8 or 16 only", () => {
+    const doc = load("twinkle-twinkle.gts.json");
+    for (const beat of [4, 8, 16]) assert.equal(validate({ ...doc, meta: { ...doc.meta, beat } }).valid, true);
+    assert.equal(validate({ ...doc, meta: { ...doc.meta, beat: 12 } }).valid, false);
+  });
+});

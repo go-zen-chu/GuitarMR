@@ -24,7 +24,8 @@ export function pagePrompt(crops: readonly SystemCrop[], options: PromptOptions)
     ? `
 Also read the header written at the top of the page (image 1) and above the
 first system into "header": title, artist, key (as written, e.g. "Am"), capo
-(number), tempo (quarter notes per minute) and timeSignature (e.g. "4/4").
+(number), tempo (quarter notes per minute), timeSignature (e.g. "4/4") and
+beat (8 or 16 when the score names its feel, e.g. "8 beat", "16ビート").
 Leave out what is not written.`
     : "";
   return `You are digitizing a handwritten guitar score (a scan). The images

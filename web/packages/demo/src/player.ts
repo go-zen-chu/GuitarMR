@@ -2,7 +2,8 @@
  * The play view: the song's measures in play order (repeats and jumps
  * expanded), each showing its chords at their beats, the lyrics of the
  * current verse and chord diagrams when the gts file has them. Playing
- * follows the tempo: the current measure and beat are highlighted and the
+ * follows the tempo: the current measure is highlighted, its beat marks
+ * (4, 8 or 16 per 4/4 measure, from the song's feel) fill in, and the
  * view scrolls so the current line stays near the top, on any screen size.
  */
 
@@ -65,9 +66,13 @@ export function createPlayer() {
     larger: $<HTMLButtonElement>("player-larger"),
     count: $<HTMLElement>("player-count"),
     close: $<HTMLButtonElement>("player-close"),
+    feel: $<HTMLElement>("player-feel"),
   };
 
   let doc: GtsDocument | null = null;
+  /** Beat marks per 4/4 measure: 4 (quarters), 8 (eighths) or 16 (sixteenths). */
+  let feel: 4 | 8 | 16 = 4;
+  let currentSlot = -1;
   let steps: PlayStep[] = [];
   let cells: HTMLElement[] = [];
   let totalBeats = 0;
@@ -190,6 +195,7 @@ export function createPlayer() {
         p.textContent = lyric ?? "";
         cell.append(p);
       }
+      cell.append(beatMarks(step.beats));
       const withShapes = chords.filter((c) => c.shape && shapes[c.shape]);
       if (withShapes.length && !carried) {
         const row = document.createElement("div");
@@ -197,9 +203,6 @@ export function createPlayer() {
         for (const c of withShapes) row.append(diagram(shapes[c.shape!]!.frets as (number | null)[]));
         cell.append(row);
       }
-      const beat = document.createElement("div");
-      beat.className = "beat";
-      cell.append(beat);
       cell.setAttribute("aria-label", `${k + 1}小節目 ${chords.map((c) => c.symbol).join(" ")} ${lyric ?? ""}`);
       return cell;
     });
@@ -240,6 +243,44 @@ export function createPlayer() {
   }
 
 
+  /** One mark per counted note of the measure; marks on the beat are taller. */
+  function beatMarks(beats: number): HTMLElement {
+    const row = document.createElement("div");
+    row.className = `beats feel-${feel}`;
+    row.setAttribute("aria-hidden", "true");
+    const perBeat = feel / 4;
+    for (let i = 0; i < beats * perBeat; i++) {
+      const tick = document.createElement("span");
+      tick.className = i % perBeat === 0 ? "tick on-beat" : "tick";
+      row.append(tick);
+    }
+    return row;
+  }
+
+  function setFeel(next: 4 | 8 | 16) {
+    feel = next;
+    for (const b of el.feel.querySelectorAll<HTMLButtonElement>("button")) {
+      b.setAttribute("aria-pressed", String(Number(b.dataset.feel) === feel));
+    }
+    cells.forEach((cell, k) => cell.querySelector(".beats")?.replaceWith(beatMarks(steps[k]!.beats)));
+    currentSlot = -1;
+    if (current >= 0) markBeat(Math.max(position(), steps[current]!.start));
+  }
+
+  /** Fill the marks of the current measure up to the note being played. */
+  function markBeat(beat: number) {
+    const step = steps[current];
+    if (!step) return;
+    const ticks = cells[current]!.querySelectorAll<HTMLElement>(".tick");
+    const slot = Math.min(Math.floor((beat - step.start) * (feel / 4)), ticks.length - 1);
+    if (slot === currentSlot) return;
+    currentSlot = slot;
+    ticks.forEach((t, i) => {
+      t.classList.toggle("done", i < slot);
+      t.classList.toggle("now", i === slot);
+    });
+  }
+
   function stepAt(beat: number): number {
     let lo = 0;
     let hi = steps.length - 1;
@@ -256,8 +297,9 @@ export function createPlayer() {
     const k = stepAt(Math.max(beat, 0));
     if (k !== current) {
       cells[current]?.classList.remove("current");
-      cells[current]?.style.removeProperty("--progress");
+      for (const t of cells[current]?.querySelectorAll(".tick") ?? []) t.classList.remove("done", "now");
       current = k;
+      currentSlot = -1;
       const cell = cells[k]!;
       cell.classList.add("current");
       // Keep the current line about a quarter down the screen.
@@ -268,9 +310,7 @@ export function createPlayer() {
         el.root.scrollTo({ top: Math.max(top, 0), behavior: reduceMotion() ? "auto" : "smooth" });
       }
     }
-    const step = steps[k]!;
-    const within = Math.min(Math.max((beat - step.start) / step.beats, 0), 1);
-    cells[k]!.style.setProperty("--progress", String(within));
+    markBeat(Math.max(beat, 0));
   }
 
   function click(at: number, accent: boolean) {
@@ -401,6 +441,10 @@ export function createPlayer() {
     }
   });
   el.close.addEventListener("click", () => close());
+  el.feel.addEventListener("click", (e) => {
+    const value = Number((e.target as Element).closest<HTMLElement>("[data-feel]")?.dataset.feel);
+    if (value === 4 || value === 8 || value === 16) setFeel(value);
+  });
   addEventListener("keydown", (e) => {
     if (el.root.hidden) return;
     if (e.key === "Escape") close();
@@ -423,10 +467,12 @@ export function createPlayer() {
   function open(next: GtsDocument) {
     doc = next;
     el.bpm.value = String(Math.round(next.meta.tempo ?? 80));
+    feel = next.meta.beat ?? 4;
     anchorBeat = 0;
     el.root.hidden = false;
     document.body.classList.add("in-player");
     build();
+    setFeel(feel);
     el.root.scrollTo({ top: 0 });
     show(0);
     el.play.focus();

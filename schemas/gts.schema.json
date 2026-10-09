@@ -43,6 +43,10 @@
           "default": ["E4", "B3", "G3", "D3", "A2", "E2"]
         },
         "tempo": { "type": "number", "exclusiveMinimum": 0 },
+        "beat": {
+          "description": "Rhythmic feel as counted, often written on the score as \"8 beat\" or \"16ビート\": 4, 8 or 16 notes per 4/4 measure (quarter, eighth or sixteenth notes). Absent means 4.",
+          "enum": [4, 8, 16]
+        },
         "timeSignature": { "$ref": "#/$defs/timeSignature" },
         "layers": {
           "description": "Layers filled for the whole score (see docs/design/tab-digitization.md): layout = measures and page regions, structure = header, sections, repeats and navigation, chords = chord symbols, tab = rhythm and tab notes, lyrics = lyric text per measure and verse.",

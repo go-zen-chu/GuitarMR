@@ -21,8 +21,9 @@ first step toward the phone/tablet PWA (ADR-009):
    `@guitarmr/gts`), each with its chords spread by duration, the verse
    for the current pass and chord diagrams from `chordShapes`. Playing
    follows the tempo with a one-measure count-in and an optional click
-   (Web Audio, scheduled ahead); the current measure and beat are
-   highlighted and the view scrolls to keep the current line near the
+   (Web Audio, scheduled ahead); the current measure is highlighted and
+   its beat marks fill in: 4, 8 or 16 per 4/4 measure (on-beat marks
+   taller), from the song's `meta.beat` (default 4) or the 4/8/16 switch, and the view scrolls to keep the current line near the
    top. Measures per row and text sizes follow the screen and each
    measure's width (container query units), with A−/A＋ on top. Inside a
    measure the marks, chord and lyric lines have fixed heights, and a row

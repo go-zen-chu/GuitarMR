@@ -67,6 +67,10 @@ export interface Meta {
    */
   tuning?: string[];
   tempo?: number;
+  /**
+   * Rhythmic feel as counted, often written on the score as "8 beat" or "16ビート": 4, 8 or 16 notes per 4/4 measure (quarter, eighth or sixteenth notes). Absent means 4.
+   */
+  beat?: 4 | 8 | 16;
   timeSignature?: TimeSignature;
   /**
    * Layers filled for the whole score (see docs/design/tab-digitization.md): layout = measures and page regions, structure = header, sections, repeats and navigation, chords = chord symbols, tab = rhythm and tab notes, lyrics = lyric text per measure and verse.

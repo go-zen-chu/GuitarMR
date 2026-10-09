@@ -166,16 +166,19 @@ footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--rul
 body.in-player { overflow: hidden; }
 .player { position: fixed; inset: 0; z-index: 20; overflow-y: auto; background: var(--paper); color: var(--ink); --zoom: 1; --cell: clamp(8.5rem, 22vw, 13rem); }
 .player-bar { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px; background: var(--surface); border-bottom: 1px solid var(--rule); }
-.player-titles { flex: 1 1 12rem; min-width: 0; }
+@media (min-width: 900px) { .player-top { flex-basis: 12rem; order: 0; } .player-controls { order: 1; } .player-top .close { order: 2; } }
+.player-top { flex: 1 1 100%; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.player-top .close { margin-left: auto; min-width: 40px; min-height: 40px; border-radius: 10px; border: 1px solid var(--rule); background: transparent; cursor: pointer; font-size: 1.1rem; }
+.player-titles { flex: 1 1 auto; min-width: 0; }
 .player-titles h2 { font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .player-titles p { font-size: 0.8rem; color: var(--muted); font-family: var(--font-mono); }
-.player-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.player-controls button { min-width: 44px; min-height: 44px; border-radius: 10px; border: 1px solid var(--rule); background: transparent; cursor: pointer; }
-.player-controls .play { min-width: 6.5rem; background: var(--now); border-color: var(--now); color: var(--surface); font-weight: 700; font-family: var(--font-display); }
+.player-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.player-controls button { min-width: 40px; min-height: 40px; border-radius: 10px; border: 1px solid var(--rule); background: transparent; cursor: pointer; }
+.player-controls .play { min-width: 5.5rem; background: var(--now); border-color: var(--now); color: var(--surface); font-weight: 700; font-family: var(--font-display); }
 .tempo { display: flex; align-items: center; gap: 4px; }
 .tempo label { display: flex; align-items: baseline; gap: 4px; font-size: 0.8rem; color: var(--muted); }
-.tempo input { width: 3.6rem; min-height: 40px; font: inherit; font-size: 16px; font-family: var(--font-mono); text-align: center; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; }
-.toggle { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; min-height: 44px; }
+.tempo input { width: 3.2rem; min-height: 40px; font: inherit; font-size: 16px; font-family: var(--font-mono); text-align: center; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; }
+.toggle { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; min-height: 40px; }
 .zoom { display: flex; gap: 4px; }
 .player-bars { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--cell) * var(--zoom))), 1fr)); gap: 10px 0; padding: 14px 16px 60vh; }
 /* Text sizes follow each measure's own width (container units), times the zoom. */
@@ -210,8 +213,19 @@ body.in-player { overflow: hidden; }
 .lyric { --lyric: calc(0.95rem * var(--zoom)); height: calc(var(--lyric) * 1.5); display: flex; align-items: flex-end; overflow: hidden; white-space: nowrap; font-size: var(--lyric); line-height: 1.2; color: var(--ink); }
 .lyric.fit-1 { font-size: calc(var(--lyric) * 0.82); }
 .lyric.fit-2 { font-size: calc(var(--lyric) * 0.66); }
-.beat { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--now); transform-origin: left; transform: scaleX(var(--progress, 0)); opacity: 0; }
-.bar.current .beat { opacity: 1; }
+/* Beat marks: one per counted note, taller on the beat; in the measure
+   being played they fill in up to the current note. */
+.beats { display: flex; align-items: center; gap: 4px; height: 12px; margin-top: 2px; }
+.beats.feel-16 { gap: 2px; }
+.tick { flex: 1 1 0; height: 4px; border-radius: 2px; background: var(--rule); }
+.tick.on-beat { height: 10px; }
+.bar.current .tick { background: var(--muted); opacity: 0.45; }
+.bar.current .tick.done { background: var(--now); opacity: 0.45; }
+.bar.current .tick.now { background: var(--now); opacity: 1; }
+.feel { display: flex; align-items: center; gap: 2px; font-size: 0.8rem; color: var(--muted); }
+.feel span { margin-right: 4px; }
+.player-controls .feel button { min-width: 34px; font-family: var(--font-mono); }
+.feel button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
 .player-count { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; font-family: var(--font-mono); font-weight: 600; font-size: min(40vw, 14rem); color: var(--now); opacity: 0.85; }
 @media (prefers-reduced-motion: reduce) { .player * { scroll-behavior: auto; } }
 </style>
@@ -292,7 +306,7 @@ body.in-player { overflow: hidden; }
 
 <section class="player" id="player" hidden aria-label="演奏ビュー">
   <div class="player-bar">
-    <div class="player-titles"><h2 id="player-title"></h2><p id="player-meta"></p></div>
+    <div class="player-top"><div class="player-titles"><h2 id="player-title"></h2><p id="player-meta"></p></div><button type="button" class="close" id="player-close" aria-label="演奏ビューを閉じる">×</button></div>
     <div class="player-controls">
       <button type="button" class="play" id="player-play" aria-pressed="false">再生</button>
       <div class="tempo">
@@ -300,9 +314,9 @@ body.in-player { overflow: hidden; }
         <label><input type="number" id="player-bpm" inputmode="numeric" min="30" max="300" aria-label="テンポ（BPM）"><span>BPM</span></label>
         <button type="button" id="player-faster" aria-label="テンポを速く">＋</button>
       </div>
+      <div class="feel" id="player-feel" role="group" aria-label="ビートの数（1小節あたり）"><span>ビート</span><button type="button" data-feel="4" aria-pressed="true">4</button><button type="button" data-feel="8" aria-pressed="false">8</button><button type="button" data-feel="16" aria-pressed="false">16</button></div>
       <label class="toggle"><input type="checkbox" id="player-click">クリック音</label>
       <div class="zoom"><button type="button" id="player-smaller" aria-label="文字を小さく">A−</button><button type="button" id="player-larger" aria-label="文字を大きく">A＋</button></div>
-      <button type="button" class="close" id="player-close" aria-label="演奏ビューを閉じる">×</button>
     </div>
   </div>
   <div class="player-bars" id="player-bars"></div>

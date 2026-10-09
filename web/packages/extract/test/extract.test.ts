@@ -150,6 +150,11 @@ describe("checking answers", () => {
     assert.ok(reading.warnings.some((w) => w.includes("H7")));
   });
 
+  it("If the header names the feel it should keep 8 or 16 and drop anything else", () => {
+    assert.equal(parseReading({ header: { beat: 16 }, measures: [] }, []).header?.beat, 16);
+    assert.equal(parseReading({ header: { beat: 12, key: "C" }, measures: [] }, []).header?.beat, undefined);
+  });
+
   it("If Claude is unsure the measure should be marked for review with its note", () => {
     const truth = load("twinkle-twinkle");
     const doc = applyReading(layoutOnly(truth), parseReading({ measures: [{ id: "m1", chords: [], confidence: 0.4, note: "?" }] }, ["m1"]));

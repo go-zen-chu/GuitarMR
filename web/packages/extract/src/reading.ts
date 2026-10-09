@@ -35,6 +35,7 @@ export interface HeaderReading {
   key?: string;
   capo?: number;
   tempo?: number;
+  beat?: 4 | 8 | 16;
   timeSignature?: string;
 }
 
@@ -114,6 +115,7 @@ export function parseReading(answer: unknown, ids: readonly string[]): PageReadi
     if (text(h.key)) header.key = text(h.key)!;
     if (Number.isInteger(h.capo) && (h.capo as number) >= 0 && (h.capo as number) <= 12) header.capo = h.capo as number;
     if (typeof h.tempo === "number" && h.tempo > 0) header.tempo = h.tempo;
+    if (h.beat === 4 || h.beat === 8 || h.beat === 16) header.beat = h.beat;
     if (typeof h.timeSignature === "string" && TIME_SIGNATURE.test(h.timeSignature)) {
       header.timeSignature = h.timeSignature;
     }
