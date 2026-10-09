@@ -13,6 +13,7 @@ import {
   setSectionStart,
   systemCrops,
   updateMeasure,
+  withContext,
 } from "../src/index.ts";
 
 const EXAMPLES = new URL("../../../../schemas/examples/", import.meta.url);
@@ -63,6 +64,15 @@ for (const name of ["twinkle-twinkle", "sakura-sakura"]) {
       );
       for (const c of crops) {
         assert.ok(c.bbox[0] < c.bbox[2] && c.bbox[1] < c.bbox[3]);
+        // The system's own band sits inside the crop, with context around it
+        // unless the page edge is reached.
+        const [b0, b1] = c.band;
+        assert.ok(0 <= b0 && b0 < b1 && b1 <= 1);
+        const region = measures(truth).find((m) => m.id === c.measures[0]!.id)!.region!.bbox;
+        const h = c.bbox[3] - c.bbox[1];
+        assert.ok(Math.abs(c.bbox[1] + b0 * h - region[1]!) < 1e-9);
+        assert.ok(Math.abs(c.bbox[1] + b1 * h - region[3]!) < 1e-9);
+        if (region[1]! > 0.1) assert.ok(b0 > 0.1);
         c.measures.forEach((m, i) => {
           assert.ok(m.x0 >= 0 && m.x0 < m.x1 && m.x1 <= 1, m.id);
           if (i) assert.ok(m.x0 >= c.measures[i - 1]!.x1 - 1e-9, m.id);
@@ -98,6 +108,17 @@ for (const name of ["twinkle-twinkle", "sakura-sakura"]) {
     });
   });
 }
+
+describe("context around a region", () => {
+  it("If a measure is widened it should keep its place inside and stop at the page edge", () => {
+    const { outer, inner } = withContext([0.5, 0.4, 0.7, 0.6], { x: 0.5, y: 0.25 });
+    assert.deepEqual(outer.map((v) => +v.toFixed(6)), [0.4, 0.35, 0.8, 0.65]);
+    assert.deepEqual(inner.map((v) => +v.toFixed(6)), [0.25, 1 / 6, 0.75, 5 / 6].map((v) => +v.toFixed(6)));
+    const edge = withContext([0, 0.9, 0.2, 1], { x: 0.5, y: 0.5 });
+    assert.deepEqual(edge.outer.map((v) => +v.toFixed(6)), [0, 0.85, 0.3, 1]);
+    assert.equal(edge.inner[0], 0);
+  });
+});
 
 describe("checking answers", () => {
   const ids = ["m1", "m2", "m3", "m4"];

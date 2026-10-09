@@ -39,7 +39,10 @@ export async function systemImages(
   try {
     const blobs: Blob[] = [];
     if (header) {
-      const h = Math.max(Math.round((crops[0]?.bbox[1] ?? 0) * page.height), Math.round(page.height * 0.08));
+      // Everything above the first system's band (its own margin included).
+      const first = crops[0];
+      const bandTop = first ? first.bbox[1] + first.band[0] * (first.bbox[3] - first.bbox[1]) : 0;
+      const h = Math.max(Math.round(bandTop * page.height), Math.round(page.height * 0.08));
       const canvas = document.createElement("canvas");
       canvas.width = page.width;
       canvas.height = h;
@@ -61,6 +64,10 @@ export async function systemImages(
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, sw, strip);
       ctx.drawImage(bitmap, sx, sy, sw, sh, 0, strip, sw, sh);
+      // Fade the context margins above and below the system's own band.
+      ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+      ctx.fillRect(0, strip, sw, crop.band[0] * sh);
+      ctx.fillRect(0, strip + crop.band[1] * sh, sw, sh - crop.band[1] * sh);
       ctx.font = `bold ${Math.round(strip * 0.62)}px sans-serif`;
       ctx.textBaseline = "middle";
       for (const m of crop.measures) {

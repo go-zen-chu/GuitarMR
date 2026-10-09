@@ -32,7 +32,11 @@ are crops of one page, one image per system (a line of music: an optional
 5-line staff above a 6-line TAB staff, with chord names above it). A white
 strip was added on top of each image: in it, magenta ticks mark where each
 measure starts and ends, and a magenta tag with the measure id sits above
-the measure's left end. The strip is not part of the score.
+the measure's left end. The strip is not part of the score. Each image
+also shows a faded margin above and below the system (the edges of the
+neighboring systems), only as context: use it to read writing that
+crosses the boundary, but do not take chords or signs of the neighboring
+systems into these measures.
 
 ${systems}
 

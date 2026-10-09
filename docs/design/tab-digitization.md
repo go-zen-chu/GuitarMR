@@ -195,9 +195,10 @@ PDF ──▶ 1. rasterize + orient ──▶ 2. layout ──▶ 3. content ─
    checkable. `structure` and `chords` are read together and implemented
    by [`web/packages/extract`](../../web/packages/extract/README.md): one
    request per page, with one image per system cut from the upright page
-   (the band from the layout layer, plus a white strip above it holding a
-   magenta tag with each measure id), and the page top for the header on
-   the first page. The answer is per-measure JSON with a confidence and an
+   (the band from the layout layer with a faded margin of the systems
+   above and below, so writing across the boundary stays readable, plus
+   a white strip on top holding a magenta tag with each measure id), and
+   the page top for the header on the first page. The answer is per-measure JSON with a confidence and an
    optional note; `tab` is not read yet.
 4. **Validate**: every answered field is checked against the schema rules
    (chord-symbol grammar, enums, ranges) and dropped with a warning when

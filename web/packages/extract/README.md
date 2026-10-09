@@ -7,7 +7,10 @@ and the image cutting are left to the caller (the phone page in
 `web/packages/demo` does both in the browser).
 
 - `crops.ts`: one crop per system, from the measure regions of the layout
-  layer alone, with each measure's left/right edge inside the crop.
+  layer alone, with each measure's left/right edge inside the crop and a
+  margin above and below the system's band (context: lyrics and signs
+  written across the boundary); `withContext` widens a measure the same
+  way for the review editor.
 - `prompt.ts`: the instruction for one page: what the images are (system
   crops with a strip of measure-id tags above, and the page top for the
   header on the first page), what to read, and the JSON to answer with.

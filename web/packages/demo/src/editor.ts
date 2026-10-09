@@ -6,7 +6,7 @@
  */
 
 import { type GtsDocument, type Measure, beatsPerBar, formatChordLine, measures, parseChordLine } from "@guitarmr/gts";
-import { setSectionStart, updateMeasure } from "@guitarmr/extract";
+import { setSectionStart, updateMeasure, withContext } from "@guitarmr/extract";
 import { STATUS_LABEL, sectionLabels, statusOf } from "./score-view.ts";
 
 export interface EditorHost {
@@ -17,6 +17,9 @@ export interface EditorHost {
   select(id: string | null): void;
 }
 
+/** How much of the surroundings the measure image shows: shares of the measure's width and height. */
+const MEASURE_CONTEXT = { x: 0.35, y: 0.2 };
+
 const NAV_IDS = ["segno", "coda", "to-coda", "ds", "ds-al-coda", "dc", "dc-al-coda", "fine"] as const;
 
 export function createEditor(host: EditorHost) {
@@ -26,6 +29,7 @@ export function createEditor(host: EditorHost) {
     title: $<HTMLElement>("sheet-title"),
     status: $<HTMLElement>("sheet-status"),
     crop: $<HTMLElement>("sheet-crop"),
+    frame: $<HTMLElement>("sheet-frame"),
     note: $<HTMLElement>("sheet-note"),
     chords: $<HTMLInputElement>("f-chords"),
     chordsError: $<HTMLElement>("f-chords-error"),
@@ -56,14 +60,24 @@ export function createEditor(host: EditorHost) {
     const image = m.region ? host.pageImage(m.region.page) : undefined;
     f.crop.hidden = !image || !m.region;
     if (image && m.region) {
-      // Show the measure's band as a window onto the page image.
-      const [x0, y0, x1, y1] = m.region.bbox as number[] as [number, number, number, number];
+      // A window onto the page image: the measure framed, with a little of
+      // its neighbors and of the systems above and below (faded), so lyrics
+      // and signs written across its edges can be read.
+      const { outer, inner } = withContext(m.region.bbox, MEASURE_CONTEXT);
+      const [x0, y0, x1, y1] = outer;
       const w = x1 - x0;
       const h = y1 - y0;
       f.crop.style.backgroundImage = `url("${image.url}")`;
       f.crop.style.backgroundSize = `${100 / w}% ${100 / h}%`;
       f.crop.style.backgroundPosition = `${w < 1 ? (x0 / (1 - w)) * 100 : 0}% ${h < 1 ? (y0 / (1 - h)) * 100 : 0}%`;
       f.crop.style.setProperty("--aspect", String((w * image.width) / (h * image.height)));
+      const [ix0, iy0, ix1, iy1] = inner;
+      Object.assign(f.frame.style, {
+        left: `${ix0 * 100}%`,
+        top: `${iy0 * 100}%`,
+        width: `${(ix1 - ix0) * 100}%`,
+        height: `${(iy1 - iy0) * 100}%`,
+      });
     }
     f.note.hidden = !m.review?.comment;
     f.note.textContent = m.review?.comment ? `AIのメモ: ${m.review.comment}` : "";
