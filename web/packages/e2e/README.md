@@ -15,12 +15,12 @@ tests need no network and no Claude account.
 
 ```sh
 pnpm --filter @guitarmr/demo build    # the page under test
-pnpm --filter @guitarmr/e2e exec playwright-core install chromium   # once
-pnpm --filter @guitarmr/e2e e2e
+CHROMIUM_PATH=/usr/bin/google-chrome pnpm --filter @guitarmr/e2e e2e
 ```
 
-`CHROMIUM_PATH` points the tests at an installed Chromium instead of
-Playwright's download. Screenshots of each screen are written to
+`CHROMIUM_PATH` points the tests at an installed Chrome or Chromium (CI
+uses the runner's Google Chrome); without it, `playwright-core` looks for
+its own download (`playwright-core install chromium`). Screenshots of each screen are written to
 `.artifacts/` (or `E2E_ARTIFACTS`) for people to look at; they are not
 compared. CI (`.github/workflows/web.yml`) runs type checks, unit tests,
 the build and these tests on every change under `web/` or `schemas/`, and

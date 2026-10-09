@@ -27,11 +27,11 @@ jobs:
         working-directory: web
     steps:
       # Third-party actions are pinned to commits (tag in the comment).
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: web/.node-version
 
@@ -51,17 +51,21 @@ jobs:
       - name: Build the phone page
         run: pnpm --filter @guitarmr/demo build
 
-      - name: Chromium for the e2e tests
-        run: pnpm --filter @guitarmr/e2e exec playwright-core install --with-deps chromium
+      # The runner image already has Google Chrome; using it skips a 170 MB
+      # download (and Playwright's unpacking, which stalls under Node 26).
+      - name: Browser for the e2e tests
+        run: /usr/bin/google-chrome --version
 
       - name: End-to-end tests
         run: pnpm --filter @guitarmr/e2e e2e
+        timeout-minutes: 10
         env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
           E2E_ARTIFACTS: ${{ runner.temp }}/e2e
 
       - name: Screenshots and the built page
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: e2e
           path: |
