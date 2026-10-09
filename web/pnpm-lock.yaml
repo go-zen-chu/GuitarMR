@@ -32,6 +32,30 @@ importers:
         specifier: 7.0.2
         version: 7.0.2
 
+  packages/e2e:
+    devDependencies:
+      '@guitarmr/demo':
+        specifier: workspace:*
+        version: link:../demo
+      '@guitarmr/gts':
+        specifier: workspace:*
+        version: link:../gts
+      '@guitarmr/samples':
+        specifier: workspace:*
+        version: link:../samples
+      '@types/node':
+        specifier: 26.6.2
+        version: 26.6.2
+      pdfjs-dist:
+        specifier: 6.3.289
+        version: 6.3.289
+      playwright-core:
+        specifier: 1.56.1
+        version: 1.56.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
   packages/extract:
     dependencies:
       '@guitarmr/gts':
@@ -319,6 +343,11 @@ packages:
     resolution: {integrity: sha512-ZHjSVpDa3D6izMq8/04lvkhkATUmL9px6ChPaXc1k6nU2Mrhlg1/7F0bdUqCwUjw3NsPTfPZsMDUU6ZIcRaeQw==}
     engines: {node: '>=22.13.0 || >=24'}
 
+  playwright-core@1.56.1:
+    resolution: {integrity: sha512-hutraynyn31F+Bifme+Ps9Vq59hKuUCz7H1kDOcBs+2oGguKkWTU50bBWrtz34OUWmIwpBTWDxaRPXrIXkgvmQ==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   require-from-string@2.0.2:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
@@ -460,6 +489,8 @@ snapshots:
   pdfjs-dist@6.3.289:
     optionalDependencies:
       '@napi-rs/canvas': 1.0.9
+
+  playwright-core@1.56.1: {}
 
   require-from-string@2.0.2: {}
 

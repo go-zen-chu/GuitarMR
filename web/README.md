@@ -10,6 +10,7 @@ happens in the Quest app; the `.gts.json` next to the PDF is the hand-off.
 | [`@guitarmr/layoutscan`](packages/layoutscan/README.md) | Layout detection (orientation, systems, measure regions) + Node CLI |
 | [`@guitarmr/samples`](packages/samples/README.md) | Public-domain sample scores, engraver and end-to-end tests |
 | [`@guitarmr/extract`](packages/extract/README.md) | Reading the structure and chords layers with Claude (crops, prompt, answer checks, merge) and review edits |
+| [`@guitarmr/e2e`](packages/e2e/README.md) | End-to-end tests of the built page in headless Chromium (pdf.js local, Claude mocked); run in CI |
 | [`@guitarmr/demo`](packages/demo/README.md) | Single-file phone page: detect measures, read chords/structure with Claude, review and save the gts file |
 
 The PWA itself is the next step (see docs/project).
@@ -43,6 +44,7 @@ keeps them to what cannot reasonably be written by hand:
 | `@napi-rs/canvas` | dev (Node tools and tests only) | A canvas for pdf.js and for drawing samples in Node |
 | `ajv` | dev (`@guitarmr/gts/validate`, tests and tools) | Schema validation |
 | `typescript`, `@types/node` | dev | Type checking |
+| `playwright-core` | dev (`@guitarmr/e2e` only) | Driving headless Chromium in the end-to-end tests |
 
 Tests use `node:test`/`node:assert` and scripts run with plain `node`
 (no test framework, no TS runner). Versions are pinned exactly

@@ -84,8 +84,11 @@ project starts taking external contributions.
       key sits in the browser (it must not store scores), and optionally a
       store-packaged wrapper (e.g. Capacitor) if iOS storage or file
       integration proves insufficient.
-- [ ] **CI**: run EditMode tests headless on GitHub Actions
-      (needs a Unity license secret, e.g. game-ci/unity-test-runner).
+- [ ] **CI**: the web workspace runs on GitHub Actions
+      (`.github/workflows/web.yml`: type checks, unit tests, the phone
+      page build and its end-to-end tests). Still to do: run the Unity
+      EditMode tests headless (needs a Unity license secret, e.g.
+      game-ci/unity-test-runner).
 
 ## Known issues / risks
 

@@ -1,0 +1,71 @@
+# The TypeScript workspace under web/: type checks, unit tests, the phone
+# page build and its end-to-end tests in headless Chromium. The e2e tests
+# serve pdf.js locally and mock claude.ai, so nothing leaves the runner.
+name: web
+
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", "schemas/**", ".github/workflows/web.yml"]
+  pull_request:
+    paths: ["web/**", "schemas/**", ".github/workflows/web.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      # Third-party actions are pinned to commits (tag in the comment).
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: web/.node-version
+
+      - name: pnpm (the version in package.json "packageManager")
+        run: npm install -g "pnpm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
+
+      - name: Japanese font (the さくらさくら sample is engraved with one)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Build the phone page
+        run: pnpm --filter @guitarmr/demo build
+
+      - name: Chromium for the e2e tests
+        run: pnpm --filter @guitarmr/e2e exec playwright-core install --with-deps chromium
+
+      - name: End-to-end tests
+        run: pnpm --filter @guitarmr/e2e e2e
+        env:
+          E2E_ARTIFACTS: ${{ runner.temp }}/e2e
+
+      - name: Screenshots and the built page
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: e2e
+          path: |
+            ${{ runner.temp }}/e2e
+            web/packages/demo/dist/layoutscan-demo.html
+          if-no-files-found: ignore
+          retention-days: 14

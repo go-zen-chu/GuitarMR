@@ -47,3 +47,6 @@ schemas/examples/*.pdf
 # TypeScript workspace (web/)
 node_modules/
 dist/
+
+# e2e screenshots (CI uploads them as an artifact)
+web/packages/e2e/.artifacts/
