@@ -1,0 +1,20 @@
+{
+  "name": "@guitarmr/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end tests of the built phone page in headless Chromium (pdf.js served locally, Claude mocked)",
+  "scripts": {
+    "e2e": "node --test --test-concurrency=1 \"test/**/*.test.ts\"",
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@guitarmr/demo": "workspace:*",
+    "@guitarmr/gts": "workspace:*",
+    "@guitarmr/samples": "workspace:*",
+    "@types/node": "26.6.2",
+    "pdfjs-dist": "6.3.289",
+    "playwright-core": "1.56.1",
+    "typescript": "7.0.2"
+  }
+}

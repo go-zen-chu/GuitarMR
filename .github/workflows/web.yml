@@ -1,0 +1,75 @@
+# The TypeScript workspace under web/: type checks, unit tests, the phone
+# page build and its end-to-end tests in headless Chromium. The e2e tests
+# serve pdf.js locally and mock claude.ai, so nothing leaves the runner.
+name: web
+
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", "schemas/**", ".github/workflows/web.yml"]
+  pull_request:
+    paths: ["web/**", "schemas/**", ".github/workflows/web.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      # Third-party actions are pinned to commits (tag in the comment).
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: web/.node-version
+
+      - name: pnpm (the version in package.json "packageManager")
+        run: npm install -g "pnpm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
+
+      - name: Japanese font (the さくらさくら sample is engraved with one)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Build the phone page
+        run: pnpm --filter @guitarmr/demo build
+
+      # The runner image already has Google Chrome; using it skips a 170 MB
+      # download (and Playwright's unpacking, which stalls under Node 26).
+      - name: Browser for the e2e tests
+        run: /usr/bin/google-chrome --version
+
+      - name: End-to-end tests
+        run: pnpm --filter @guitarmr/e2e e2e
+        timeout-minutes: 10
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
+          E2E_ARTIFACTS: ${{ runner.temp }}/e2e
+
+      - name: Screenshots and the built page
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: e2e
+          path: |
+            ${{ runner.temp }}/e2e
+            web/packages/demo/dist/layoutscan-demo.html
+          if-no-files-found: ignore
+          retention-days: 14

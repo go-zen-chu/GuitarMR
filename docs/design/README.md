@@ -172,3 +172,99 @@ this picker is now the only way scores enter the app.
 - Should Meta ever reject the permission for store distribution, fall back
   to SAF (option 1) behind the same `IScoreRepository`/`IStoragePermission`
   ports.
+
+## ADR-008: Canonical JSON format (gts, Guitar Tab Score) for digitized handwritten tabs
+
+**Status**: Proposed (2026-09-25)
+
+**Context**: The scores used for practice are handwritten tabs scanned to PDF
+(no text layer, mixed page orientation, colored teacher annotations). To
+enable features beyond showing the image (measure highlighting, auto page
+turn, chord charts, playback), they need to be digitized. Recognition of
+handwriting is imperfect, so the data must be reviewable against the scan and
+may be only partially complete. Candidates were MusicXML, Guitar Pro,
+alphaTex, ChordPro and a project-specific JSON format.
+
+**Decision**: Define a project-specific JSON format, `gts` (Guitar Tab
+Score), validated by `schemas/gts.schema.json`, as the canonical
+representation. It stores
+what is written on the page (capo-relative frets and chords, simile signs,
+repeats and navigation in written order), the page region of every measure,
+per-measure confidence/review status and, for personal use, lyrics per
+verse. Degrees, barline-free chord sheets and colored pen comments are out
+of scope for now. No
+exporter is built for now; a one-way MusicXML export for other viewers is a
+possible future addition (backlog). Full rationale, data model and the
+recognition pipeline outline: [tab-digitization.md](tab-digitization.md).
+
+**Consequences**:
+- Partial data (only some of the layers: layout, structure, chords, tab, lyrics) is a valid
+  document, so value is delivered before tab recognition is solved.
+- Page regions let the app map playback position to the PDF it already
+  renders, without re-engraving the score.
+- The schema doubles as the structured-output contract for LLM-based
+  extraction and as the validation gate.
+- We own the review viewer instead of reusing an editor's native format;
+  until a MusicXML exporter exists, the data is not viewable in other
+  apps.
+- Real transcriptions are copyrighted and stay out of the repository; they
+  live next to the PDF as `<name>.gts.json`.
+
+## ADR-009: Digitize and view on phone/tablet as a client-only PWA in TypeScript
+
+**Status**: Accepted (2026-09-27)
+
+**Context**: Digitizing handwritten scores (ADR-008) should be possible with
+only a phone or tablet, while practice stays on the Quest 3 (MR). Scores
+are copyrighted, so they should never be uploaded to a server we run.
+Options were a web app processing files on the device, a native app
+(Flutter etc.), or a server-side pipeline. For the web app, the detection
+core could be TypeScript or Rust compiled to WebAssembly.
+
+**Decision**:
+- **Split**: the phone/tablet digitizes and views (score + detected
+  measures + extracted layers); practice happens in the Quest app. The
+  `.gts.json` file next to the PDF is the hand-off between them.
+- **PWA, client-only**: a static site (installable, offline-capable) that
+  opens a PDF from the device, runs every step in the browser (Web Worker)
+  and saves results locally, exporting `song.gts.json` through the share
+  sheet / download. No server of ours ever sees a score.
+- **Input**: PDF only for now. Photo input (image files, then perspective
+  and lighting correction for camera photos) is at the top of the backlog.
+- **Users**: the author only for now. Distribution to others (a key relay
+  server, store packaging) is in the backlog.
+- **LLM steps**: the user's own Claude API key is stored on the device and
+  the browser calls the Claude API directly (the API's direct browser
+  access mode). Scores go only to Anthropic, under the user's own account.
+- **One language, TypeScript**: the PWA, the detection core, the Node CLI
+  and the sample/test tooling are all TypeScript in one workspace under
+  `web/`. The detection core is a pure function over RGBA pixels, used by
+  the browser worker and the CLI alike. The Python `tools/layoutscan` is
+  ported and then retired; the committed public-domain samples guard that
+  the port detects the same layout. (Done 2026-09-27: the port matched
+  the Python version on every surveyed page and replaced it.)
+
+**Consequences**:
+- One codebase for iOS, Android and desktop, updated instantly, with no
+  store review; Rust/WebAssembly stays an option for the detection core
+  alone if a phone turns out too slow (it sits behind one function).
+- Image processing (thresholding, line morphology, rotation) is written by
+  hand instead of calling OpenCV; it only needs a few simple operations.
+- iOS may evict site storage of rarely used web apps; installing to the
+  home screen and requesting persistent storage mitigates it, and exported
+  `.gts.json` files are the durable copy.
+- The API key lives in the browser; acceptable for a single personal user,
+  not for distribution (hence the relay server in the backlog).
+- Dependencies are kept minimal to limit vulnerability maintenance: the PWA
+  ships only pdf.js; tests use Node's built-in runner and scripts run with
+  plain `node` (type stripping). The policy is in web/README.md.
+
+**Amendment (2026-10-09)**: the first working version runs as a private
+claude.ai Artifact (web/packages/demo), where a page cannot reach the
+Anthropic API (its network is blocked). There, Claude is reached through
+the Artifact's built-in Claude access instead of an API key: the page asks
+on the viewer's own claude.ai account (the viewer approves it once), and
+only the system images cut from the score are sent, never the PDF. The
+API-key path stays the plan for the standalone PWA. The reader takes the
+model call as a parameter (`readPages(sample, ...)`), so the standalone
+PWA only adds the other backend.

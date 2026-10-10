@@ -1,0 +1,335 @@
+<title>layoutscan 小節検出</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column of staff-paper cards; the score image is the hero, the
+   overlay colors (blue systems, red measures) double as the legend. */
+:root {
+  --paper: #f3f4f0;
+  --surface: #ffffff;
+  --ink: #1c2027;
+  --muted: #5b626c;
+  --rule: #d7dbd3;
+  --measure: #d42a20;
+  --system: #2343c8;
+  --button: #1c2027;
+  --button-ink: #f3f4f0;
+  --on-measure: #ffffff;
+  /* Review states, for chips on the page surface. */
+  --st-unread: #c0281f;
+  --st-auto: #1f6f84;
+  --st-attention: #a85f00;
+  --st-reviewed: #23784a;
+  /* Drawn over the scanned paper, which is light in either theme. */
+  --ov-system: #2343c8;
+  --ov-unread: #d42a20;
+  --ov-auto: #1f7f96;
+  --ov-attention: #e08a00;
+  --ov-reviewed: #23884f;
+  --ov-selected: #d0167a;
+  --ov-text: #14161a;
+  --ov-halo: #ffffff;
+  --scrim: rgba(20, 22, 26, 0.18);
+  /* Play view: the measure being played. */
+  --now: #d0167a;
+  --now-bg: #fbe4ef;
+  --font-display: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --font-body: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #14161a; --surface: #1c1f24; --ink: #e9eae6; --muted: #9ba2ac; --rule: #2e3238;
+    --measure: #ff6a5c; --system: #8aa2ff; --button: #e9eae6; --button-ink: #14161a; --on-measure: #14161a;
+    --st-unread: #ff7a6e; --st-auto: #6cc3d8; --st-attention: #f0b24a; --st-reviewed: #6fd39a; --scrim: rgba(0, 0, 0, 0.5); --now: #ff5fa8; --now-bg: #3b1d2c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #14161a; --surface: #1c1f24; --ink: #e9eae6; --muted: #9ba2ac; --rule: #2e3238;
+  --measure: #ff6a5c; --system: #8aa2ff; --button: #e9eae6; --button-ink: #14161a; --on-measure: #14161a;
+    --st-unread: #ff7a6e; --st-auto: #6cc3d8; --st-attention: #f0b24a; --st-reviewed: #6fd39a; --scrim: rgba(0, 0, 0, 0.5); --now: #ff5fa8; --now-bg: #3b1d2c;
+  color-scheme: dark;
+}
+body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6; }
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; margin: 0; text-wrap: balance; }
+h1 { font-size: 1.6rem; letter-spacing: 0.01em; }
+h1 .tool { font-family: var(--font-mono); font-weight: 600; font-size: 0.75em; color: var(--muted); display: block; letter-spacing: 0.04em; }
+p { margin: 0; }
+[hidden] { display: none !important; }
+.intro { display: grid; gap: 10px; }
+.lead { color: var(--muted); max-width: 60ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.85rem; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 14px; height: 10px; margin-right: 6px; border: 2px solid currentColor; vertical-align: -1px; }
+.legend .sys { color: var(--system); }
+.legend .mea { color: var(--measure); }
+.pick { display: grid; gap: 12px; }
+.file-button { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 20px; border-radius: 10px; background: var(--button); color: var(--button-ink); font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; cursor: pointer; }
+.file-button:focus-within { outline: 3px solid var(--system); outline-offset: 2px; }
+/* The native input covers the whole button, so a tap lands on it directly
+   (some in-app browsers ignore taps forwarded through a label). */
+.file-button input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0; }
+.pick-hint { font-size: 0.85rem; color: var(--muted); }
+.samples-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.samples-row > p { font-size: 0.85rem; color: var(--muted); width: 100%; }
+button { font: inherit; color: inherit; }
+.sample { display: grid; text-align: left; gap: 0; padding: 8px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); cursor: pointer; flex: 1 1 200px; min-width: 0; }
+.sample small { color: var(--muted); font-size: 0.8rem; }
+.sample:hover { border-color: var(--muted); }
+button:focus-visible { outline: 3px solid var(--system); outline-offset: 2px; }
+.status { display: grid; gap: 6px; min-height: 1.6em; color: var(--muted); font-size: 0.9rem; }
+progress { width: 100%; height: 6px; accent-color: var(--measure); }
+.summary { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); }
+.summary h2 { font-size: 1.05rem; overflow-wrap: anywhere; }
+.summary .stats { font-family: var(--font-mono); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions button { min-height: 44px; padding: 0 16px; border-radius: 8px; cursor: pointer; border: 1px solid var(--rule); background: transparent; }
+.actions .primary { background: var(--measure); border-color: var(--measure); color: var(--on-measure); font-weight: 700; overflow-wrap: anywhere; }
+.save-note { font-size: 0.85rem; color: var(--muted); }
+details summary { cursor: pointer; font-size: 0.85rem; color: var(--muted); }
+textarea { width: 100%; box-sizing: border-box; min-height: 12em; margin-top: 8px; padding: 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font-family: var(--font-mono); font-size: 12px; }
+.pages { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.page-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+.page-head h3 { font-family: var(--font-mono); font-size: 1rem; }
+.page-head dl { display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 0; font-size: 0.85rem; }
+.page-head dl div { display: flex; gap: 6px; }
+.page-head dt { color: var(--muted); }
+.page-head dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.figure { position: relative; border-radius: 6px; border: 1px solid var(--rule); overflow: hidden; background: var(--ov-halo); }
+.figure img { display: block; width: 100%; height: auto; }
+.overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+.overlay .system { fill: none; stroke: var(--ov-system); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.overlay .measure { cursor: pointer; outline: none; scroll-margin-top: 16px; }
+.overlay .box { fill: transparent; stroke: var(--ov-unread); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.overlay .num { fill: var(--ov-unread); font-family: var(--font-mono); font-weight: 600; }
+.overlay .line { fill: var(--ov-text); font-family: var(--font-body); font-weight: 700; paint-order: stroke; stroke: var(--ov-halo); stroke-width: 8px; stroke-linejoin: round; }
+.overlay .s-auto .box { stroke: var(--ov-auto); }
+.overlay .s-auto .num { fill: var(--ov-auto); }
+.overlay .s-attention .box { stroke: var(--ov-attention); stroke-width: 3px; fill: rgba(224, 138, 0, 0.1); }
+.overlay .s-attention .num { fill: var(--ov-attention); }
+.overlay .s-reviewed .box { stroke: var(--ov-reviewed); }
+.overlay .s-reviewed .num { fill: var(--ov-reviewed); }
+.overlay .selected .box, .overlay .measure:focus-visible .box { stroke: var(--ov-selected); stroke-width: 4px; fill: rgba(208, 22, 122, 0.08); }
+.reread { margin-left: auto; min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; font-size: 0.85rem; cursor: pointer; }
+.chip { display: inline-flex; align-items: center; padding: 1px 10px; border-radius: 999px; border: 1px solid currentColor; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.chip.s-unread { color: var(--st-unread); }
+.chip.s-auto { color: var(--st-auto); }
+.chip.s-attention { color: var(--st-attention); }
+.chip.s-reviewed { color: var(--st-reviewed); }
+.review-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.review-row button { min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--st-attention); color: var(--st-attention); background: transparent; cursor: pointer; font-size: 0.85rem; }
+.note-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+.note-row button { min-height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; cursor: pointer; font-size: 0.85rem; }
+.ai { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--rule); }
+.ai h3 { font-size: 1rem; }
+.ai p { font-size: 0.85rem; color: var(--muted); }
+.ai ul { margin: 6px 0 0; padding-left: 1.2em; font-size: 0.8rem; color: var(--muted); }
+.file-link { position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--rule); cursor: pointer; }
+.file-link input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0; }
+.file-link:focus-within { outline: 3px solid var(--system); outline-offset: 2px; }
+/* The editor: a sheet at the bottom; the score scrolls above it. */
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; max-height: 64dvh; overflow-y: auto; background: var(--surface); border-top: 1px solid var(--rule); box-shadow: 0 -8px 24px var(--scrim); padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
+.sheet-inner { max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+body.editing main { padding-bottom: 70dvh; }
+.sheet-head { display: flex; align-items: center; gap: 10px; }
+.sheet-head h2 { font-family: var(--font-mono); font-size: 1rem; }
+.sheet-head .close { margin-left: auto; width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; font-size: 1.2rem; cursor: pointer; }
+/* Keep the measure short enough that the fields stay in view. */
+.crop { position: relative; overflow: hidden; aspect-ratio: var(--aspect, 3); width: min(100%, calc(28dvh * var(--aspect, 3))); max-width: 100%; margin-inline: auto; background-repeat: no-repeat; border: 1px solid var(--rule); border-radius: 6px; background-color: var(--ov-halo); }
+/* The measure itself; its surroundings are faded by the frame's shadow. */
+.crop-frame { position: absolute; border: 2px solid var(--ov-selected); border-radius: 2px; box-shadow: 0 0 0 100vmax rgba(255, 255, 255, 0.5); pointer-events: none; }
+.ai-note { font-size: 0.85rem; color: var(--st-attention); }
+.field { display: grid; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+.field input[type="text"], .field input[type="number"], .field select { font: inherit; font-size: 16px; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; min-height: 44px; padding: 0 10px; box-sizing: border-box; width: 100%; }
+#f-chords { font-family: var(--font-mono); font-weight: 600; }
+.field input:focus-visible, .field select:focus-visible { outline: 3px solid var(--system); outline-offset: 1px; }
+.hint { font-size: 0.8rem; color: var(--muted); }
+.hint code { font-family: var(--font-mono); }
+.field-error { font-size: 0.85rem; color: var(--st-unread); }
+.field-error:empty { display: none; }
+.more { display: grid; gap: 10px; }
+.more[open] { padding-bottom: 4px; }
+.more > summary { min-height: 32px; display: flex; align-items: center; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 14px; border: 0; padding: 0; margin: 0; font-size: 0.9rem; }
+.checks legend { font-size: 0.85rem; color: var(--muted); padding: 0; margin-bottom: 4px; }
+.checks label { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.sheet-actions { position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: auto 1fr auto; gap: 8px; padding-block: 8px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--surface); }
+.sheet-actions button { min-height: 48px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--rule); background: transparent; cursor: pointer; }
+.sheet-actions .primary { background: var(--st-reviewed); border-color: var(--st-reviewed); color: var(--surface); font-weight: 700; }
+.page.skipped p { color: var(--muted); font-size: 0.85rem; }
+footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 12px; }
+/* Play view: full screen, measures flow in rows sized to the screen. */
+body.in-player { overflow: hidden; }
+.player { position: fixed; inset: 0; z-index: 20; overflow-y: auto; background: var(--paper); color: var(--ink); --zoom: 1; --cell: clamp(8.5rem, 22vw, 13rem); }
+.player-bar { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px; background: var(--surface); border-bottom: 1px solid var(--rule); }
+@media (min-width: 900px) { .player-top { flex-basis: 12rem; order: 0; } .player-controls { order: 1; } .player-top .close { order: 2; } }
+.player-top { flex: 1 1 100%; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.player-top .close { margin-left: auto; min-width: 40px; min-height: 40px; border-radius: 10px; border: 1px solid var(--rule); background: transparent; cursor: pointer; font-size: 1.1rem; }
+.player-titles { flex: 1 1 auto; min-width: 0; }
+.player-titles h2 { font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player-titles p { font-size: 0.8rem; color: var(--muted); font-family: var(--font-mono); }
+.player-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.player-controls button { min-width: 40px; min-height: 40px; border-radius: 10px; border: 1px solid var(--rule); background: transparent; cursor: pointer; }
+.player-controls .play { min-width: 5.5rem; background: var(--now); border-color: var(--now); color: var(--surface); font-weight: 700; font-family: var(--font-display); }
+.tempo { display: flex; align-items: center; gap: 4px; }
+.tempo label { display: flex; align-items: baseline; gap: 4px; font-size: 0.8rem; color: var(--muted); }
+.tempo input { width: 3.2rem; min-height: 40px; font: inherit; font-size: 16px; font-family: var(--font-mono); text-align: center; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; }
+.toggle { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; min-height: 40px; }
+.zoom { display: flex; gap: 4px; }
+.player-bars { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--cell) * var(--zoom))), 1fr)); gap: 10px 0; padding: 14px 16px 60vh; }
+/* Text sizes follow each measure's own width (container units), times the zoom. */
+/* Each measure stacks fixed-height lines (marks, chords, lyrics), so these
+   lines sit at the same height across a row whatever the text size. */
+.bar { container-type: inline-size; --chord: clamp(1.15rem, 15cqi, 2.1rem); position: relative; display: grid; align-content: start; gap: 2px; padding: 4px 10px 10px; cursor: pointer; outline: none; }
+.bar:focus-visible { box-shadow: inset 0 0 0 2px var(--system); }
+/* Bar lines are drawn, not borders: every measure of a row keeps the same
+   inner width, so container-sized text is the same size across the row. */
+.bar::before, .bar::after { content: ""; position: absolute; top: 0; bottom: 0; pointer-events: none; }
+.bar::before { left: 0; width: 2px; background: var(--ink); }
+.bar.repeat-start::before { width: 7px; background: linear-gradient(to right, var(--ink) 0 4px, transparent 4px 5px, var(--ink) 5px 7px); }
+.bar.repeat-end::after, .bar.double::after, .bar.final::after { right: 0; width: 7px; }
+.bar.repeat-end::after { background: linear-gradient(to right, var(--ink) 0 2px, transparent 2px 3px, var(--ink) 3px 7px); }
+.bar.double::after { width: 5px; background: linear-gradient(to right, var(--ink) 0 2px, transparent 2px 3px, var(--ink) 3px 5px); }
+.bar.final::after { background: linear-gradient(to right, var(--ink) 0 2px, transparent 2px 3px, var(--ink) 3px 7px); }
+.bar.current { background: var(--now-bg); box-shadow: inset 0 0 0 3px var(--now); border-radius: 4px; }
+.bar-head { display: flex; flex-wrap: nowrap; gap: 8px; height: 1.5em; overflow: hidden; white-space: nowrap; font-size: calc(0.8rem * var(--zoom)); line-height: 1.5; color: var(--muted); }
+.mark.section { font-family: var(--font-display); font-weight: 700; color: var(--ink); }
+.mark.pass { color: var(--now); }
+/* The chord line keeps the height of the full size; smaller text sits on the
+   same baseline at its bottom. */
+.chords { display: flex; align-items: flex-end; gap: 0.35em; overflow: hidden; height: calc(var(--chord) * var(--zoom) * 1.25); font-size: calc(var(--chord) * var(--zoom)); line-height: 1.1; font-family: var(--font-display); font-weight: 700; }
+.chords.fit-1 { font-size: calc(var(--chord) * var(--zoom) * 0.78); }
+.chords.fit-2 { font-size: calc(var(--chord) * var(--zoom) * 0.6); }
+.chords .lead { flex: 0 1 0; }
+.chords.carried { color: var(--muted); font-weight: 500; }
+.chords.carried .chord::before { content: "("; } .chords.carried .chord::after { content: ")"; }
+.chord { flex-shrink: 0; flex-basis: auto; white-space: nowrap; letter-spacing: 0.01em; }
+.diagrams { display: flex; gap: 6px; }
+.diagram { width: calc(2.6rem * var(--zoom)); height: auto; }
+.diagram .dg-line { stroke: var(--muted); stroke-width: 1; }
+.diagram .dg-nut { stroke: var(--ink); stroke-width: 3; }
+.diagram .dg-dot { fill: var(--ink); }
+.diagram .dg-open { fill: none; stroke: var(--ink); stroke-width: 1.2; }
+.diagram .dg-text { fill: var(--muted); font-size: 9px; font-family: var(--font-mono); }
+.lyric { --lyric: calc(0.95rem * var(--zoom)); height: calc(var(--lyric) * 1.5); display: flex; align-items: flex-end; overflow: hidden; white-space: nowrap; font-size: var(--lyric); line-height: 1.2; color: var(--ink); }
+.lyric.fit-1 { font-size: calc(var(--lyric) * 0.82); }
+.lyric.fit-2 { font-size: calc(var(--lyric) * 0.66); }
+/* Beat marks: one per counted note, taller on the beat; in the measure
+   being played they fill in up to the current note. */
+.beats { display: flex; align-items: center; gap: 4px; height: 12px; margin-top: 2px; }
+.beats.feel-16 { gap: 2px; }
+.tick { flex: 1 1 0; height: 4px; border-radius: 2px; background: var(--rule); }
+.tick.on-beat { height: 10px; }
+.bar.current .tick { background: var(--muted); opacity: 0.45; }
+.bar.current .tick.done { background: var(--now); opacity: 0.45; }
+.bar.current .tick.now { background: var(--now); opacity: 1; }
+.feel { display: flex; align-items: center; gap: 2px; font-size: 0.8rem; color: var(--muted); }
+.feel span { margin-right: 4px; }
+.player-controls .feel button { min-width: 34px; font-family: var(--font-mono); }
+.feel button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.player-count { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; font-family: var(--font-mono); font-weight: 600; font-size: min(40vw, 14rem); color: var(--now); opacity: 0.85; }
+@media (prefers-reduced-motion: reduce) { .player * { scroll-behavior: auto; } }
+</style>
+
+<main>
+  <header class="intro">
+    <h1><span class="tool">layoutscan</span>手書きTAB譜をデータにする</h1>
+    <p class="lead">スキャンしたPDFを選ぶと、ページの向きと傾きを直し、段と小節をこの端末の中で見つけます。続けて Claude にコードと構成（リピートや記号）を読ませ、小節をタップして確認・修正できます。</p>
+    <div class="legend" aria-label="凡例"><span class="sys">段（五線＋TAB）</span><span class="mea">小節（番号は通し）</span></div>
+  </header>
+
+  <section class="pick" aria-label="PDFを選ぶ">
+    <label class="file-button">PDFを選ぶ<input id="pdf-file" type="file" aria-label="PDFを選ぶ"></label>
+    <p class="pick-hint">ファイルを選ぶ画面が開かないときは、このリンクを Safari や Chrome で開いてください（Claude アプリの中では選べないことがあります）。パソコンでは PDF をこのページにドラッグしても読み込めます。</p>
+    <div class="samples-row" id="samples"><p>サンプル（パブリックドメインの曲から自動生成したスキャン風PDF）</p></div>
+    <div class="samples-row" id="play-samples"><p>演奏ビュー：読み取ったコードを順に表示し、テンポに合わせて自動スクロールします（gts だけで開けます）</p><label class="file-link">gts.json を演奏ビューで開く<input id="play-gts" type="file" aria-label="gts.json を演奏ビューで開く"></label></div>
+  </section>
+
+  <div class="status" aria-live="polite"><p id="status"></p><progress id="progress" max="1" value="0" hidden></progress></div>
+
+  <section class="summary" id="summary" hidden aria-label="結果">
+    <div><h2 id="summary-source"></h2><p class="stats" id="summary-stats"></p></div>
+    <div class="review-row"><span id="review-summary" class="review-row"></span><button type="button" id="next-attention" hidden>要確認へ</button></div>
+    <div class="note-row" id="draft-note" hidden>前回の作業（この端末に残っていた下書き）を開きました。<button type="button" id="discard-draft">下書きを捨てて最初から</button></div>
+    <div class="ai" id="ai" hidden>
+      <h3>Claude でコードと構成を読む</h3>
+      <p>各段の画像を、あなたの claude.ai アカウントの Claude に送って読ませます（1ページ数十秒）。PDFそのものは送りません。</p>
+      <div class="actions"><button type="button" class="primary" id="read">読み取る</button><button type="button" id="stop" hidden>止める</button></div>
+      <p id="read-status" aria-live="polite"></p>
+      <details id="read-warnings" hidden><summary>読み取りのメモ</summary><ul></ul></details>
+    </div>
+    <div class="actions">
+      <button type="button" class="primary" id="save">gts.json を保存</button>
+      <button type="button" id="copy">JSONをコピー</button>
+      <button type="button" id="play-open">演奏ビューで開く</button>
+      <label class="file-link">保存した gts.json を開く<input id="gts-file" type="file" aria-label="保存した gts.json を開く"></label>
+    </div>
+    <p class="save-note" id="save-note" aria-live="polite"></p>
+    <details><summary>中身を見る（gts JSON）</summary><textarea id="json" readonly spellcheck="false" aria-label="gts JSON"></textarea></details>
+  </section>
+
+  <ol class="pages" id="pages" aria-label="ページ"></ol>
+
+  <footer>GuitarMR · layout（小節の位置）は端末内で、structure と chords（構成とコード）は Claude で読みます。TAB の数字と歌詞の読み取りはこれからです。作業中の内容はこのブラウザに下書きとして残ります。</footer>
+</main>
+
+<aside class="sheet" id="sheet" hidden aria-label="小節の編集">
+  <div class="sheet-inner">
+    <div class="sheet-head"><h2 id="sheet-title"></h2><span class="chip" id="sheet-status"></span><button type="button" class="close" id="sheet-close" aria-label="閉じる">×</button></div>
+    <div class="crop" id="sheet-crop" role="img" aria-label="この小節の画像（前後の小節を薄く表示）"><div class="crop-frame" id="sheet-frame"></div></div>
+    <p class="ai-note" id="sheet-note" hidden></p>
+    <label class="field">コード<input type="text" id="f-chords" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done"></label>
+    <p class="hint">スペース区切り。拍の位置を指定するときは @ を付けます: <code>C G/B@2.5</code></p>
+    <p class="field-error" id="f-chords-error" aria-live="polite"></p>
+    <label class="field">この小節から始まるセクション<input type="text" id="f-section" placeholder="A、サビ など（なければ空）" autocomplete="off" enterkeyhint="done"></label>
+    <details class="more" id="f-more"><summary>小節線・記号</summary>
+      <div class="checks"><label><input type="checkbox" id="f-repeat-start"> リピート開始 ‖:</label></div>
+      <div class="two">
+        <label class="field">終わりの小節線<select id="f-bar-end"><option value="">ふつう</option><option value="double">複縦線 ‖</option><option value="final">終止線</option><option value="repeat-end">リピート終了 :‖</option></select></label>
+        <label class="field">演奏回数（リピート終了）<input type="number" id="f-repeat-times" min="2" inputmode="numeric" placeholder="2"></label>
+        <label class="field">番カッコ<input type="text" id="f-volta" inputmode="numeric" placeholder="1 または 1,2"></label>
+        <label class="field">同じ小節の繰り返し<select id="f-simile"><option value="">なし</option><option value="1">1小節 %</option><option value="2">2小節</option></select></label>
+      </div>
+      <fieldset class="checks"><legend>記号</legend>
+        <label><input type="checkbox" id="f-nav-segno"> セーニョ 𝄋</label>
+        <label><input type="checkbox" id="f-nav-coda"> コーダ 𝄌</label>
+        <label><input type="checkbox" id="f-nav-to-coda"> To Coda</label>
+        <label><input type="checkbox" id="f-nav-ds"> D.S.</label>
+        <label><input type="checkbox" id="f-nav-ds-al-coda"> D.S. al Coda</label>
+        <label><input type="checkbox" id="f-nav-dc"> D.C.</label>
+        <label><input type="checkbox" id="f-nav-dc-al-coda"> D.C. al Coda</label>
+        <label><input type="checkbox" id="f-nav-fine"> Fine</label>
+      </fieldset>
+    </details>
+    <div class="sheet-actions"><button type="button" id="sheet-prev">← 前</button><button type="button" class="primary" id="sheet-ok">確認済みにして次へ</button><button type="button" id="sheet-next">次 →</button></div>
+  </div>
+</aside>
+
+<section class="player" id="player" hidden aria-label="演奏ビュー">
+  <div class="player-bar">
+    <div class="player-top"><div class="player-titles"><h2 id="player-title"></h2><p id="player-meta"></p></div><button type="button" class="close" id="player-close" aria-label="演奏ビューを閉じる">×</button></div>
+    <div class="player-controls">
+      <button type="button" class="play" id="player-play" aria-pressed="false">再生</button>
+      <div class="tempo">
+        <button type="button" id="player-slower" aria-label="テンポを遅く">−</button>
+        <label><input type="number" id="player-bpm" inputmode="numeric" min="30" max="300" aria-label="テンポ（BPM）"><span>BPM</span></label>
+        <button type="button" id="player-faster" aria-label="テンポを速く">＋</button>
+      </div>
+      <div class="feel" id="player-feel" role="group" aria-label="ビートの数（1小節あたり）"><span>ビート</span><button type="button" data-feel="4" aria-pressed="true">4</button><button type="button" data-feel="8" aria-pressed="false">8</button><button type="button" data-feel="16" aria-pressed="false">16</button></div>
+      <label class="toggle"><input type="checkbox" id="player-click">クリック音</label>
+      <div class="zoom"><button type="button" id="player-smaller" aria-label="文字を小さく">A−</button><button type="button" id="player-larger" aria-label="文字を大きく">A＋</button></div>
+    </div>
+  </div>
+  <div class="player-bars" id="player-bars"></div>
+  <div class="player-count" id="player-count" hidden></div>
+</section>
+
+<script type="application/json" id="samples-data">/*@SAMPLES@*/</script>
+<script type="application/json" id="scores-data">/*@SCORES@*/</script>
+<script id="layoutscan-core">/*@CORE@*/</script>
+<script type="text/plain" id="layoutscan-worker">/*@WORKER@*/</script>
+<script type="module">/*@APP@*/</script>
