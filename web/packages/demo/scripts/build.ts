@@ -29,6 +29,7 @@ export const CORE = [
   "../../layoutscan/src/detect.ts",
   "../../layoutscan/src/gts.ts",
   "../../layoutscan/src/pdf.ts",
+  "../../layoutscan/src/photo.ts",
   "../src/preview.ts",
   "../../extract/src/crops.ts",
   "../../extract/src/edit.ts",
@@ -37,7 +38,15 @@ export const CORE = [
 ];
 
 /** The page script (one module): app.ts last, it starts everything. */
-export const APP = ["../src/score-view.ts", "../src/editor.ts", "../src/reader.ts", "../src/player.ts", "../src/app.ts"];
+export const APP = [
+  "../src/score-view.ts",
+  "../src/editor.ts",
+  "../src/reader.ts",
+  "../src/player.ts",
+  "../src/library.ts",
+  "../src/photos.ts",
+  "../src/app.ts",
+];
 
 /** Committed public-domain gts files offered in the play view. */
 export const SCORES = [

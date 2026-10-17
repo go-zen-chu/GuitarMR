@@ -93,6 +93,34 @@ Known limits:
 - Region coordinates are in the upright page after the 90° rotation; the
   sub-degree deskew is not recorded (well under 1% of the page).
 
+## Photos
+
+`src/photo.ts` turns a phone photo of a page into what a scan would look
+like, before `analyzePage` (`correctPhoto`; the phone page runs it in its
+worker):
+
+1. **Sheet**: on the photo averaged down to 480 px, thin ink is closed
+   over (max then min filter), Otsu's threshold keeps the bright area and
+   its largest connected part is the sheet (scores are dark ink on white
+   paper, so the desk around it is darker). Its convex hull is reduced to
+   the largest quadrilateral, and each side is refined by a line fit along
+   the outline. No part covering 20% of the photo: the whole photo is used.
+2. **Perspective**: the sheet's aspect ratio is solved from the
+   perspective of the four corners (Zhang & He's whiteboard method; when
+   the camera faced one pair of sides squarely, a phone's 26 mm-equivalent
+   focal length is assumed), ratios within 8% of √2 snap to A/B paper, and
+   the sheet is cut out at 3000 px on the long side (bilinear).
+3. **Lighting**: per channel, the paper brightness (90th percentile per
+   cell of a 40-cell grid, median and mean smoothed) is divided out, so
+   the paper is white everywhere and a warm cast goes; colored pen stays
+   colored for the ink mask to drop.
+
+The gts file keeps each photo's file name and the sheet's corners in it
+(`source.pages[].file`, `source.pages[].paper`). Simulated phone photos of
+the samples (perspective, a wooden desk, light falling off, warm cast) are
+in [`@guitarmr/samples`](../samples/README.md) (`simulatePhoto`); a page
+corrected from one gives the same measures as its scan.
+
 ## Tests
 
 `pnpm test` runs synthetic-page tests (rotation, skew, stems, colored pen,

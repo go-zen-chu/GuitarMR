@@ -229,8 +229,8 @@ core could be TypeScript or Rust compiled to WebAssembly.
   opens a PDF from the device, runs every step in the browser (Web Worker)
   and saves results locally, exporting `song.gts.json` through the share
   sheet / download. No server of ours ever sees a score.
-- **Input**: PDF only for now. Photo input (image files, then perspective
-  and lighting correction for camera photos) is at the top of the backlog.
+- **Input**: PDF, or camera photos (one per page; see the amendment of
+  2026-10-17).
 - **Users**: the author only for now. Distribution to others (a key relay
   server, store packaging) is in the backlog.
 - **LLM steps**: the user's own Claude API key is stored on the device and
@@ -268,3 +268,25 @@ only the system images cut from the score are sent, never the PDF. The
 API-key path stays the plan for the standalone PWA. The reader takes the
 model call as a parameter (`readPages(sample, ...)`), so the standalone
 PWA only adds the other backend.
+
+**Amendment (2026-10-17)**: photos as input, and a library on the device.
+- **Photos**: one photo per page, taken one by one with the camera or
+  picked together, ordered in a tray and analyzed as one score. Since a
+  score is dark ink on white paper, the sheet is the largest bright area
+  of the photo: it is found there (thin ink closed over, convex hull
+  reduced to four corners, sides refined by line fits), cut out with its
+  perspective undone (the sheet's aspect ratio is solved from the
+  perspective, falling back to a phone's usual focal length, and snapped
+  to √2 for A/B paper) and its lighting flattened (paper brightness per
+  channel divided out, which also removes a warm cast), all before
+  detection (`correctPhoto` in `@guitarmr/layoutscan`, hand-written like
+  the rest). Claude reads the systems cut from the corrected page. The gts
+  file records each page's photo file and the sheet's corners in it
+  (`source.pages[].file`, `.paper`), so regions can be mapped back to the
+  photo; the score's `sha256` covers the photos in page order.
+- **Library**: every PDF or set of photos opened is stored with the work on
+  it (the gts document) in the browser's IndexedDB, so a score can be
+  opened, re-analyzed and continued later without picking the files
+  again, and nothing leaves the device. It replaces the localStorage
+  drafts (moved over when found). Persistent storage is requested; saving
+  `.gts.json` remains the durable copy.

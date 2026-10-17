@@ -5,23 +5,22 @@ project starts taking external contributions.
 
 ## TODO (feature backlog)
 
-- [ ] **Photo input (camera / image files)** alongside PDFs, in two steps.
-      The detector already takes plain RGBA pixels, so only the input and
-      the photo-specific distortions are new.
-      1. *Image files* (small): accept JPEG/PNG (iOS hands camera photos to
-         a file input as JPEG) and decode them with the platform
-         (`createImageBitmap` in the browser, `@napi-rs/canvas` in Node;
-         no new dependency). Each image becomes one page; the gts `source`
-         needs a per-page file name (e.g. `source.pages[].file`). Works as
-         is for flat, frame-filling photos and document-scanner output.
-      2. *Photo correction* (medium): before detection, find the paper
-         outline (largest bright quadrilateral), undo the perspective with
-         a 4-point homography, and flatten uneven lighting (divide by a
-         blurred background), all hand-written like the rest of
-         layoutscan. Record the paper corners per page so regions map back
-         to the original photo. Test fixtures: the sample engraver plus a
-         simulated photo (perspective, shading, background around the
-         page), then a few real photos checked by eye.
+- [x] **Photo input (camera / image files)** (ADR-009 amendment
+      2026-10-17): photos (one per page) go through a tray in page order;
+      the worker finds the white sheet, undoes the perspective, flattens
+      the lighting (`correctPhoto` in web/packages/layoutscan) and then
+      detects as for a PDF. Tested on simulated phone photos of the
+      samples (`simulatePhoto` in web/packages/samples). Next:
+      - Check on real photos by eye (curled pages, shadows of the phone,
+        a sheet on a white desk) and tune.
+      - Drag the four corners by hand when the sheet is not found (the
+        corners are already stored in `source.pages[].paper`).
+      - Flatten curved pages (a bound book photographed open).
+- [x] **Library on the device** (ADR-009 amendment 2026-10-17): opened
+      PDFs and photos and the work on them are kept in IndexedDB, listed
+      on the page, and can be reopened (re-analyzed from the stored files)
+      or deleted. Next: export/import the whole library as one file for
+      moving to another device.
 - [x] **Score file picker**: done — left Menu button opens an in-app picker
       listing PDFs from Download/Documents (ADR-007); the legacy adb-push
       path was removed.
@@ -74,10 +73,10 @@ project starts taking external contributions.
 - [ ] **Phone/tablet PWA** (ADR-009): the TypeScript workspace under
       `web/` exists and layoutscan is ported (Python version retired). A
       single-file demo (web/packages/demo) already runs as a claude.ai
-      Artifact: PDF import, detection in a Web Worker, reading chords and
-      structure with Claude on the viewer's claude.ai account, the review
-      editor, drafts in the browser, `.gts.json` save and reopen. Next are
-      the installable PWA shell (offline, local library) and its Claude
+      Artifact: PDF and photo import, detection in a Web Worker, reading
+      chords and structure with Claude on the viewer's claude.ai account,
+      the review editor, the library on the device, `.gts.json` save and
+      reopen. Next are the installable PWA shell (offline) and its Claude
       backend with the user's own API key (the Artifact cannot reach the
       API directly).
 - [ ] **PWA: distribution to other users**: a small relay server so no API

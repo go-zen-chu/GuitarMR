@@ -17,14 +17,20 @@ tests and by `make-samples`, so no binaries end up in git.
 - `src/engrave.ts`: draws a gts document on staff + TAB paper with Canvas
   2D and returns where every measure was drawn.
 - `src/scan.ts`: makes a page look scanned (skew, blur, noise, a turn on
-  the scanner) and writes a minimal JPEG-based PDF.
+  the scanner) and writes a minimal JPEG-based PDF; `simulatePhoto` makes
+  it look like a phone photo of the sheet on a wooden desk (a pinhole
+  projection of an A4 sheet seen at an angle, light falling off with a
+  warm cast, blur and noise), and `generatePhotos` gives a sample's pages
+  as such JPEG photos (later pages upside down).
 - `src/make-samples.ts`: regenerates the files, filling the layout layer
   by running layoutscan on the generated PDF.
 
 `pnpm test` checks the committed gts files (schema, 4/4 beat sums, verses
 vs. endings), regenerates each PDF and checks that layoutscan reproduces
 the stored layout layer (within 0.003 of the page size; the PDF hash may
-differ across platforms) and finds every measure where it was drawn, and
+differ across platforms) and finds every measure where it was drawn,
+checks that the photos, once corrected (`correctPhoto`), give the same
+measures (the sheet's corners found within 0.4% of the photo), and
 runs the layoutscan CLI end to end.
 
 To get the PDFs (e.g. to try the CLI or open them on the Quest), or to

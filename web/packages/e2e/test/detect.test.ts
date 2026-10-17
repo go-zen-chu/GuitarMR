@@ -41,13 +41,13 @@ describe("detecting measures on the phone page", { timeout: 180_000 }, () => {
     assert.deepEqual(errors, []);
   });
 
-  it("If files are picked with the button only PDFs should be analyzed", async () => {
+  it("If files are picked with the button only PDFs and photos should be taken", async () => {
     const dir = mkdtempSync(join(tmpdir(), "gts-e2e-"));
     writeFileSync(join(dir, "song.pdf"), await generatePdf("twinkle-twinkle"));
     writeFileSync(join(dir, "note.txt"), "not a score");
     const { page, errors } = await openPage(browser, { hasTouch: true, isMobile: true });
     await page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
-    const box = (await page.locator(".file-button").boundingBox())!;
+    const box = (await page.locator(".file-button", { has: page.locator("#pdf-file") }).boundingBox())!;
     const pick = async (file: string) => {
       const chooser = page.waitForEvent("filechooser");
       // Tap near the edge: the whole button must open the picker.
@@ -55,7 +55,7 @@ describe("detecting measures on the phone page", { timeout: 180_000 }, () => {
       await (await chooser).setFiles(file);
     };
     await pick(join(dir, "note.txt"));
-    await page.waitForFunction(() => document.querySelector("#status")?.textContent?.includes("PDFではない"));
+    await page.waitForFunction(() => document.querySelector("#status")?.textContent?.includes("PDFでも写真でもない"));
     await pick(join(dir, "song.pdf"));
     await page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "song.pdf", null, { timeout: 120_000 });
     assert.match((await page.locator("#summary-stats").textContent())!, /12 小節/);
