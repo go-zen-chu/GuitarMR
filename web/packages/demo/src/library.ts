@@ -80,6 +80,9 @@ export const library = {
     return all.filter((e) => e.kind !== "sample").sort((a, b) => b.updated - a.updated);
   },
 
+  /** Every entry, samples included (for export). */
+  all: async (): Promise<LibraryEntry[]> => (await libraryRequest<LibraryEntry[]>("readonly", (s) => s.getAll()))?.value ?? [],
+
   get: async (id: string): Promise<LibraryEntry | undefined> =>
     (await libraryRequest<LibraryEntry | undefined>("readonly", (s) => s.get(id)))?.value,
 

@@ -19,6 +19,7 @@ import * as pdfjs from "pdfjs-dist";
 import { createEditor } from "./editor.ts";
 import { type LibraryEntry, type StoredFile, library } from "./library.ts";
 import { type PhotoFile, concatPhotos, createTray, decodePhoto, isImage } from "./photos.ts";
+import { exportLibrary, importLibrary, isLibraryExport, linesOf, mergeEntry } from "./transfer.ts";
 import { createPlayer } from "./player.ts";
 import type { DetectResult } from "./preview.ts";
 import { type Sample, readPages } from "./reader.ts";
@@ -48,6 +49,11 @@ const ui = {
   library: $<HTMLElement>("library"),
   libraryList: $<HTMLUListElement>("library-list"),
   libraryNote: $<HTMLElement>("library-note"),
+  libraryEmpty: $<HTMLElement>("library-empty"),
+  libraryExport: $<HTMLButtonElement>("library-export"),
+  libraryWithFiles: $<HTMLInputElement>("library-with-files"),
+  libraryImport: $<HTMLInputElement>("library-import"),
+  libraryMessage: $<HTMLElement>("library-message"),
   samples: $<HTMLDivElement>("samples"),
   status: $<HTMLParagraphElement>("status"),
   progress: $<HTMLProgressElement>("progress"),
@@ -149,7 +155,7 @@ function dropDraft() {
   } catch {
     // ignore
   }
-  void library.get(state.sha256).then((entry) => entry && library.put({ ...entry, doc: null, updated: Date.now() }));
+  void library.get(state.sha256).then((entry) => entry && library.put({ ...entry, doc: state.detected, updated: Date.now() }));
 }
 
 /** Make `doc` the current document and bring every view up to date. */
@@ -420,11 +426,13 @@ async function analyze(source: Source) {
   const stored: LibraryEntry = entry
     ? { ...entry, updated: now, files: entry.files.length ? entry.files : filesOf(source) }
     : { id: sha256, name, kind: source.kind, files: filesOf(source), doc: null, added: now, updated: now };
-  if (legacy) stored.doc = legacy;
+  // The detected layout is already work worth keeping (and moving to another device).
+  stored.doc = draft ?? state.detected;
   const kept = await library.put(stored);
   if (kept && legacy) dropLegacy(sha256);
   if (mine !== run) return;
-  ui.draftNote.hidden = !draft;
+  // Only work beyond the detection counts as a draft to tell about.
+  ui.draftNote.hidden = !draft || JSON.stringify(draft) === JSON.stringify(state.detected);
   ui.source.textContent = name;
   ui.saveNote.textContent = kept || source.kind === "sample" ? "" : "この画面では端末に保存できません。作業が終わったら gts.json を保存してください。";
   ui.readStatus.textContent = "";
@@ -527,30 +535,32 @@ async function setUpAi() {
   for (const b of ui.pages.querySelectorAll<HTMLButtonElement>(".reread")) b.hidden = false;
 }
 
-async function save() {
-  if (!state.doc) return;
+/** Save a text file: the claude.ai save dialog, or a plain download outside claude.ai. Returns what to tell the viewer. */
+async function saveText(filename: string, data: string, type: string, done: string): Promise<string> {
   const downloads = (await claude?.use("downloads")) as Downloads | null | undefined;
   if (downloads) {
     try {
-      await downloads.save({ filename: outputName(), data: json() });
-      ui.saveNote.textContent = "保存しました。PDFと同じ場所に置くと Quest のアプリが読み込めます。";
+      await downloads.save({ filename, data });
+      return done;
     } catch (e) {
       const code = (e as { code?: string }).code;
-      ui.saveNote.textContent =
-        code === "declined" ? "保存をキャンセルしました。" : "この画面では保存できません。「JSONをコピー」を使ってください。";
+      return code === "declined" ? "保存をキャンセルしました。" : "この画面では保存できません。";
     }
-    return;
   }
-  if (claude) {
-    ui.saveNote.textContent = "この画面では保存できません。「JSONをコピー」を使ってください。";
-    return;
-  }
+  if (claude) return "この画面では保存できません。";
   // Opened as a plain file outside claude.ai: an ordinary download works.
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([json()], { type: "application/json" }));
-  a.download = outputName();
+  a.href = URL.createObjectURL(new Blob([data], { type }));
+  a.download = filename;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+  return done;
+}
+
+async function save() {
+  if (!state.doc) return;
+  const note = await saveText(outputName(), json(), "application/json", "保存しました。PDFと同じ場所に置くと Quest のアプリが読み込めます。");
+  ui.saveNote.textContent = note === "この画面では保存できません。" ? `${note}「JSONをコピー」を使ってください。` : note;
 }
 
 async function copy() {
@@ -656,6 +666,10 @@ async function openFiles(files: File[]) {
       return;
     }
     const head = new TextDecoder().decode(bytes.subarray(0, 1024));
+    if (files.length === 1 && isLibraryExport(head)) {
+      setStatus("");
+      return importFile(file);
+    }
     if (files.length === 1 && head.trimStart().startsWith("{") && state.doc) {
       setStatus("");
       return openGts(file);
@@ -679,8 +693,10 @@ async function openFiles(files: File[]) {
 const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
 async function renderLibrary() {
-  const [entries, usage] = await Promise.all([library.list(), library.usage()]);
-  ui.library.hidden = entries.length === 0;
+  const [available, entries, usage] = await Promise.all([library.available(), library.list(), library.usage()]);
+  ui.library.hidden = !available;
+  ui.libraryEmpty.hidden = entries.length > 0;
+  ui.libraryExport.disabled = entries.length === 0;
   ui.libraryList.replaceChildren(
     ...entries.map((entry) => {
       const li = document.createElement("li");
@@ -690,16 +706,29 @@ async function renderLibrary() {
       title.textContent = entry.doc?.meta.title && entry.doc.meta.title !== entry.name.replace(/\.[^.]*$/, "") ? `${entry.doc.meta.title}（${entry.name}）` : entry.name;
       const facts = document.createElement("small");
       const summary = entry.doc ? reviewSummary(entry.doc) : null;
+      const pages = entry.doc?.source.pages.length;
       facts.textContent = [
-        entry.kind === "photos" ? `写真 ${entry.files.length} 枚` : "PDF",
+        entry.files.length === 0
+          ? "ファイルなし（同じ PDF・写真を開くと戻ります）"
+          : entry.kind === "photos"
+            ? `写真 ${entry.files.length} 枚`
+            : "PDF",
         summary ? `確認済み ${summary.reviewed} / ${summary.total} 小節` : "未読",
         dateFormat.format(entry.updated),
       ].join(" · ");
       text.append(title, facts);
       const open = document.createElement("button");
       open.type = "button";
-      open.textContent = entry.id === state.sha256 ? "開き直す" : "開く";
-      open.addEventListener("click", () => void openEntry(entry.id));
+      if (entry.files.length) {
+        open.textContent = entry.id === state.sha256 ? "開き直す" : "開く";
+        open.addEventListener("click", () => void openEntry(entry.id));
+      } else {
+        // Work without its files (imported without them): it still plays.
+        open.textContent = "演奏ビュー";
+        open.disabled = !entry.doc;
+        open.addEventListener("click", () => entry.doc && player.open(entry.doc));
+      }
+      open.title = pages ? `${pages} ページ` : "";
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "danger";
@@ -717,6 +746,59 @@ async function renderLibrary() {
   ui.libraryNote.textContent =
     usage === null ? "" : `この端末で使っている容量: ${(usage / 1024 / 1024).toFixed(1)} MB`;
 }
+
+/** Write the whole library to one file, to move it to another device. */
+async function exportAll() {
+  ui.libraryExport.disabled = true;
+  ui.libraryMessage.textContent = "書き出しています…";
+  try {
+    const entries = await library.all();
+    const lines = await exportLibrary(entries, { files: ui.libraryWithFiles.checked });
+    const date = new Date().toISOString().slice(0, 10);
+    const count = entries.filter((e) => e.kind !== "sample").length;
+    ui.libraryMessage.textContent = await saveText(
+      `guitarmr-library-${date}.jsonl`,
+      `${lines.join("\n")}\n`,
+      "application/jsonl",
+      `${count} 曲を書き出しました。新しい端末でこのページを開き「取り込む」で選んでください。`,
+    );
+  } catch (e) {
+    ui.libraryMessage.textContent = `書き出せませんでした（${(e as Error).message}）。`;
+  } finally {
+    ui.libraryExport.disabled = false;
+  }
+}
+
+/** Take in a library export: the work on every score first, files where they came through whole. */
+async function importFile(file: File) {
+  ui.libraryMessage.textContent = `${file.name} を取り込んでいます…`;
+  try {
+    const result = await importLibrary(linesOf(file));
+    let failed = 0;
+    for (const incoming of result.entries) {
+      if (!(await library.put(mergeEntry(await library.get(incoming.id), incoming)))) failed++;
+    }
+    const scores = result.entries.filter((e) => e.kind !== "sample").length;
+    const parts = [`${scores} 曲を取り込みました。`];
+    if (result.withoutFiles.length) {
+      parts.push(`${result.withoutFiles.join("、")} は PDF・写真が壊れていたか途中で切れていたので、作業内容だけ取り込みました（同じ PDF・写真を開くと戻ります）。`);
+    }
+    if (result.truncated && !result.withoutFiles.length) parts.push("ファイルの最後が欠けていましたが、取り込める分はすべて取り込みました。");
+    if (failed) parts.push(`${failed} 曲は端末の容量が足りず保存できませんでした。`);
+    ui.libraryMessage.textContent = parts.join("");
+  } catch (e) {
+    ui.libraryMessage.textContent = `${file.name} を取り込めませんでした（${(e as Error).message}）。`;
+  }
+  void renderLibrary();
+  ui.library.scrollIntoView({ block: "nearest" });
+}
+
+ui.libraryExport.addEventListener("click", () => void exportAll());
+ui.libraryImport.addEventListener("change", () => {
+  const file = ui.libraryImport.files?.[0];
+  ui.libraryImport.value = "";
+  if (file) void importFile(file);
+});
 
 /** Open a score from the library: analyze its stored files again, then continue the stored work. */
 async function openEntry(id: string) {

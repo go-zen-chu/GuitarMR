@@ -19,8 +19,12 @@ project starts taking external contributions.
 - [x] **Library on the device** (ADR-009 amendment 2026-10-17): opened
       PDFs and photos and the work on them are kept in IndexedDB, listed
       on the page, and can be reopened (re-analyzed from the stored files)
-      or deleted. Next: export/import the whole library as one file for
-      moving to another device.
+      or deleted. Moving to another device: the whole library is written
+      to one file and taken in there (web/packages/demo `src/transfer.ts`):
+      every score's work first, PDFs and photos last in checksummed
+      chunks, so a file cut short or a damaged photo still moves all the
+      work (that score arrives without its files and gets them back when
+      the same PDF or photos are opened again).
 - [x] **Score file picker**: done — left Menu button opens an in-app picker
       listing PDFs from Download/Documents (ADR-007); the legacy adb-push
       path was removed.

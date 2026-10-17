@@ -187,6 +187,9 @@ body.editing main { padding-bottom: 70dvh; }
 .library-list button { min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; cursor: pointer; }
 .library-list .danger { color: var(--st-unread); }
 .library-note { font-size: 0.8rem; color: var(--muted); }
+.move { display: grid; gap: 8px; }
+.move[open] { padding-bottom: 4px; }
+.move > summary { min-height: 32px; display: flex; align-items: center; }
 footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 12px; }
 /* Play view: full screen, measures flow in rows sized to the screen. */
 body.in-player { overflow: hidden; }
@@ -271,7 +274,18 @@ body.in-player { overflow: hidden; }
   <section class="library" id="library" hidden aria-label="この端末のライブラリ">
     <h2>この端末のライブラリ</h2>
     <p class="pick-hint">開いた PDF・写真と作業中の内容は、この端末のブラウザの中にだけ保存されます（サーバーには送りません）。もう一度開くと、保存したファイルから解析し直して続きから作業できます。ブラウザのデータを消すと消えるので、仕上がったら gts.json も保存してください。</p>
+    <p class="library-note" id="library-empty">まだありません。PDF や写真を開くとここに残ります。</p>
     <ul class="library-list" id="library-list"></ul>
+    <details class="move">
+      <summary>別の端末へ引っ越す（書き出し・取り込み）</summary>
+      <p class="pick-hint">ライブラリ全体を1つのファイルに書き出し、新しい端末で取り込みます。作業内容（軽いデータ）を先に、PDF・写真を最後に書き出すので、途中で切れたり一部が壊れたりしても作業内容は移せます。</p>
+      <label class="toggle"><input type="checkbox" id="library-with-files" checked> PDF・写真も含める</label>
+      <div class="actions">
+        <button type="button" id="library-export">書き出す</button>
+        <label class="file-link">取り込む<input id="library-import" type="file" aria-label="書き出したライブラリを取り込む"></label>
+      </div>
+      <p class="save-note" id="library-message" aria-live="polite"></p>
+    </details>
     <p class="library-note" id="library-note"></p>
   </section>
 

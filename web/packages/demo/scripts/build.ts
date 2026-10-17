@@ -44,6 +44,7 @@ export const APP = [
   "../src/reader.ts",
   "../src/player.ts",
   "../src/library.ts",
+  "../src/transfer.ts",
   "../src/photos.ts",
   "../src/app.ts",
 ];

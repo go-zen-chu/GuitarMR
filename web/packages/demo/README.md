@@ -27,7 +27,12 @@ first step toward the phone/tablet PWA (ADR-009):
    work on it; it is listed at the top of the page, where a score is
    opened again (analyzed again from the stored files, then the stored
    work restored) or deleted. Nothing in it leaves the device. A saved gts
-   file can also be opened again to continue.
+   file can also be opened again to continue. "別の端末へ引っ越す" writes
+   the whole library to one `guitarmr-library-<date>.jsonl` file and
+   takes such a file in on the new device (`src/transfer.ts`): the work
+   on every score comes first and the PDFs and photos last, in chunks
+   checked by SHA-256, so a file cut short or damaged still moves all the
+   work.
 5. Play it: the play view (`src/player.ts`) shows the measures in play
    order (repeats, endings and D.S./D.C./Coda expanded by `playOrder` in
    `@guitarmr/gts`), each with its chords spread by duration, the verse

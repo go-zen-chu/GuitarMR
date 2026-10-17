@@ -290,3 +290,11 @@ PWA only adds the other backend.
   again, and nothing leaves the device. It replaces the localStorage
   drafts (moved over when found). Persistent storage is requested; saving
   `.gts.json` remains the durable copy.
+- **Moving devices**: the library is exported as one JSON Lines file,
+  written light to heavy (header, every score with its gts document, then
+  the files in chunks of 768 KB, smallest file first, each file with its
+  SHA-256, then an end mark). Import reads it line by line and skips what
+  it cannot read; a score whose files do not arrive whole keeps its work
+  and comes without files. The newer work wins when a score is already on
+  the device. The file goes through the save dialog, like `.gts.json`, so
+  it never passes a server of ours.
