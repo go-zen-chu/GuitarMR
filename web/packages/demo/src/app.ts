@@ -13,7 +13,7 @@
  */
 
 import { type GtsDocument, measures } from "@guitarmr/gts";
-import { reviewSummary } from "@guitarmr/extract";
+import { checkDocument, reviewSummary, tabUnread } from "@guitarmr/extract";
 import { type RgbaImage, type ScannedPage, buildDocument, renderPages, sha256Hex } from "@guitarmr/layoutscan";
 import * as pdfjs from "pdfjs-dist";
 import { createEditor } from "./editor.ts";
@@ -22,7 +22,7 @@ import { type PhotoFile, concatPhotos, createTray, decodePhoto, isImage } from "
 import { exportLibrary, importLibrary, isLibraryExport, linesOf, mergeEntry } from "./transfer.ts";
 import { createPlayer } from "./player.ts";
 import type { DetectResult } from "./preview.ts";
-import { type Sample, readPages } from "./reader.ts";
+import { type ReadLayer, type Sample, readPages } from "./reader.ts";
 import { type PageView, drawPage, statusOf } from "./score-view.ts";
 
 /** Replaced by scripts/build.ts with the pdf.js worker on the CDN. */
@@ -66,6 +66,10 @@ const ui = {
   discardDraft: $<HTMLButtonElement>("discard-draft"),
   ai: $<HTMLElement>("ai"),
   read: $<HTMLButtonElement>("read"),
+  readTab: $<HTMLButtonElement>("read-tab"),
+  checks: $<HTMLDetailsElement>("checks"),
+  checksTitle: $<HTMLElement>("checks-title"),
+  checksList: $<HTMLUListElement>("checks-list"),
   stop: $<HTMLButtonElement>("stop"),
   readStatus: $<HTMLElement>("read-status"),
   readWarnings: $<HTMLDetailsElement>("read-warnings"),
@@ -188,10 +192,34 @@ function commit(doc: GtsDocument, persist = true) {
   ].join(" · ");
   ui.read.textContent = s.unread === s.total ? "読み取る" : `続きを読む（未読 ${s.unread} 小節）`;
   ui.read.hidden = s.unread === 0;
+  // The tab is read after structure and chords (repeat-sign measures need none).
+  const tabLeft = tabUnread(doc).length;
+  ui.readTab.hidden = s.unread > 0 || tabLeft === 0;
+  ui.readTab.textContent = tabLeft === s.total ? "TAB（リズム・フレット）を読む" : `TAB の続きを読む（${tabLeft} 小節）`;
+  renderChecks(doc);
   ui.json.value = json();
   ui.save.textContent = `${outputName()} を保存`;
   editor.refresh();
   if (persist) saveDraft();
+}
+
+/** Every check that fails, each one a button to its measure. */
+function renderChecks(doc: GtsDocument) {
+  const issues = checkDocument(doc);
+  ui.checks.hidden = issues.length === 0;
+  ui.checksTitle.textContent = `チェックで見つかったこと（${issues.length} 件）`;
+  ui.checksList.replaceChildren(
+    ...issues.map((issue) => {
+      const li = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `issue k-${issue.kind}`;
+      button.textContent = issue.message;
+      button.addEventListener("click", () => issue.ids[0] && editor.open(issue.ids[0]));
+      li.append(button);
+      return li;
+    }),
+  );
 }
 
 function select(id: string | null) {
@@ -455,14 +483,21 @@ function dropLegacy(sha256: string) {
 let sample: Sample | null = null;
 let readAbort: AbortController | null = null;
 
-async function read(pages?: number[]) {
+async function read(pages?: number[], layer: ReadLayer = "structure") {
   if (!sample || !state.doc || readAbort) return;
+  const left = layer === "tab" ? new Set(tabUnread(state.doc)) : null;
   const todo =
     pages ??
-    [...new Set(measures(state.doc).filter((m) => statusOf(m) === "unread").map((m) => m.region!.page))].sort((a, b) => a - b);
+    [
+      ...new Set(
+        measures(state.doc)
+          .filter((m) => (left ? left.has(m.id!) : statusOf(m) === "unread"))
+          .map((m) => m.region!.page),
+      ),
+    ].sort((a, b) => a - b);
   if (!todo.length) return;
   readAbort = new AbortController();
-  ui.read.disabled = true;
+  ui.read.disabled = ui.readTab.disabled = true;
   ui.stop.hidden = false;
   ui.readWarnings.hidden = true;
   const started = Date.now();
@@ -485,10 +520,11 @@ async function read(pages?: number[]) {
     },
     todo,
     readAbort.signal,
+    layer,
   );
   clearInterval(tick);
   readAbort = null;
-  ui.read.disabled = false;
+  ui.read.disabled = ui.readTab.disabled = false;
   ui.stop.hidden = true;
   const s = reviewSummary(state.doc);
   const messages: Record<string, string> = {
@@ -861,6 +897,7 @@ ui.discardDraft.addEventListener("click", () => {
   if (state.detected) commit(state.detected, false);
 });
 ui.read.addEventListener("click", () => void read());
+ui.readTab.addEventListener("click", () => void read(undefined, "tab"));
 ui.stop.addEventListener("click", () => readAbort?.abort());
 ui.save.addEventListener("click", save);
 ui.copy.addEventListener("click", copy);

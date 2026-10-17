@@ -28,7 +28,8 @@ describe("photos and the library", { timeout: 300_000 }, () => {
     await page.setInputFiles("#camera", join(dir, "IMG_0001.jpg"));
     await page.waitForSelector("#tray:not([hidden])");
     await page.setInputFiles("#tray-camera", join(dir, "IMG_0002.jpg"));
-    assert.equal(await page.locator("#tray-list li").count(), 2);
+    // The photo is read asynchronously before it joins the tray.
+    await page.waitForFunction(() => document.querySelectorAll("#tray-list li").length === 2);
     assert.equal(await page.locator("#tray-go").textContent(), "この 2 枚で解析する");
     await page.screenshot({ path: `${ARTIFACTS}/photo-tray.png` });
 

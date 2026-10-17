@@ -50,9 +50,12 @@ project starts taking external contributions.
         real scores are about 1 in 50 measures (an oval around a stacked
         chord taken as a bar line, a faint bar line missed), and today
         they can only be fixed by hand in the JSON.
-      - `tab` layer: rhythm and frets per measure, with beat-sum and
-        string/fret validators feeding `needs-attention`.
-      - Semantic checks across measures: repeat/volta balance, sections.
+      - `tab` layer (done): read after chords as one tab line per
+        measure, checked (beats per time signature, one note per string,
+        fret span, ties) into `needs-attention`, edited as a tab line.
+        Next: check the reading on real handwritten tab.
+      - Semantic checks across measures (done): repeats, endings,
+        D.S./D.C./Coda/Fine, similes, sections, listed on the page.
       - Loading the sidecar `.gts.json` in the Quest app.
 - [ ] **Play view** (web/packages/demo, `src/player.ts`): chords in play
       order with tempo-following auto-scroll is done, with lyrics and chord

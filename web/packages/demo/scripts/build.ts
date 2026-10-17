@@ -24,6 +24,7 @@ const PDFJS_CDN = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/lega
  */
 export const CORE = [
   "../../gts/src/playback.ts",
+  "../../gts/src/tabline.ts",
   "../../gts/src/index.ts",
   "../../layoutscan/src/image.ts",
   "../../layoutscan/src/detect.ts",
@@ -35,6 +36,8 @@ export const CORE = [
   "../../extract/src/edit.ts",
   "../../extract/src/prompt.ts",
   "../../extract/src/reading.ts",
+  "../../extract/src/checks.ts",
+  "../../extract/src/tab.ts",
 ];
 
 /** The page script (one module): app.ts last, it starts everything. */

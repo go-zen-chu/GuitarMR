@@ -68,7 +68,8 @@ export async function openPage(browser: Browser, options: OpenOptions = {}): Pro
 /**
  * The claude.ai runtime as seen by the page: `sample` answers the reading
  * prompt with the measures it lists, taken from the given gts document
- * (m3 comes back unsure, with a note), and `downloads` keeps saved files.
+ * (m3 comes back unsure, with a note), and the tab prompt with their tab
+ * lines (m5 one beat short); `downloads` keeps saved files.
  * Runs inside the page, so it must be self-contained.
  */
 function fakeClaude(truthJson: string) {
@@ -84,6 +85,21 @@ function fakeClaude(truthJson: string) {
   const sample = {
     limits: async () => ({ maxPromptBytes: 100000, images: { maxCount: 5, maxInputBytes: 5e6, mediaTypes: ["image/jpeg"] } }),
     json: async (prompt: string, opts: { images?: Blob[] }) => {
+      if (prompt.includes('"tab line"')) {
+        const ids = [...prompt.matchAll(/^- Image \d+: measures (.*) \(left to right\)$/gm)].flatMap((x) => x[1]!.match(/m\d+/g)!);
+        calls.push({ ids, images: opts.images?.length ?? 0, header: false });
+        await new Promise((r) => setTimeout(r, 100));
+        // formatTabLine is a global of the page (its core script).
+        const format = (window as unknown as { formatTabLine(beats: unknown[]): string }).formatTabLine;
+        const measures = all
+          .filter(({ m }: { m: { id: string } }) => ids.includes(m.id))
+          .map(({ m }: { m: { id: string; beats?: unknown[] } }) => ({
+            id: m.id,
+            tab: format(m.id === "m5" ? (m.beats ?? []).slice(0, -1) : (m.beats ?? [])),
+            confidence: 0.9,
+          }));
+        return { measures };
+      }
       const ids = [...prompt.matchAll(/measures ([m\d, ]+) \(left/g)].flatMap((x) => x[1]!.split(", "));
       calls.push({ ids, images: opts.images?.length ?? 0, header: prompt.includes('"header"') });
       await new Promise((r) => setTimeout(r, 100));

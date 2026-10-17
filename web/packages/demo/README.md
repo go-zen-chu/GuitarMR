@@ -18,10 +18,18 @@ first step toward the phone/tablet PWA (ADR-009):
    the `structure` and `chords` layers (`@guitarmr/extract`). The PDF
    itself (or the photo) is never sent; for photos the images are cut
    from the corrected page.
+   Once chords and structure are read, "TAB（リズム・フレット）を読む"
+   reads the tab layer the same way (one tab line per measure, see
+   `@guitarmr/extract`); measures whose beats do not add up or whose notes
+   cannot be played are marked for review.
 3. The score shows the read chords and signs over each measure, colored by
    state (unread, read by AI, needs attention, reviewed). Tapping a
    measure opens an editor with the measure image, chords, section start,
-   bar lines and signs; "確認済みにして次へ" marks it reviewed.
+   bar lines and signs, the tab as a tab line with a running beat total,
+   and what the checks found about the measure; "確認済みにして次へ"
+   marks it reviewed. Above the save button, the checks across the score
+   (repeats, endings, D.S./Coda, sections, and each measure's tab) are
+   listed; tapping one opens its measure.
 4. Save `<name>.gts.json`. The library on the device (`src/library.ts`,
    IndexedDB) keeps every opened PDF or set of photos together with the
    work on it; it is listed at the top of the page, where a score is
