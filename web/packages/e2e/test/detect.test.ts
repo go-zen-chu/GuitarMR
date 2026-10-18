@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { generatePdf } from "@guitarmr/samples";
 import type { Browser } from "playwright-core";
-import { ARTIFACTS, PHONE, launch, openPage } from "./helpers.ts";
+import { ARTIFACTS, PHONE, TABLET, launch, openPage } from "./helpers.ts";
 
 describe("detecting measures on the phone page", { timeout: 180_000 }, () => {
   let browser: Browser;
@@ -59,6 +59,20 @@ describe("detecting measures on the phone page", { timeout: 180_000 }, () => {
     await pick(join(dir, "song.pdf"));
     await page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "song.pdf", null, { timeout: 120_000 });
     assert.match((await page.locator("#summary-stats").textContent())!, /12 小節/);
+    assert.deepEqual(errors, []);
+  });
+
+  it("If the page opens on a tablet the score should fill the column without overflowing", async () => {
+    const { page, errors } = await openPage(browser, { viewport: TABLET });
+    await page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), TABLET.width);
+    // The overlay sits exactly on the page image.
+    const [image, overlay] = await Promise.all([page.locator(".figure img").first().boundingBox(), page.locator(".figure .overlay").first().boundingBox()]);
+    assert.deepEqual(
+      [image!.width, image!.height].map(Math.round),
+      [overlay!.width, overlay!.height].map(Math.round),
+    );
+    await page.screenshot({ path: `${ARTIFACTS}/detect-tablet.png` });
     assert.deepEqual(errors, []);
   });
 });

@@ -28,9 +28,24 @@ export async function launch(): Promise<Browser> {
   return chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 }
 
+export interface FakeClaude {
+  /** Answer from this gts document. */
+  truth: unknown;
+  /** Reject the n-th request (1-based, reading and tab requests counted together) with this error code. */
+  errors?: Record<number, string>;
+  /** Milliseconds each answer takes (default 100); a request can be stopped meanwhile. */
+  delay?: number;
+  /** What a save does: keep the file (default) or be declined by the viewer. */
+  save?: "keep" | "decline";
+}
+
 export interface OpenOptions extends BrowserContextOptions {
   /** Install a fake claude.ai runtime answering from this gts document. */
   claudeFrom?: unknown;
+  /** The same with failures, timing and saves controlled. */
+  claude?: FakeClaude;
+  /** Runs before the page loads (init scripts, files in storage). */
+  setup?: (page: Page) => Promise<void>;
 }
 
 export interface OpenPage {
@@ -40,7 +55,7 @@ export interface OpenPage {
 }
 
 export async function openPage(browser: Browser, options: OpenOptions = {}): Promise<OpenPage> {
-  const { claudeFrom, ...contextOptions } = options;
+  const { claudeFrom, claude, setup, ...contextOptions } = options;
   const context = await browser.newContext({ viewport: PHONE, deviceScaleFactor: 2, ...contextOptions });
   const page = await context.newPage();
   const errors: string[] = [];
@@ -60,7 +75,9 @@ export async function openPage(browser: Browser, options: OpenOptions = {}): Pro
     '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>',
   );
   await page.route("http://localhost/", (route) => route.fulfill({ body: html, contentType: "text/html; charset=utf-8" }));
-  if (claudeFrom) await page.addInitScript(fakeClaude, JSON.stringify(claudeFrom));
+  const fake: FakeClaude | undefined = claude ?? (claudeFrom ? { truth: claudeFrom } : undefined);
+  if (fake) await page.addInitScript(fakeClaude, JSON.stringify(fake));
+  await setup?.(page);
   await page.goto("http://localhost/");
   return { page, errors };
 }
@@ -72,8 +89,9 @@ export async function openPage(browser: Browser, options: OpenOptions = {}): Pro
  * lines (m5 one beat short); `downloads` keeps saved files.
  * Runs inside the page, so it must be self-contained.
  */
-function fakeClaude(truthJson: string) {
-  const truth = JSON.parse(truthJson);
+function fakeClaude(configJson: string) {
+  // The truth is untyped JSON, as before.
+  const { truth, errors = {}, delay = 100, save = "keep" } = JSON.parse(configJson);
   const all = truth.sections.flatMap((s: { label?: string; measures: Record<string, unknown>[] }) =>
     s.measures.map((m, i) => ({ m, label: i === 0 ? s.label : undefined })),
   );
@@ -82,13 +100,24 @@ function fakeClaude(truthJson: string) {
   const saved: { filename: string; data: string }[] = [];
   w.__calls = calls;
   w.__saved = saved;
+  let requests = 0;
+  /** Wait as Claude would, failing as configured; a stopped request rejects "cancelled". */
+  const answerAfter = (signal?: AbortSignal) =>
+    new Promise<void>((resolve, reject) => {
+      const n = ++requests;
+      const timer = setTimeout(() => (errors[n] ? reject({ code: errors[n], message: errors[n] }) : resolve()), delay);
+      signal?.addEventListener("abort", () => {
+        clearTimeout(timer);
+        reject({ code: "cancelled", message: "cancelled" });
+      });
+    });
   const sample = {
     limits: async () => ({ maxPromptBytes: 100000, images: { maxCount: 5, maxInputBytes: 5e6, mediaTypes: ["image/jpeg"] } }),
-    json: async (prompt: string, opts: { images?: Blob[] }) => {
+    json: async (prompt: string, opts: { images?: Blob[]; signal?: AbortSignal }) => {
       if (prompt.includes('"tab line"')) {
         const ids = [...prompt.matchAll(/^- Image \d+: measures (.*) \(left to right\)$/gm)].flatMap((x) => x[1]!.match(/m\d+/g)!);
         calls.push({ ids, images: opts.images?.length ?? 0, header: false });
-        await new Promise((r) => setTimeout(r, 100));
+        await answerAfter(opts.signal);
         // formatTabLine is a global of the page (its core script).
         const format = (window as unknown as { formatTabLine(beats: unknown[]): string }).formatTabLine;
         const measures = all
@@ -102,7 +131,7 @@ function fakeClaude(truthJson: string) {
       }
       const ids = [...prompt.matchAll(/measures ([m\d, ]+) \(left/g)].flatMap((x) => x[1]!.split(", "));
       calls.push({ ids, images: opts.images?.length ?? 0, header: prompt.includes('"header"') });
-      await new Promise((r) => setTimeout(r, 100));
+      await answerAfter(opts.signal);
       const measures = all
         .filter(({ m }: { m: { id: string } }) => ids.includes(m.id))
         .map(({ m, label }: { m: Record<string, unknown>; label?: string }) => {
@@ -112,11 +141,12 @@ function fakeClaude(truthJson: string) {
           return JSON.parse(JSON.stringify(out));
         });
       const { title, key, capo, tempo, timeSignature } = truth.meta;
-      return { ...(calls.length === 1 ? { header: { title, key, capo, tempo, timeSignature } } : {}), measures };
+      return { ...(prompt.includes('"header"') ? { header: { title, key, capo, tempo, timeSignature } } : {}), measures };
     },
   };
   const downloads = {
     save: async (file: { filename: string; data: string }) => {
+      if (save === "decline") throw { code: "declined", message: "declined" };
       saved.push(file);
       return { status: "saved" };
     },
@@ -125,3 +155,30 @@ function fakeClaude(truthJson: string) {
 }
 
 export const loadExample = (name: string): unknown => JSON.parse(readFileSync(new URL(name, EXAMPLES), "utf8"));
+
+/** Wait until the page has analyzed whatever it opened (the summary of a score is shown). */
+export const analyzed = (page: Page, source: string) =>
+  page.waitForFunction((name) => document.querySelector("#summary-source")?.textContent === name, source, { timeout: 120_000 });
+
+/** Wait until a reading pass has ended (its status names how it ended). */
+export const readEnded = (page: Page) =>
+  page.waitForFunction(
+    () => {
+      const text = document.querySelector("#read-status")?.textContent ?? "";
+      return !(document.querySelector("#stop") as HTMLElement).offsetParent && /終わりました|止めました|上限|許可|接続|読み取れません/.test(text);
+    },
+    null,
+    { timeout: 60_000 },
+  );
+
+/** Drop files on the page as a desktop browser would. */
+export async function dropFiles(page: Page, files: { name: string; type: string; bytes: Uint8Array }[]) {
+  await page.evaluate(
+    (list) => {
+      const transfer = new DataTransfer();
+      for (const f of list) transfer.items.add(new File([Uint8Array.from(atob(f.b64), (c) => c.charCodeAt(0))], f.name, { type: f.type }));
+      document.body.dispatchEvent(new DragEvent("drop", { dataTransfer: transfer, bubbles: true, cancelable: true }));
+    },
+    files.map((f) => ({ name: f.name, type: f.type, b64: Buffer.from(f.bytes).toString("base64") })),
+  );
+}

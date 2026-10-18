@@ -871,6 +871,18 @@ addEventListener("drop", (e) => {
   e.preventDefault();
   void openFiles([...(e.dataTransfer?.files ?? [])]);
 });
+// Tapping a measure while an editor field has focus commits that field on
+// blur, which redraws the overlay under the finger: the pressed measure is
+// gone by the release, so the browser sends no click. The tap still counts.
+let pressed: Element | null = null;
+ui.pages.addEventListener("pointerdown", (e) => {
+  pressed = (e.target as Element).closest?.("[data-id]") ?? null;
+});
+ui.pages.addEventListener("pointerup", (e) => {
+  const was = pressed;
+  pressed = null;
+  if (was && !was.isConnected && (e.target as Element).closest?.(".overlay")) editor.open(was.getAttribute("data-id")!);
+});
 ui.pages.addEventListener("click", (e) => {
   const g = (e.target as Element).closest?.("[data-id]");
   if (g) editor.open(g.getAttribute("data-id")!);

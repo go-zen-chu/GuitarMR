@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { validate } from "@guitarmr/gts/validate";
-import { generatePdf, generatePhotos } from "@guitarmr/samples";
+import { encodeJpeg, generatePdf, generatePhotos } from "@guitarmr/samples";
 import type { Browser } from "playwright-core";
 import { ARTIFACTS, PHONE, launch, openPage } from "./helpers.ts";
 
@@ -19,6 +19,10 @@ describe("photos and the library", { timeout: 300_000 }, () => {
     // Phone photos of the two pages on a desk; the second one upside down.
     (await generatePhotos("sakura-sakura")).forEach((jpeg, i) => writeFileSync(join(dir, `IMG_000${i + 1}.jpg`), jpeg));
     writeFileSync(join(dir, "song.pdf"), await generatePdf("twinkle-twinkle"));
+    // A photo of the desk with no score on it.
+    const desk = new Uint8ClampedArray(900 * 1200 * 4).map((_, i) => (i % 4 === 3 ? 255 : [96, 74, 56][i % 4]!));
+    writeFileSync(join(dir, "IMG_desk.jpg"), await encodeJpeg({ width: 900, height: 1200, data: desk }));
+    writeFileSync(join(dir, "notes.txt"), "not a library export");
   });
   after(() => browser?.close());
 
@@ -173,6 +177,62 @@ describe("photos and the library", { timeout: 300_000 }, () => {
       timeout: 120_000,
     });
     await fresh.page.waitForFunction(() => [...document.querySelectorAll("#library-list li")].some((li) => li.textContent?.includes("写真 2 枚")));
+    assert.deepEqual([...old.errors, ...fresh.errors], []);
+  });
+
+  it("If a photo has no score on it it should say what to retake", async () => {
+    const { page, errors } = await openPage(browser);
+    await page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
+    await page.setInputFiles("#camera", join(dir, "IMG_desk.jpg"));
+    await page.click("#tray-go");
+    await page.waitForFunction(() => document.querySelector("#status")?.textContent?.includes("どの写真にも段"), null, { timeout: 120_000 });
+    assert.match((await page.locator("#status").textContent())!, /紙全体が入るように/);
+    assert.match((await page.locator(".page.skipped").textContent())!, /6本線が写っているか/);
+    // The photo is shown as it was taken (no sheet found), for checking.
+    assert.match((await page.locator(".original summary").textContent())!, /用紙が見つからなかった/);
+    // Nothing is kept for a photo without a score.
+    assert.equal(await page.locator("#library-list li").count(), 0);
+    assert.deepEqual(errors, []);
+  });
+
+  it("If only the work is moved it should arrive without files, which come back when the PDF is opened", async () => {
+    const old = await openPage(browser);
+    await old.page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
+    await old.page.setInputFiles("#pdf-file", join(dir, "song.pdf"));
+    await old.page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "song.pdf", null, { timeout: 120_000 });
+    await old.page.locator('[data-id="m3"]').click();
+    await old.page.click("#sheet-ok");
+    await old.page.click("#sheet-close");
+    await old.page.waitForFunction(() => document.querySelector("#library-list li")?.textContent?.includes("確認済み 1"));
+    await old.page.locator(".move summary").click();
+    await old.page.uncheck("#library-with-files");
+    const download = old.page.waitForEvent("download");
+    await old.page.click("#library-export");
+    const file = join(dir, "work-only.jsonl");
+    await (await download).saveAs(file);
+    const records = readFileSync(file, "utf8").trimEnd().split("\n").map((l) => JSON.parse(l));
+    assert.deepEqual(
+      records.map((r) => r.type ?? "header"),
+      ["header", "entry", "entry", "end"], // the score and the built-in sample's work
+    );
+
+    const fresh = await openPage(browser);
+    await fresh.page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
+    await fresh.page.locator(".move summary").click();
+    // Something else is refused, and taking the same export twice adds nothing.
+    await fresh.page.setInputFiles("#library-import", join(dir, "notes.txt"));
+    await fresh.page.waitForFunction(() => document.querySelector("#library-message")?.textContent?.includes("ライブラリの書き出しファイルではありません"));
+    for (let i = 0; i < 2; i++) {
+      await fresh.page.setInputFiles("#library-import", file);
+      await fresh.page.waitForFunction(() => document.querySelector("#library-message")?.textContent === "1 曲を取り込みました。");
+      await fresh.page.evaluate(() => (document.querySelector("#library-message")!.textContent = ""));
+    }
+    assert.equal(await fresh.page.locator("#library-list li").count(), 1);
+    assert.match((await fresh.page.locator("#library-list li").textContent())!, /ファイルなし.*確認済み 1 \/ 12/);
+    await fresh.page.setInputFiles("#pdf-file", join(dir, "song.pdf"));
+    await fresh.page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "song.pdf", null, { timeout: 120_000 });
+    assert.match((await fresh.page.locator("#review-summary").textContent())!, /確認済み 1/);
+    await fresh.page.waitForFunction(() => document.querySelector("#library-list li")?.textContent?.includes("PDF · 確認済み 1 / 12"));
     assert.deepEqual([...old.errors, ...fresh.errors], []);
   });
 });
