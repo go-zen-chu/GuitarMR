@@ -15,8 +15,12 @@ import {
 } from "./detect.ts";
 
 export interface ScannedPage {
-  index: number; // 0-based page index in the PDF
+  index: number; // 0-based page index in the PDF (or in the list of photos)
   layout: PageLayout;
+  /** Photos only: the photo file of this page. */
+  file?: string;
+  /** Photos only: the sheet's corners in the photo, normalized 0..1 (see correctPhoto). */
+  paper?: [number, number][];
 }
 
 /**
@@ -88,7 +92,12 @@ export function buildDocument(pdfName: string, sha256: string, pages: ScannedPag
     source: {
       file: pdfName,
       sha256,
-      pages: pages.map((p) => ({ index: p.index, rotation: p.layout.rotation as 0 | 90 | 180 | 270 })) as GtsDocument["source"]["pages"],
+      pages: pages.map((p) => ({
+        index: p.index,
+        rotation: p.layout.rotation as 0 | 90 | 180 | 270,
+        ...(p.file === undefined ? {} : { file: p.file }),
+        ...(p.paper ? { paper: p.paper.map(([x, y]) => [norm(x, 1), norm(y, 1)]) } : {}),
+      })) as GtsDocument["source"]["pages"],
     },
     sections: [{ measures }],
   };

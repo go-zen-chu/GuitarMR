@@ -8,6 +8,7 @@ import type { Beat, GuitarTabScoreGts, Measure } from "./types.generated.ts";
 
 export type * from "./types.generated.ts";
 export * from "./playback.ts";
+export * from "./tabline.ts";
 export type GtsDocument = GuitarTabScoreGts;
 
 /** Every measure in written order. */

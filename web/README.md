@@ -7,11 +7,11 @@ happens in the Quest app; the `.gts.json` next to the PDF is the hand-off.
 | Package | Purpose |
 | --- | --- |
 | [`@guitarmr/gts`](packages/gts) | Types generated from `schemas/gts.schema.json`, validation, helpers |
-| [`@guitarmr/layoutscan`](packages/layoutscan/README.md) | Layout detection (orientation, systems, measure regions) + Node CLI |
+| [`@guitarmr/layoutscan`](packages/layoutscan/README.md) | Layout detection (orientation, systems, measure regions), phone photo correction + Node CLI |
 | [`@guitarmr/samples`](packages/samples/README.md) | Public-domain sample scores, engraver and end-to-end tests |
 | [`@guitarmr/extract`](packages/extract/README.md) | Reading the structure and chords layers with Claude (crops, prompt, answer checks, merge) and review edits |
 | [`@guitarmr/e2e`](packages/e2e/README.md) | End-to-end tests of the built page in headless Chromium (pdf.js local, Claude mocked); run in CI |
-| [`@guitarmr/demo`](packages/demo/README.md) | Single-file phone page: detect measures, read chords/structure with Claude, review and save the gts file |
+| [`@guitarmr/demo`](packages/demo/README.md) | Single-file phone page: PDF or photos in, detect measures, read chords/structure with Claude, review and save the gts file; a library kept on the device |
 
 The PWA itself is the next step (see docs/project).
 

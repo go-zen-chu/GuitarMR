@@ -199,12 +199,20 @@ PDF ──▶ 1. rasterize + orient ──▶ 2. layout ──▶ 3. content ─
    above and below, so writing across the boundary stays readable, plus
    a white strip on top holding a magenta tag with each measure id), and
    the page top for the header on the first page. The answer is per-measure JSON with a confidence and an
-   optional note; `tab` is not read yet.
+   optional note. `tab` is read afterwards from the same crops, answered
+   as one compact tab line per measure (`8:6-0+4-2!d 8:r 4:/`,
+   `formatTabLine`/`parseTabLine` in `@guitarmr/gts`), the notation the
+   review editor uses too.
 4. **Validate**: every answered field is checked against the schema rules
    (chord-symbol grammar, enums, ranges) and dropped with a warning when
    invalid, never guessed. A measure with confidence below 0.7 or a note
-   is marked `needs-attention`. Still to come: beat sums per time
-   signature, string/fret ranges (for `tab`), repeat/volta balance.
+   is marked `needs-attention`. Tab lines are parsed strictly (string
+   1-6, fret 0-24, note values, tuplets) and checked per measure: beats
+   add up to the time signature (pickup and last measure may be short),
+   one note per string, a playable fret span, ties that continue; a
+   failure marks the measure for review with the reason. Across measures,
+   repeats, endings, D.S./D.C./Coda/Fine, similes and sections are checked
+   and listed for the reviewer (`checks.ts` in `@guitarmr/extract`).
 5. **Review**: in the phone page (web/packages/demo), the score shows the
    read chords and signs over each measure, colored by review state;
    tapping a measure opens an editor with the measure image and its
@@ -232,8 +240,9 @@ check `source.sha256` to detect a replaced PDF).
    A single-file demo of this runs as a claude.ai Artifact.
 4. **`structure` and `chords` layers** (done in the demo): Claude reads
    them per page, the review editor corrects them.
-5. **`tab` and `lyrics` layers**: further LLM steps + validators (beat
-   sums, string/fret ranges), reviewed in the same editor.
+5. **`tab` layer** (done in the demo, with the validators: beat sums,
+   string/fret ranges, ties, plus the checks across measures), reviewed
+   in the same editor. **`lyrics` layer**: still to come.
 6. **App integration**: load the sidecar JSON in GuitarMR (Domain model in
    C#), highlight the current measure and turn pages in sync with the
    metronome.
