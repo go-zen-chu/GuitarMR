@@ -1,10 +1,11 @@
 /**
  * Make a clean engraved page look like a scan (skew, blur, noise, a turn on
- * the scanner) and write pages into a minimal JPEG-based PDF.
+ * the scanner) or like a phone photo of the sheet on a desk, and write
+ * pages into a minimal JPEG-based PDF.
  */
 
 import { createCanvas } from "@napi-rs/canvas";
-import type { RgbaImage } from "@guitarmr/layoutscan";
+import { type Quad, type RgbaImage, quadToSquare } from "@guitarmr/layoutscan";
 
 export const PAPER: [number, number, number] = [248, 246, 244];
 
@@ -111,6 +112,84 @@ function turn(image: RgbaImage, counterClockwise: number): RgbaImage {
  */
 export function simulateScan(page: RgbaImage, rotation: number, skew: number, seed = 0): RgbaImage {
   return turn(addNoise(blur(rotateBilinear(page, skew)), 2.5, seed + 1), rotation);
+}
+
+/** Size of a simulated phone photo (portrait, 3:4). */
+export const PHOTO_WIDTH = 2268;
+export const PHOTO_HEIGHT = 3024;
+
+/**
+ * Where the sheet lies in a simulated photo, as fractions of the photo:
+ * the page's own top-left, top-right, bottom-right and bottom-left corners.
+ * A pinhole projection (a phone's 26 mm equivalent lens) of an A4 sheet
+ * 31 cm away, the phone tilted 22° toward the top of the page, turned 7°
+ * and rolled 2°, so the far edge is shorter.
+ */
+export const PHOTO_CORNERS: Quad = [
+  [0.2278, 0.2491],
+  [0.799, 0.2185],
+  [0.923, 0.9393],
+  [0.1011, 0.9207],
+];
+
+/**
+ * A phone photo of the page lying on a desk: the sheet placed on `corners`
+ * (fractions of the photo, see PHOTO_CORNERS) with perspective, a dark
+ * wooden desk around it, light falling off to one side with a warm cast,
+ * then blur and noise. Also returns the sheet's corners in photo pixels.
+ */
+export function simulatePhoto(page: RgbaImage, corners: Quad = PHOTO_CORNERS, seed = 0): { image: RgbaImage; paper: Quad } {
+  const width = PHOTO_WIDTH;
+  const height = PHOTO_HEIGHT;
+  const paper = corners.map(([x, y]) => [x * width, y * height]) as Quad;
+  const toPage = quadToSquare(paper);
+  const next = random(seed + 7);
+  const grain = Array.from({ length: 64 }, () => next());
+  const data = new Uint8ClampedArray(width * height * 4);
+  const { width: pw, height: ph, data: src } = page;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const o = (y * width + x) * 4;
+      const [u, v] = toPage(x + 0.5, y + 0.5);
+      let rgb: [number, number, number];
+      if (u >= 0 && u <= 1 && v >= 0 && v <= 1) {
+        const sx = Math.min(Math.max(u * pw - 0.5, 0), pw - 1.001);
+        const sy = Math.min(Math.max(v * ph - 0.5, 0), ph - 1.001);
+        const ix = Math.floor(sx);
+        const iy = Math.floor(sy);
+        const fx = sx - ix;
+        const fy = sy - iy;
+        const i = (iy * pw + ix) * 4;
+        const j = i + pw * 4;
+        rgb = [0, 1, 2].map((c) => {
+          const top = src[i + c]! + (src[i + 4 + c]! - src[i + c]!) * fx;
+          const bottom = src[j + c]! + (src[j + 4 + c]! - src[j + c]!) * fx;
+          return top + (bottom - top) * fy;
+        }) as [number, number, number];
+      } else {
+        // Wood grain: stripes along x with a slow wobble.
+        const g = grain[Math.floor((y / height) * 64 + 3 * Math.sin(x / 90)) & 63]!;
+        rgb = [92 + 26 * g, 70 + 20 * g, 52 + 14 * g];
+      }
+      // Light from the top left falling off to the bottom right, warm.
+      const light = 1.02 - 0.38 * ((0.7 * x) / width + (0.3 * y) / height) ** 1.3;
+      data[o] = rgb[0] * light;
+      data[o + 1] = rgb[1] * light * 0.94;
+      data[o + 2] = rgb[2] * light * 0.82;
+      data[o + 3] = 255;
+    }
+  }
+  return { image: addNoise(blur({ width, height, data }), 3, seed + 11), paper };
+}
+
+/** RGBA pixels as a JPEG file, like a phone camera writes. */
+export async function encodeJpeg(image: RgbaImage, quality = 85): Promise<Uint8Array> {
+  const canvas = createCanvas(image.width, image.height);
+  const ctx = canvas.getContext("2d");
+  const pixels = ctx.createImageData(image.width, image.height);
+  pixels.data.set(image.data);
+  ctx.putImageData(pixels, 0, 0);
+  return new Uint8Array(await canvas.encode("jpeg", quality));
 }
 
 /** Write pages as JPEG images into a minimal PDF (A4, portrait or landscape per page). */

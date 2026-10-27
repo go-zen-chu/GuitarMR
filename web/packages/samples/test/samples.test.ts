@@ -9,11 +9,12 @@ import { readFileSync } from "node:fs";
 import { before, describe, it } from "node:test";
 import { type GtsDocument, measureLength, measures } from "@guitarmr/gts";
 import { validate } from "@guitarmr/gts/validate";
-import { analyzePage, buildDocument, measureSpans, renderPages, sha256Hex } from "@guitarmr/layoutscan";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { type ScannedPage, analyzePage, buildDocument, correctPhoto, measureSpans, renderPages, sha256Hex } from "@guitarmr/layoutscan";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { engrave, findJapaneseFont, pixels } from "../src/engrave.ts";
-import { EXAMPLES, SAMPLES, generatePdf } from "../src/make-samples.ts";
-import { simulateScan } from "../src/scan.ts";
+import { EXAMPLES, SAMPLES, generatePdf, generatePhotos } from "../src/make-samples.ts";
+import { PHOTO_CORNERS, simulateScan } from "../src/scan.ts";
 
 const load = (name: string): GtsDocument => JSON.parse(readFileSync(new URL(`${name}.gts.json`, EXAMPLES), "utf8"));
 const near = (actual: number, expected: number, tolerance: number, what = "") =>
@@ -60,6 +61,37 @@ for (const name of Object.keys(SAMPLES)) {
         want.map((r) => r.page),
       );
       got.forEach((r, i) => r.bbox.forEach((v, j) => near(v, want[i]!.bbox[j]!, 0.003, `m${i + 1}`)));
+    });
+
+    it("If its pages are photographed on a desk the corrected photos should give the same measures", async (t) => {
+      if (!/^[\x00-\x7f]*$/.test(load(name).meta.title) && findJapaneseFont() === null) {
+        t.skip("no Japanese font to engrave this sample; set GTS_JP_FONT");
+        return;
+      }
+      const pages: ScannedPage[] = [];
+      for (const [index, jpeg] of (await generatePhotos(name)).entries()) {
+        const picture = await loadImage(Buffer.from(jpeg));
+        const ctx = createCanvas(picture.width, picture.height).getContext("2d");
+        ctx.drawImage(picture, 0, 0);
+        const photo = ctx.getImageData(0, 0, picture.width, picture.height);
+        const { image, paper } = correctPhoto({ width: photo.width, height: photo.height, data: photo.data });
+        // The sheet is found within a few pixels of where it lies (any page turn).
+        assert.ok(paper);
+        const found = paper.map(([x, y]) => [x / photo.width, y / photo.height]);
+        for (const [x, y] of PHOTO_CORNERS) {
+          assert.ok(found.some(([fx, fy]) => Math.hypot(fx! - x, fy! - y) < 0.004), `corner ${x}, ${y} not found in ${found}`);
+        }
+        pages.push({ index, layout: analyzePage(image) });
+      }
+      assert.deepEqual(
+        pages.map((p) => p.layout.rotation),
+        pages.map((_, i) => (i === 0 ? 0 : 180)),
+      );
+      const got = buildDocument(`${name}.jpg`, "", pages).sections[0].measures.map((m) => m.region!);
+      const want = measures(load(name)).map((m) => m.region!);
+      assert.equal(got.length, want.length);
+      // The scans are skewed and the photos are not, so allow a little more.
+      got.forEach((r, i) => r.bbox.forEach((v, j) => near(v, want[i]!.bbox[j]!, 0.012, `m${i + 1}`)));
     });
 
     it("If it is engraved and scanned measures should be found where they were drawn", (t) => {

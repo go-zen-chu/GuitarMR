@@ -1,12 +1,23 @@
 /**
  * The measure editor: a bottom sheet showing the selected measure cut out
- * of the page, with its chords, section start, bar lines and signs. Each
+ * of the page, with its chords, tab, section start, bar lines and signs, and
+ * what the checks found about it. Each
  * field applies when it is changed; "確認済みにして次へ" marks the measure
  * reviewed and moves on.
  */
 
-import { type GtsDocument, type Measure, beatsPerBar, formatChordLine, measures, parseChordLine } from "@guitarmr/gts";
-import { setSectionStart, updateMeasure, withContext } from "@guitarmr/extract";
+import {
+  type GtsDocument,
+  type Measure,
+  beatsPerBar,
+  formatChordLine,
+  formatTabLine,
+  measureLength,
+  measures,
+  parseChordLine,
+  parseTabLine,
+} from "@guitarmr/gts";
+import { checkDocument, setSectionStart, timeSignatures, updateMeasure, withContext } from "@guitarmr/extract";
 import { STATUS_LABEL, sectionLabels, statusOf } from "./score-view.ts";
 
 export interface EditorHost {
@@ -33,6 +44,10 @@ export function createEditor(host: EditorHost) {
     note: $<HTMLElement>("sheet-note"),
     chords: $<HTMLInputElement>("f-chords"),
     chordsError: $<HTMLElement>("f-chords-error"),
+    tab: $<HTMLInputElement>("f-tab"),
+    tabError: $<HTMLElement>("f-tab-error"),
+    tabTotal: $<HTMLElement>("f-tab-total"),
+    checks: $<HTMLUListElement>("sheet-checks"),
     section: $<HTMLInputElement>("f-section"),
     more: $<HTMLDetailsElement>("f-more"),
     repeatStart: $<HTMLInputElement>("f-repeat-start"),
@@ -80,9 +95,24 @@ export function createEditor(host: EditorHost) {
       });
     }
     f.note.hidden = !m.review?.comment;
-    f.note.textContent = m.review?.comment ? `AIのメモ: ${m.review.comment}` : "";
+    f.note.textContent = m.review?.comment ? `メモ: ${m.review.comment}` : "";
     f.chords.value = formatChordLine(m.chords, perBar(m));
     f.chordsError.textContent = "";
+    // A repeat-sign measure plays the previous one's tab: it has none of its own.
+    f.tab.disabled = Boolean(m.simile);
+    f.tab.value = m.simile ? "" : formatTabLine(m.beats);
+    f.tab.placeholder = m.simile ? "繰り返し記号の小節（前の小節と同じ）" : m.beats ? "TAB に何も書かれていない" : "まだ読んでいません";
+    f.tabError.textContent = "";
+    showTotal();
+    const issues = checkDocument(host.doc()).filter((i) => i.ids.includes(m.id!));
+    f.checks.hidden = issues.length === 0;
+    f.checks.replaceChildren(
+      ...issues.map((i) => {
+        const li = document.createElement("li");
+        li.textContent = i.message.replace(new RegExp(`^${m.id}: `), "");
+        return li;
+      }),
+    );
     f.section.value = sectionLabels(host.doc()).get(m.id) ?? "";
     f.repeatStart.checked = m.barStart === "repeat-start";
     f.barEnd.value = m.barEnd && m.barEnd !== "single" ? m.barEnd : "";
@@ -93,6 +123,21 @@ export function createEditor(host: EditorHost) {
     for (const n of NAV_IDS) f.nav[n]!.checked = m.navigation?.includes(n) ?? false;
     const marked = Boolean(m.barStart || (m.barEnd && m.barEnd !== "single") || m.volta || m.simile || m.navigation?.length);
     if (marked) f.more.open = true;
+  }
+
+  /** The beats typed so far against the time signature, e.g. "合計 3 / 4 拍". */
+  function showTotal() {
+    const m = measure();
+    const signature = m?.id ? timeSignatures(host.doc()).get(m.id) : undefined;
+    if (!m || !signature || m.simile) {
+      f.tabTotal.textContent = "";
+      return;
+    }
+    const { beats } = parseTabLine(f.tab.value, m.beats);
+    const [num, den] = measureLength({ beats });
+    const [n, d] = signature.split("/").map(Number) as [number, number];
+    const total = Math.round(((num * d) / den) * 100) / 100;
+    f.tabTotal.textContent = beats.length ? `合計 ${total} / ${n} 拍` : "";
   }
 
   function open(id: string) {
@@ -126,6 +171,15 @@ export function createEditor(host: EditorHost) {
       ? `${invalid.map((t) => `「${t}」`).join("")}をコードとして読めません（拍は 1〜${perBar(m)}）。直してください。`
       : "";
     if (!invalid.length) apply({ chords });
+  });
+  f.tab.addEventListener("input", showTotal);
+  f.tab.addEventListener("change", () => {
+    const m = measure();
+    if (!m || m.simile) return;
+    const { beats, invalid } = parseTabLine(f.tab.value, m.beats);
+    f.tabError.textContent = invalid.length ? `${invalid.join("。")}。直してください。` : "";
+    // Unchanged text keeps an unread measure unread.
+    if (!invalid.length && (m.beats || beats.length)) apply({ beats });
   });
   f.section.addEventListener("change", () => {
     if (currentId) host.commit(setSectionStart(host.doc(), currentId, f.section.value));
@@ -161,7 +215,8 @@ export function createEditor(host: EditorHost) {
   $("sheet-ok").addEventListener("click", () => {
     // A pending edit in the chord field counts too (iOS may not fire change first).
     f.chords.dispatchEvent(new Event("change"));
-    if (f.chordsError.textContent) return;
+    f.tab.dispatchEvent(new Event("change"));
+    if (f.chordsError.textContent || f.tabError.textContent) return;
     const m = measure();
     if (m) apply({ review: { status: "reviewed", ...(m.review?.confidence !== undefined ? { confidence: m.review.confidence } : {}) } });
     step(1);

@@ -79,9 +79,12 @@ export interface Meta {
 }
 export interface Source {
   /**
-   * PDF file name the data was extracted from.
+   * PDF file name the data was extracted from; for a score taken as photos, the first photo's file name.
    */
   file: string;
+  /**
+   * SHA-256 of the PDF file; for photos, of the photo files' bytes concatenated in page order.
+   */
   sha256?: string;
   /**
    * @minItems 1
@@ -89,23 +92,45 @@ export interface Source {
   pages: [
     {
       /**
-       * 0-based page index in the PDF.
+       * 0-based page index in the PDF, or in the list of photos.
        */
       index: number;
       /**
        * Clockwise degrees to rotate the rendered page to make it upright. Regions are expressed in upright coordinates.
        */
       rotation: 0 | 90 | 180 | 270;
+      /**
+       * For a score taken as photos (one photo per page): the photo file of this page.
+       */
+      file?: string;
+      /**
+       * For photos: corners of the sheet of paper found in the photo (top-left, top-right, bottom-right, bottom-left as seen in the photo), as [x, y] normalized to 0..1 of the photo after its EXIF orientation. The sheet was cut out along them, its perspective undone and its lighting flattened; that corrected page is the rendered page that rotation and regions refer to. Absent when no sheet was found and the whole photo was used.
+       *
+       * @minItems 4
+       * @maxItems 4
+       */
+      paper?: [[number, number], [number, number], [number, number], [number, number]];
     },
     ...{
       /**
-       * 0-based page index in the PDF.
+       * 0-based page index in the PDF, or in the list of photos.
        */
       index: number;
       /**
        * Clockwise degrees to rotate the rendered page to make it upright. Regions are expressed in upright coordinates.
        */
       rotation: 0 | 90 | 180 | 270;
+      /**
+       * For a score taken as photos (one photo per page): the photo file of this page.
+       */
+      file?: string;
+      /**
+       * For photos: corners of the sheet of paper found in the photo (top-left, top-right, bottom-right, bottom-left as seen in the photo), as [x, y] normalized to 0..1 of the photo after its EXIF orientation. The sheet was cut out along them, its perspective undone and its lighting flattened; that corrected page is the rendered page that rotation and regions refer to. Absent when no sheet was found and the whole photo was used.
+       *
+       * @minItems 4
+       * @maxItems 4
+       */
+      paper?: [[number, number], [number, number], [number, number], [number, number]];
     }[]
   ];
 }

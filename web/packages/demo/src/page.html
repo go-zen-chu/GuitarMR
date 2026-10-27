@@ -150,6 +150,12 @@ body.editing main { padding-bottom: 70dvh; }
 .hint code { font-family: var(--font-mono); }
 .field-error { font-size: 0.85rem; color: var(--st-unread); }
 .field-error:empty { display: none; }
+#f-tab { font-family: var(--font-mono); }
+.sheet-checks { margin: 0; padding-left: 1.2em; font-size: 0.85rem; color: var(--st-attention); }
+.checks-panel { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--st-attention); border-radius: 10px; }
+.checks-panel > summary { font-size: 0.9rem; color: var(--st-attention); font-weight: 700; min-height: 32px; display: flex; align-items: center; }
+.checks-panel ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.issue { width: 100%; text-align: left; min-height: 36px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; cursor: pointer; font-size: 0.85rem; }
 .more { display: grid; gap: 10px; }
 .more[open] { padding-bottom: 4px; }
 .more > summary { min-height: 32px; display: flex; align-items: center; }
@@ -161,6 +167,35 @@ body.editing main { padding-bottom: 70dvh; }
 .sheet-actions button { min-height: 48px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--rule); background: transparent; cursor: pointer; }
 .sheet-actions .primary { background: var(--st-reviewed); border-color: var(--st-reviewed); color: var(--surface); font-weight: 700; }
 .page.skipped p { color: var(--muted); font-size: 0.85rem; }
+.pick-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 8px; }
+.file-button.secondary { background: transparent; color: var(--ink); border: 2px solid var(--button); }
+/* The photo tray: shots wait here until they are analyzed as one score. */
+.tray { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); }
+.tray h2 { font-size: 1.05rem; }
+.tray-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.tray-list li { display: grid; gap: 4px; justify-items: center; font-family: var(--font-mono); font-size: 0.8rem; }
+.tray-list img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 6px; border: 1px solid var(--rule); }
+.tray-list div { display: flex; gap: 4px; }
+.tray-list button { min-width: 40px; min-height: 36px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; cursor: pointer; }
+.tray-list button:disabled { opacity: 0.35; cursor: default; }
+.tray .actions .file-link { min-height: 44px; }
+.original summary { min-height: 32px; display: flex; align-items: center; }
+.original .figure { margin-top: 6px; max-width: 420px; background: var(--paper); }
+.overlay .paper { fill: rgba(35, 67, 200, 0.08); stroke: var(--ov-system); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+/* The library on this device. */
+.library { display: grid; gap: 10px; }
+.library h2 { font-size: 1.05rem; }
+.library-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.library-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+.library-list li.current { border-color: var(--system); }
+.library-list strong { display: block; font-weight: 700; overflow-wrap: anywhere; }
+.library-list small { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.library-list button { min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; cursor: pointer; }
+.library-list .danger { color: var(--st-unread); }
+.library-note { font-size: 0.8rem; color: var(--muted); }
+.move { display: grid; gap: 8px; }
+.move[open] { padding-bottom: 4px; }
+.move > summary { min-height: 32px; display: flex; align-items: center; }
 footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 12px; }
 /* Play view: full screen, measures flow in rows sized to the screen. */
 body.in-player { overflow: hidden; }
@@ -238,15 +273,48 @@ body.in-player { overflow: hidden; }
 <main>
   <header class="intro">
     <h1><span class="tool">layoutscan</span>手書きTAB譜をデータにする</h1>
-    <p class="lead">スキャンしたPDFを選ぶと、ページの向きと傾きを直し、段と小節をこの端末の中で見つけます。続けて Claude にコードと構成（リピートや記号）を読ませ、小節をタップして確認・修正できます。</p>
+    <p class="lead">スキャンしたPDFか、楽譜を撮った写真を選ぶと、ページの向きと傾きを直し、段と小節をこの端末の中で見つけます。写真は白い紙の部分を切り出して、斜めから撮った歪みと明るさのムラを直してから使います。続けて Claude にコードと構成（リピートや記号）を読ませ、小節をタップして確認・修正できます。</p>
     <div class="legend" aria-label="凡例"><span class="sys">段（五線＋TAB）</span><span class="mea">小節（番号は通し）</span></div>
   </header>
 
-  <section class="pick" aria-label="PDFを選ぶ">
-    <label class="file-button">PDFを選ぶ<input id="pdf-file" type="file" aria-label="PDFを選ぶ"></label>
-    <p class="pick-hint">ファイルを選ぶ画面が開かないときは、このリンクを Safari や Chrome で開いてください（Claude アプリの中では選べないことがあります）。パソコンでは PDF をこのページにドラッグしても読み込めます。</p>
+  <section class="library" id="library" hidden aria-label="この端末のライブラリ">
+    <h2>この端末のライブラリ</h2>
+    <p class="pick-hint">開いた PDF・写真と作業中の内容は、この端末のブラウザの中にだけ保存されます（サーバーには送りません）。もう一度開くと、保存したファイルから解析し直して続きから作業できます。ブラウザのデータを消すと消えるので、仕上がったら gts.json も保存してください。</p>
+    <p class="library-note" id="library-empty">まだありません。PDF や写真を開くとここに残ります。</p>
+    <ul class="library-list" id="library-list"></ul>
+    <details class="move">
+      <summary>別の端末へ引っ越す（書き出し・取り込み）</summary>
+      <p class="pick-hint">ライブラリ全体を1つのファイルに書き出し、新しい端末で取り込みます。作業内容（軽いデータ）を先に、PDF・写真を最後に書き出すので、途中で切れたり一部が壊れたりしても作業内容は移せます。</p>
+      <label class="toggle"><input type="checkbox" id="library-with-files" checked> PDF・写真も含める</label>
+      <div class="actions">
+        <button type="button" id="library-export">書き出す</button>
+        <label class="file-link">取り込む<input id="library-import" type="file" aria-label="書き出したライブラリを取り込む"></label>
+      </div>
+      <p class="save-note" id="library-message" aria-live="polite"></p>
+    </details>
+    <p class="library-note" id="library-note"></p>
+  </section>
+
+  <section class="pick" aria-label="PDFか写真を選ぶ">
+    <div class="pick-buttons">
+      <label class="file-button">PDF・写真を選ぶ<input id="pdf-file" type="file" multiple aria-label="PDF・写真を選ぶ"></label>
+      <label class="file-button secondary">カメラで撮る<input id="camera" type="file" accept="image/*" capture="environment" aria-label="カメラで撮る"></label>
+    </div>
+    <p class="pick-hint">写真は1枚が1ページです。紙より暗い机などに置き、紙全体が入るように撮ってください。ファイルを選ぶ画面が開かないときは、このリンクを Safari や Chrome で開いてください（Claude アプリの中では選べないことがあります）。パソコンでは PDF や写真をこのページにドラッグしても読み込めます。</p>
     <div class="samples-row" id="samples"><p>サンプル（パブリックドメインの曲から自動生成したスキャン風PDF）</p></div>
     <div class="samples-row" id="play-samples"><p>演奏ビュー：読み取ったコードを順に表示し、テンポに合わせて自動スクロールします（gts だけで開けます）</p><label class="file-link">gts.json を演奏ビューで開く<input id="play-gts" type="file" aria-label="gts.json を演奏ビューで開く"></label></div>
+  </section>
+
+  <section class="tray" id="tray" hidden aria-label="撮った写真">
+    <h2>撮った写真（1枚が1ページ）</h2>
+    <p class="pick-hint">ページの順に並べてください。解析すると、白い紙の部分を切り出して補正します。</p>
+    <ol class="tray-list" id="tray-list"></ol>
+    <div class="actions">
+      <button type="button" class="primary" id="tray-go">解析する</button>
+      <label class="file-link">次のページを撮る<input id="tray-camera" type="file" accept="image/*" capture="environment" aria-label="次のページを撮る"></label>
+      <label class="file-link">写真を追加<input id="tray-file" type="file" accept="image/*" multiple aria-label="写真を追加"></label>
+      <button type="button" id="tray-clear">やめる</button>
+    </div>
   </section>
 
   <div class="status" aria-live="polite"><p id="status"></p><progress id="progress" max="1" value="0" hidden></progress></div>
@@ -254,14 +322,20 @@ body.in-player { overflow: hidden; }
   <section class="summary" id="summary" hidden aria-label="結果">
     <div><h2 id="summary-source"></h2><p class="stats" id="summary-stats"></p></div>
     <div class="review-row"><span id="review-summary" class="review-row"></span><button type="button" id="next-attention" hidden>要確認へ</button></div>
-    <div class="note-row" id="draft-note" hidden>前回の作業（この端末に残っていた下書き）を開きました。<button type="button" id="discard-draft">下書きを捨てて最初から</button></div>
+    <div class="note-row" id="draft-note" hidden>前回の作業（この端末のライブラリに残っていた内容）を開きました。<button type="button" id="discard-draft">下書きを捨てて最初から</button></div>
     <div class="ai" id="ai" hidden>
-      <h3>Claude でコードと構成を読む</h3>
-      <p>各段の画像を、あなたの claude.ai アカウントの Claude に送って読ませます（1ページ数十秒）。PDFそのものは送りません。</p>
-      <div class="actions"><button type="button" class="primary" id="read">読み取る</button><button type="button" id="stop" hidden>止める</button></div>
+      <h3>Claude で読む（コード・構成・TAB）</h3>
+      <p>各段の画像（写真は補正したもの）を、あなたの claude.ai アカウントの Claude に送って読ませます（1ページ数十秒）。PDFや写真そのものは送りません。</p>
+      <div class="actions"><button type="button" class="primary" id="read">読み取る</button><button type="button" class="primary" id="read-tab" hidden>TAB（リズム・フレット）を読む</button><button type="button" id="stop" hidden>止める</button></div>
+      <p>コードと構成を読み終えたら、TAB の数字とリズムも読めます。拍の合計やフレットの範囲を確かめ、おかしい小節は要確認にします。</p>
       <p id="read-status" aria-live="polite"></p>
       <details id="read-warnings" hidden><summary>読み取りのメモ</summary><ul></ul></details>
     </div>
+    <details class="checks-panel" id="checks" hidden open>
+      <summary id="checks-title"></summary>
+      <p class="pick-hint">リピートと番カッコの対応、D.S. / Coda の飛び先、セクション、各小節の拍の合計と押さえられるかを確かめています。タップするとその小節を開きます。</p>
+      <ul id="checks-list"></ul>
+    </details>
     <div class="actions">
       <button type="button" class="primary" id="save">gts.json を保存</button>
       <button type="button" id="copy">JSONをコピー</button>
@@ -274,7 +348,7 @@ body.in-player { overflow: hidden; }
 
   <ol class="pages" id="pages" aria-label="ページ"></ol>
 
-  <footer>GuitarMR · layout（小節の位置）は端末内で、structure と chords（構成とコード）は Claude で読みます。TAB の数字と歌詞の読み取りはこれからです。作業中の内容はこのブラウザに下書きとして残ります。</footer>
+  <footer>GuitarMR · layout（小節の位置）は端末内で、structure と chords（構成とコード）は Claude で読みます。TAB の数字と歌詞の読み取りはこれからです。開いたファイルと作業中の内容は、この端末のブラウザの中にだけ残ります。</footer>
 </main>
 
 <aside class="sheet" id="sheet" hidden aria-label="小節の編集">
@@ -285,6 +359,10 @@ body.in-player { overflow: hidden; }
     <label class="field">コード<input type="text" id="f-chords" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done"></label>
     <p class="hint">スペース区切り。拍の位置を指定するときは @ を付けます: <code>C G/B@2.5</code></p>
     <p class="field-error" id="f-chords-error" aria-live="polite"></p>
+    <label class="field">TAB（リズム・フレット）<input type="text" id="f-tab" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done"></label>
+    <p class="hint">1音ずつ 長さ:内容 をスペース区切り。長さ 4=4分 8=8分（. 付点、t 3連）、内容 弦-フレット（+ で同時、x ミュート）、r 休符、/ ストローク。後ろに !d ダウン !u アップ。例: <code>8:6-0+4-2!d 8:r 4:/ 8t:1-0 8t:1-2h 8t:1-3</code> <span id="f-tab-total"></span></p>
+    <p class="field-error" id="f-tab-error" aria-live="polite"></p>
+    <ul class="sheet-checks" id="sheet-checks" hidden></ul>
     <label class="field">この小節から始まるセクション<input type="text" id="f-section" placeholder="A、サビ など（なければ空）" autocomplete="off" enterkeyhint="done"></label>
     <details class="more" id="f-more"><summary>小節線・記号</summary>
       <div class="checks"><label><input type="checkbox" id="f-repeat-start"> リピート開始 ‖:</label></div>
