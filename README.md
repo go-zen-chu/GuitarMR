@@ -16,6 +16,7 @@ Android platform API, so no offline conversion is needed.
 - [docs/project](docs/project/README.md) — feature backlog and known issues
 - [schemas](schemas/gts.schema.json) — `gts` (Guitar Tab Score) JSON format for digitized handwritten tabs (ADR-008)
 - [web](web/README.md) — TypeScript workspace: gts types/validation, layout detection (`layoutscan`) and public-domain sample scores; the phone/tablet PWA comes next (ADR-009)
+- [android](android/README.md) — tky, the phone page as an Android app (WebView), released on GitHub and installable with Obtainium (ADR-010)
 
 ## Features
 

@@ -86,13 +86,18 @@ project starts taking external contributions.
       reopen. Next are the installable PWA shell (offline) and its Claude
       backend with the user's own API key (the Artifact cannot reach the
       API directly).
+      The Android app tky (ADR-010, `android/`) already runs the page with the
+      user's own API key. Next there: check it on a real phone (camera
+      photos, large library exports through the bridge).
 - [ ] **PWA: distribution to other users**: a small relay server so no API
       key sits in the browser (it must not store scores), and optionally a
       store-packaged wrapper (e.g. Capacitor) if iOS storage or file
       integration proves insufficient.
 - [ ] **CI**: the web workspace runs on GitHub Actions
       (`.github/workflows/web.yml`: type checks, unit tests, the phone
-      page build and its end-to-end tests). Still to do: run the Unity
+      page build and its end-to-end tests) and the Android app
+      (`.github/workflows/android.yml`: unit tests, lint, signed APKs,
+      GitHub Releases from main and preview prereleases from PRs). Still to do: run the Unity
       EditMode tests headless (needs a Unity license secret, e.g.
       game-ci/unity-test-runner).
 

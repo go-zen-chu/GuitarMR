@@ -1,0 +1,200 @@
+# The Android app tky (android/): the phone page built by the web workspace,
+# wrapped in a WebView app. Every build is signed with the release key.
+#
+# - main: publishes a GitHub Release (vX.Y.N) with the release APK
+#   (xyz.amasuda.tky). Obtainium tracks it with default settings.
+# - PRs: publish the preview APK (xyz.amasuda.tky.preview) as a
+#   prerelease "tky preview prN X.Y.N", one per PR (the older one is
+#   replaced), so Obtainium can install it with prereleases turned on.
+#   Closing the PR removes its prereleases.
+name: android
+
+on:
+  push:
+    branches: [main]
+    paths: ["android/**", "web/**", "schemas/**", ".github/workflows/android.yml"]
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths: ["android/**", "web/**", "schemas/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  # A main run is never cut off mid-release.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      signed: ${{ steps.keystore.outputs.signed }}
+    env:
+      KEYSTORE_BASE64: ${{ secrets.TKY_KEYSTORE_BASE64 }}
+      TKY_KEYSTORE_PASSWORD: ${{ secrets.TKY_KEYSTORE_PASSWORD }}
+      TKY_KEY_ALIAS: ${{ secrets.TKY_KEY_ALIAS }}
+      TKY_KEY_PASSWORD: ${{ secrets.TKY_KEY_PASSWORD }}
+      TKY_VERSION_CODE: ${{ github.run_number }}
+      TKY_PREVIEW_LABEL: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.number) || github.ref_name }}
+    steps:
+      # Third-party actions are pinned to commits (tag in the comment).
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: web/.node-version
+
+      - name: pnpm (the version in package.json "packageManager")
+        working-directory: web
+        run: npm install -g "pnpm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
+
+      - name: Japanese font (the さくらさくら sample is engraved with one)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+
+      - name: Build the phone page for the app
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @guitarmr/demo build:android
+
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v5.0.0
+
+      # PRs from forks get no secrets: they build with the debug key and publish nothing.
+      - name: Restore the signing keystore
+        id: keystore
+        run: |
+          if [[ -z "$KEYSTORE_BASE64" ]]; then
+            if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+              echo "::error::TKY_KEYSTORE_BASE64 is not set: a release must be signed (see android/README.md)"
+              exit 1
+            fi
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/tky.jks"
+          echo "TKY_KEYSTORE_FILE=$RUNNER_TEMP/tky.jks" >> "$GITHUB_ENV"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Set version
+        id: version
+        run: |
+          base=$(sed -n 's/^tky\.versionBase=//p' android/gradle.properties)
+          version="$base.$GITHUB_RUN_NUMBER"
+          echo "TKY_VERSION_NAME=$version" >> "$GITHUB_ENV"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Test, lint and build
+        working-directory: android
+        run: ./gradlew --no-daemon testReleaseUnitTest lintRelease assembleRelease assembleDebug
+
+      - name: Collect APKs
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/release/app-release.apk "dist/tky-$TKY_VERSION_NAME.apk"
+          label="${TKY_PREVIEW_LABEL//[^A-Za-z0-9._-]/-}"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "dist/tky-preview-$TKY_VERSION_NAME-$label.apk"
+
+      # A signed build must carry the release key, never the debug one.
+      - name: Check the signature
+        if: steps.keystore.outputs.signed == 'true'
+        run: |
+          apksigner=$(find "$ANDROID_HOME"/build-tools -name apksigner | sort -V | tail -1)
+          for apk in dist/*.apk; do
+            certs=$("$apksigner" verify --print-certs "$apk")
+            echo "$apk: $(grep 'certificate DN' <<<"$certs" | head -1)"
+            if grep -q 'CN=Android Debug' <<<"$certs"; then
+              echo "::error::$apk is signed with the debug key"
+              exit 1
+            fi
+          done
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: tky-preview
+          path: dist/tky-preview-*.apk
+          retention-days: 14
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: tky-release
+          path: dist/tky-${{ steps.version.outputs.version }}.apk
+          retention-days: 14
+
+  # Only main publishes a GitHub Release.
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: tky-release
+          path: dist
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          gh release create "v$VERSION" dist/*.apk -R "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --title "tky $VERSION" --generate-notes --latest
+
+  # A PR's preview as a prerelease for Obtainium; only the newest one per PR is kept.
+  preview:
+    needs: build
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      needs.build.outputs.signed == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: tky-preview
+          path: dist
+      - name: Publish the preview prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+          PR: ${{ github.event.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          tag="preview-pr$PR-$VERSION"
+          printf 'Preview build of #%s (%s) at %s.\n\nInstall with Obtainium (prereleases on) or download the APK below.\n' \
+            "$PR" "$PR_TITLE" "${HEAD_SHA:0:7}" > notes.md
+          gh release create "$tag" dist/*.apk -R "$GITHUB_REPOSITORY" \
+            --target "$HEAD_SHA" --title "tky preview pr$PR $VERSION" --notes-file notes.md --prerelease
+          gh release list -R "$GITHUB_REPOSITORY" --limit 200 --json tagName -q '.[].tagName' |
+            grep -E "^preview-pr$PR-" | grep -vxF "$tag" |
+            xargs -r -n1 gh release delete -R "$GITHUB_REPOSITORY" --yes --cleanup-tag
+
+  cleanup:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Remove the PR's preview prereleases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.number }}
+        run: |
+          gh release list -R "$GITHUB_REPOSITORY" --limit 200 --json tagName -q '.[].tagName' |
+            grep -E "^preview-pr$PR-" |
+            xargs -r -n1 gh release delete -R "$GITHUB_REPOSITORY" --yes --cleanup-tag

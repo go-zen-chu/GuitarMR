@@ -298,3 +298,43 @@ PWA only adds the other backend.
   and comes without files. The newer work wins when a score is already on
   the device. The file goes through the save dialog, like `.gts.json`, so
   it never passes a server of ours.
+
+## ADR-010: Ship the phone page as an Android app wrapping it in a WebView
+
+**Status**: Accepted (2026-10-28)
+
+**Context**: The phone page (ADR-009) runs as a claude.ai Artifact, whose
+runtime provides reading with Claude (`sample`) and saving (`downloads`).
+On an Android phone the author wants an installed app that updates itself
+from GitHub, like go-zen-chu/ws: releases from `main`, and PR builds
+installable for trying changes on the device. Options were a native
+rewrite, a PWA, a wrapper framework (Capacitor), or a plain WebView app.
+
+**Decision**: A plain Kotlin WebView app, **tky** (`xyz.amasuda.tky`, on
+the author's domain), under `android/` with no libraries. The page is built for it (`build:android`: a whole document,
+pdf.js bundled next to it) and served from the app's assets on
+`https://appassets.androidplatform.net`. A small host script
+(`android-host.ts`) stands in for the claude.ai runtime as
+`globalThis.claude`, so the page itself stays the same:
+- `sample` calls the Claude Messages API from the page with the user's own
+  API key (the direct browser access mode of ADR-009); the key is kept in
+  the app's private storage, asked for on the first reading and dropped
+  when the API rejects it.
+- `downloads` goes through Android's save picker; file inputs open the
+  document picker, `capture` inputs the camera app.
+- CI (`.github/workflows/android.yml`) signs every build with one release
+  key from repository secrets. `main` publishes a GitHub Release; each PR
+  publishes its preview app (another package id) as a prerelease, which
+  Obtainium installs with prereleases turned on.
+
+**Consequences**:
+- One page for the Artifact and the app; app-only behavior is in the host
+  script and the Kotlin bridge, both unit tested.
+- The API key sits in the app's private storage and is visible to the
+  page's script; only the bundled page runs in the WebView (other links
+  open in the browser), and backups of the app data are turned off.
+- Reading is billed to the user's API account instead of their claude.ai
+  plan. The default model is set in `api-sample.ts`.
+- Losing the signing key means installed apps cannot be updated in place,
+  so it is backed up outside GitHub.
+

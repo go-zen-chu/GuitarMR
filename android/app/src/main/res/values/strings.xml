@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">tky</string>
+    <string name="api_key_title">Claude API キー</string>
+    <string name="api_key_message">譜面を読み取るのに使う、あなたの Claude API キー（sk-ant-…）を入れてください。キーはこの端末のアプリの中にだけ保存されます。</string>
+    <string name="api_key_hint">sk-ant-…</string>
+    <string name="api_key_save">保存</string>
+    <string name="api_key_forget">キーを消す</string>
+    <string name="cancel">キャンセル</string>
+    <string name="shortcut_api_key">API キー</string>
+    <string name="api_key_saved">API キーを保存しました</string>
+    <string name="api_key_forgotten">API キーを消しました</string>
+    <string name="no_app_for_link">このリンクを開けるアプリがありません</string>
+</resources>
