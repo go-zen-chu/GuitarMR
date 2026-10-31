@@ -17,6 +17,44 @@ Android platform API, so no offline conversion is needed.
 - [schemas](schemas/gts.schema.json) — `gts` (Guitar Tab Score) JSON format for digitized handwritten tabs (ADR-008)
 - [web](web/README.md) — TypeScript workspace: gts types/validation, layout detection (`layoutscan`) and public-domain sample scores; the phone/tablet PWA comes next (ADR-009)
 
+## Quick start
+
+The repository holds two apps. Each is detailed further below.
+
+### Quest app (Unity)
+
+1. Build and install the APK as in [Setup and build](#setup-and-build).
+2. Launch it on the headset from **Library > Unknown Sources > GuitarMR**,
+   or from the PC while the headset is connected:
+
+   ```sh
+   adb shell monkey -p com.gozenchu.guitarmr -c android.intent.category.LAUNCHER 1
+   ```
+
+3. Press the left controller **Menu** button to pick a score
+   (see [Putting your sheet music on the device](#putting-your-sheet-music-on-the-device)).
+
+### Phone page (web)
+
+Requires Node 26 and pnpm 10 (see [web/README.md](web/README.md#setup)).
+
+```sh
+cd web
+pnpm install
+pnpm --filter @guitarmr/demo build   # writes packages/demo/dist/layoutscan-demo.html
+open packages/demo/dist/layoutscan-demo.html   # macOS; or open the file in any browser
+```
+
+To keep it running while editing, `pnpm --filter @guitarmr/demo dev`
+serves it on http://127.0.0.1:5173/ and reloads the page on every save;
+see [web/packages/demo](web/packages/demo/README.md#local-dev-server) for
+opening it from another device over Tailscale.
+
+Opened from disk or the dev server, the page detects measures, edits, plays and saves gts
+files; reading chords and structure with Claude ("読み取る") only works
+when the page is published as a claude.ai Artifact
+(see [web/packages/demo](web/packages/demo/README.md)).
+
 ## Features
 
 - XR passthrough on Quest 3: play while seeing your real guitar and room

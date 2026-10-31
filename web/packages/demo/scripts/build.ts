@@ -70,14 +70,27 @@ export function topLevelNames(code: string): string[] {
 
 const inline = (code: string) => code.replaceAll("</script", "<\\/script");
 
-export async function build(withSamples = true): Promise<string> {
-  const samples: ((typeof SAMPLES)[number] & { pdf: string })[] = [];
+export type EmbeddedSample = (typeof SAMPLES)[number] & { pdf: string };
+
+/** The sample PDFs, generated and base64-encoded for embedding (none without samples). */
+export async function loadSamples(withSamples = true): Promise<EmbeddedSample[]> {
+  const samples: EmbeddedSample[] = [];
   if (withSamples) {
     for (const s of SAMPLES) {
       const pdf = await generatePdf(s.file.replace(/\.pdf$/, ""));
       samples.push({ ...s, pdf: Buffer.from(pdf).toString("base64") });
     }
   }
+  return samples;
+}
+
+/** The whole page, read from the current sources (the dev server calls it on every change). */
+export async function build(withSamples = true): Promise<string> {
+  return renderPage(await loadSamples(withSamples));
+}
+
+/** The page from the current sources with the given samples embedded. */
+export function renderPage(samples: EmbeddedSample[]): string {
   const app = appScript()
     .replace('from "pdfjs-dist"', `from "${PDFJS_CDN}pdf.min.mjs"`)
     .replace('"@PDFJS_WORKER@"', JSON.stringify(`${PDFJS_CDN}pdf.worker.min.mjs`));
