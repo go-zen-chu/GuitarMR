@@ -63,6 +63,49 @@ pnpm --filter @guitarmr/demo build --no-samples # without the embedded samples
 pnpm --filter @guitarmr/demo build:android      # dist/android/ for the Android app (ADR-010)
 ```
 
+## Local dev server
+
+```sh
+pnpm --filter @guitarmr/demo dev   # http://127.0.0.1:5173/
+```
+
+`scripts/dev.ts` serves the page and rebuilds it when a file under
+`gts/src`, `layoutscan/src`, `extract/src`, `demo/src` or
+`schemas/examples` changes; open tabs reload by themselves, and a build
+error is shown in the page until it is fixed. Options: `--port <n>`,
+`--host <addr>`, `--no-samples` (the sample PDFs are generated once at
+start; restart after changing `@guitarmr/samples`). As when opened from
+disk, the Claude step is hidden and pdf.js and fonts load from their CDNs.
+
+### From another device (Tailscale)
+
+To check the page on a phone or another computer while the server runs on
+this machine, put both on the same tailnet and let Tailscale proxy the
+local port over HTTPS. HTTPS matters: browsers allow some APIs the page
+uses (the clipboard copy) only in a secure context, which plain
+`http://<tailscale-ip>` is not.
+
+1. Install Tailscale on both devices and sign in to the same tailnet
+   (`tailscale status` lists the devices).
+2. Once per tailnet, enable **MagicDNS** and **HTTPS Certificates** in the
+   admin console (DNS page); `tailscale serve` needs them for the
+   `*.ts.net` certificate.
+3. On this machine, start the server (it keeps listening on 127.0.0.1
+   only, so nothing is exposed to the local network) and the proxy:
+
+   ```sh
+   pnpm --filter @guitarmr/demo dev
+   tailscale serve --bg 5173
+   ```
+
+4. Open the URL printed by `tailscale serve` (`https://<machine>.<tailnet>.ts.net/`)
+   on the other device. Saving a file on this machine reloads that tab too.
+5. Stop the proxy when done: `tailscale serve reset`.
+
+Without HTTPS certificates, `pnpm --filter @guitarmr/demo dev --host 0.0.0.0`
+and `http://<tailscale-ip>:5173/` also work, except for the clipboard
+copy; that listens on every interface, so only do it on a trusted network.
+
 - `scripts/build.ts` concatenates the core (`gts`, `layoutscan`,
   `extract`) and the page modules with their types stripped (Node's
   `stripTypeScriptTypes`; no bundler), embeds the two public-domain sample
