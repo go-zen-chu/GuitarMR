@@ -60,6 +60,7 @@ first step toward the phone/tablet PWA (ADR-009):
 ```sh
 pnpm --filter @guitarmr/demo build              # dist/layoutscan-demo.html
 pnpm --filter @guitarmr/demo build --no-samples # without the embedded samples
+pnpm --filter @guitarmr/demo build:android      # dist/android/ for the Android app (ADR-010)
 ```
 
 - `scripts/build.ts` concatenates the core (`gts`, `layoutscan`,
@@ -79,6 +80,11 @@ pnpm --filter @guitarmr/demo build --no-samples # without the embedded samples
   `sample` (with images) capabilities, which provide the save dialog and
   Claude. Opened from disk it detects and edits, saves by a plain
   download, and hides the Claude step.
+- For the Android app (`android/`), `build:android` writes a whole
+  document with pdf.js next to it and `src/android-host.ts` in front:
+  it stands in for the claude.ai runtime, `sample` over the Claude API
+  with the user's own key (`src/api-sample.ts`) and `downloads` through
+  the app's save picker.
 
 `pnpm test` checks that the concatenated core detects exactly like the
 modules, that no top-level name is declared twice across the concatenated

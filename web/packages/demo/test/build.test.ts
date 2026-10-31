@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { analyzePage } from "@guitarmr/layoutscan";
 import { engrave, pixels, twinkle } from "@guitarmr/samples";
-import { appScript, build, coreScript, scriptOf, topLevelNames } from "../scripts/build.ts";
+import { androidHostScript, appScript, build, buildAndroid, coreScript, scriptOf, topLevelNames } from "../scripts/build.ts";
 
 describe("demo build", () => {
   it("If the sources are concatenated no import or export should remain", () => {
@@ -42,5 +42,15 @@ describe("demo build", () => {
     for (const url of urls) assert.match(url, /^https:\/\/(cdn\.jsdelivr\.net\/npm\/pdfjs-dist@\d+\.\d+\.\d+\/legacy\/build\/|fonts\.(googleapis|gstatic)\.com)/);
     assert.ok(urls.some((u) => u.endsWith("pdf.worker.min.mjs")));
     assert.doesNotMatch(html, /\/\*@[A-Z]+@\*\/|@PDFJS_WORKER@/);
+  });
+
+  it("If the Android page is built it should load pdf.js from the app only, with the host before the page", async () => {
+    const html = await buildAndroid(false);
+    assert.match(html, /^<!doctype html>/);
+    const urls = [...html.matchAll(/https:\/\/[^"'\s)]+/g)].map((m) => m[0]);
+    for (const url of urls) assert.match(url, /^https:\/\/(api\.anthropic\.com\/v1\/messages|fonts\.(googleapis|gstatic)\.com)/);
+    assert.match(html, /from "\.\/pdfjs\/pdf\.min\.mjs"/);
+    assert.ok(html.indexOf("installAndroidHost()") < html.indexOf('<script type="module">'));
+    assert.doesNotMatch(androidHostScript(), /^\s*(import|export)\s/m);
   });
 });

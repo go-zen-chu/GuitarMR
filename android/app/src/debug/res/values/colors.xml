@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The preview app's icon stands apart from the release app's. -->
+    <color name="icon_background">#D0167A</color>
+    <color name="icon_accent">#1C2027</color>
+</resources>

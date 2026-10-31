@@ -532,6 +532,7 @@ async function read(pages?: number[], layer: ReadLayer = "structure") {
     rate_limited: "Claude の利用上限に達しました。時間をおいて「続きを読む」を押してください。",
     not_granted: "Claude の利用が許可されませんでした。",
     upstream_error: "Claude に接続できませんでした。少し待ってからもう一度押してください。",
+    invalid_api_key: "Claude API キーが使えませんでした。もう一度押すとキーを入れ直せます。",
   };
   if (result.error) {
     ui.readStatus.textContent =
