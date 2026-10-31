@@ -45,7 +45,7 @@ android {
             create("release") {
                 storeFile = file(releaseKeystore)
                 storePassword = System.getenv("TKY_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("TKY_KEY_ALIAS")
+                keyAlias = "tky"
                 keyPassword = System.getenv("TKY_KEY_PASSWORD")
             }
         }

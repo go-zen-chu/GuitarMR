@@ -66,8 +66,10 @@ the debug key.
 | --- | --- |
 | `TKY_KEYSTORE_BASE64` | The keystore, base64 |
 | `TKY_KEYSTORE_PASSWORD` | Its password |
-| `TKY_KEY_ALIAS` | The key alias |
 | `TKY_KEY_PASSWORD` | The key password |
+
+The key alias is `tky` (in `app/build.gradle.kts`): not a secret, and as
+one it would mask every "tky" in the CI logs.
 
 `android/scripts/setup-signing.sh` creates the key once (in
 `~/.config/tky/` by default) and registers the secrets with `gh`.

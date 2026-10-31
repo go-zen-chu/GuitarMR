@@ -37,7 +37,6 @@ jobs:
     env:
       KEYSTORE_BASE64: ${{ secrets.TKY_KEYSTORE_BASE64 }}
       TKY_KEYSTORE_PASSWORD: ${{ secrets.TKY_KEYSTORE_PASSWORD }}
-      TKY_KEY_ALIAS: ${{ secrets.TKY_KEY_ALIAS }}
       TKY_KEY_PASSWORD: ${{ secrets.TKY_KEY_PASSWORD }}
       TKY_VERSION_CODE: ${{ github.run_number }}
       TKY_PREVIEW_LABEL: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.number) || github.ref_name }}

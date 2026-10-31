@@ -12,7 +12,7 @@ set -euo pipefail
 REPO="${TKY_REPO:-go-zen-chu/GuitarMR}"
 KEYSTORE="${1:-$HOME/.config/tky/tky-release.jks}"
 PASSWORD_FILE="$KEYSTORE.password"
-ALIAS="tky"
+ALIAS="tky" # app/build.gradle.kts signs with this alias
 
 command -v keytool >/dev/null || { echo "keytool not found: install a JDK (e.g. brew install openjdk@17)" >&2; exit 1; }
 command -v gh >/dev/null || { echo "gh not found: install the GitHub CLI and run gh auth login" >&2; exit 1; }
@@ -35,6 +35,5 @@ fi
 base64 < "$KEYSTORE" | tr -d '\n' | gh secret set TKY_KEYSTORE_BASE64 -R "$REPO"
 gh secret set TKY_KEYSTORE_PASSWORD -R "$REPO" < "$PASSWORD_FILE"
 gh secret set TKY_KEY_PASSWORD -R "$REPO" < "$PASSWORD_FILE"
-printf '%s' "$ALIAS" | gh secret set TKY_KEY_ALIAS -R "$REPO"
 echo "Registered the signing secrets in $REPO."
 keytool -list -v -keystore "$KEYSTORE" -storepass:file "$PASSWORD_FILE" | grep -m1 "SHA256:"
