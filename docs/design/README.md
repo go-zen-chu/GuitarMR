@@ -229,8 +229,8 @@ core could be TypeScript or Rust compiled to WebAssembly.
   opens a PDF from the device, runs every step in the browser (Web Worker)
   and saves results locally, exporting `song.gts.json` through the share
   sheet / download. No server of ours ever sees a score.
-- **Input**: PDF only for now. Photo input (image files, then perspective
-  and lighting correction for camera photos) is at the top of the backlog.
+- **Input**: PDF, or camera photos (one per page; see the amendment of
+  2026-10-17).
 - **Users**: the author only for now. Distribution to others (a key relay
   server, store packaging) is in the backlog.
 - **LLM steps**: the user's own Claude API key is stored on the device and
@@ -268,3 +268,73 @@ only the system images cut from the score are sent, never the PDF. The
 API-key path stays the plan for the standalone PWA. The reader takes the
 model call as a parameter (`readPages(sample, ...)`), so the standalone
 PWA only adds the other backend.
+
+**Amendment (2026-10-17)**: photos as input, and a library on the device.
+- **Photos**: one photo per page, taken one by one with the camera or
+  picked together, ordered in a tray and analyzed as one score. Since a
+  score is dark ink on white paper, the sheet is the largest bright area
+  of the photo: it is found there (thin ink closed over, convex hull
+  reduced to four corners, sides refined by line fits), cut out with its
+  perspective undone (the sheet's aspect ratio is solved from the
+  perspective, falling back to a phone's usual focal length, and snapped
+  to √2 for A/B paper) and its lighting flattened (paper brightness per
+  channel divided out, which also removes a warm cast), all before
+  detection (`correctPhoto` in `@guitarmr/layoutscan`, hand-written like
+  the rest). Claude reads the systems cut from the corrected page. The gts
+  file records each page's photo file and the sheet's corners in it
+  (`source.pages[].file`, `.paper`), so regions can be mapped back to the
+  photo; the score's `sha256` covers the photos in page order.
+- **Library**: every PDF or set of photos opened is stored with the work on
+  it (the gts document) in the browser's IndexedDB, so a score can be
+  opened, re-analyzed and continued later without picking the files
+  again, and nothing leaves the device. It replaces the localStorage
+  drafts (moved over when found). Persistent storage is requested; saving
+  `.gts.json` remains the durable copy.
+- **Moving devices**: the library is exported as one JSON Lines file,
+  written light to heavy (header, every score with its gts document, then
+  the files in chunks of 768 KB, smallest file first, each file with its
+  SHA-256, then an end mark). Import reads it line by line and skips what
+  it cannot read; a score whose files do not arrive whole keeps its work
+  and comes without files. The newer work wins when a score is already on
+  the device. The file goes through the save dialog, like `.gts.json`, so
+  it never passes a server of ours.
+
+## ADR-010: Ship the phone page as an Android app wrapping it in a WebView
+
+**Status**: Accepted (2026-10-28)
+
+**Context**: The phone page (ADR-009) runs as a claude.ai Artifact, whose
+runtime provides reading with Claude (`sample`) and saving (`downloads`).
+On an Android phone the author wants an installed app that updates itself
+from GitHub, like go-zen-chu/ws: releases from `main`, and PR builds
+installable for trying changes on the device. Options were a native
+rewrite, a PWA, a wrapper framework (Capacitor), or a plain WebView app.
+
+**Decision**: A plain Kotlin WebView app, **tky** (`xyz.amasuda.tky`, on
+the author's domain), under `android/` with no libraries. The page is built for it (`build:android`: a whole document,
+pdf.js bundled next to it) and served from the app's assets on
+`https://appassets.androidplatform.net`. A small host script
+(`android-host.ts`) stands in for the claude.ai runtime as
+`globalThis.claude`, so the page itself stays the same:
+- `sample` calls the Claude Messages API from the page with the user's own
+  API key (the direct browser access mode of ADR-009); the key is kept in
+  the app's private storage, asked for on the first reading and dropped
+  when the API rejects it.
+- `downloads` goes through Android's save picker; file inputs open the
+  document picker, `capture` inputs the camera app.
+- CI (`.github/workflows/android.yml`) signs every build with one release
+  key from repository secrets. `main` publishes a GitHub Release; each PR
+  publishes its preview app (another package id) as a prerelease, which
+  Obtainium installs with prereleases turned on.
+
+**Consequences**:
+- One page for the Artifact and the app; app-only behavior is in the host
+  script and the Kotlin bridge, both unit tested.
+- The API key sits in the app's private storage and is visible to the
+  page's script; only the bundled page runs in the WebView (other links
+  open in the browser), and backups of the app data are turned off.
+- Reading is billed to the user's API account instead of their claude.ai
+  plan. The default model is set in `api-sample.ts`.
+- Losing the signing key means installed apps cannot be updated in place,
+  so it is backed up outside GitHub.
+

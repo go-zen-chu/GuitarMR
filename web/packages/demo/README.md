@@ -3,19 +3,44 @@
 A single HTML file that digitizes a scanned guitar score on a phone, as the
 first step toward the phone/tablet PWA (ADR-009):
 
-1. Pick a scanned PDF. Every page is rendered with pdf.js and analyzed in
-   a Web Worker on the device (layoutscan): orientation, systems and
-   measures, the `layout` layer.
+1. Pick a scanned PDF, or take photos of the pages ("カメラで撮る", one
+   photo per page; several photos can also be picked at once). Photos
+   wait in a tray where they are put in page order, then are analyzed
+   together. Every PDF page is rendered with pdf.js, every photo decoded
+   (EXIF orientation applied), and analyzed in a Web Worker on the device
+   (layoutscan): a photo is corrected first (`correctPhoto`: the white
+   sheet cut out, perspective undone, lighting flattened), then
+   orientation, systems and measures give the `layout` layer. Photo pages
+   show the original photo with the sheet's outline under the corrected
+   page.
 2. "読み取る" sends one image per system (with measure-id tags) to Claude
    on the viewer's own claude.ai account, one request per page, and fills
    the `structure` and `chords` layers (`@guitarmr/extract`). The PDF
-   itself is never sent.
+   itself (or the photo) is never sent; for photos the images are cut
+   from the corrected page.
+   Once chords and structure are read, "TAB（リズム・フレット）を読む"
+   reads the tab layer the same way (one tab line per measure, see
+   `@guitarmr/extract`); measures whose beats do not add up or whose notes
+   cannot be played are marked for review.
 3. The score shows the read chords and signs over each measure, colored by
    state (unread, read by AI, needs attention, reviewed). Tapping a
    measure opens an editor with the measure image, chords, section start,
-   bar lines and signs; "確認済みにして次へ" marks it reviewed.
-4. Save `<name>.gts.json`. Work in progress is also kept as a draft in the
-   browser, and a saved gts file can be opened again to continue.
+   bar lines and signs, the tab as a tab line with a running beat total,
+   and what the checks found about the measure; "確認済みにして次へ"
+   marks it reviewed. Above the save button, the checks across the score
+   (repeats, endings, D.S./Coda, sections, and each measure's tab) are
+   listed; tapping one opens its measure.
+4. Save `<name>.gts.json`. The library on the device (`src/library.ts`,
+   IndexedDB) keeps every opened PDF or set of photos together with the
+   work on it; it is listed at the top of the page, where a score is
+   opened again (analyzed again from the stored files, then the stored
+   work restored) or deleted. Nothing in it leaves the device. A saved gts
+   file can also be opened again to continue. "別の端末へ引っ越す" writes
+   the whole library to one `guitarmr-library-<date>.jsonl` file and
+   takes such a file in on the new device (`src/transfer.ts`): the work
+   on every score comes first and the PDFs and photos last, in chunks
+   checked by SHA-256, so a file cut short or damaged still moves all the
+   work.
 5. Play it: the play view (`src/player.ts`) shows the measures in play
    order (repeats, endings and D.S./D.C./Coda expanded by `playOrder` in
    `@guitarmr/gts`), each with its chords spread by duration, the verse
@@ -35,6 +60,7 @@ first step toward the phone/tablet PWA (ADR-009):
 ```sh
 pnpm --filter @guitarmr/demo build              # dist/layoutscan-demo.html
 pnpm --filter @guitarmr/demo build --no-samples # without the embedded samples
+pnpm --filter @guitarmr/demo build:android      # dist/android/ for the Android app (ADR-010)
 ```
 
 ## Local dev server
@@ -88,7 +114,8 @@ copy; that listens on every interface, so only do it on a trusted network.
   `package.json`.
 - `src/app.ts` runs the page, `src/score-view.ts` draws the SVG layer over
   each page image, `src/editor.ts` is the measure editor and
-  `src/reader.ts` cuts the images and calls Claude. `src/preview.ts` and
+  `src/reader.ts` cuts the images and calls Claude. `src/photos.ts`
+  decodes photos and runs the tray, `src/library.ts` is the library. `src/preview.ts` and
   `src/worker.ts` run in the worker (detection plus a 2400 px upright
   preview, kept as a JPEG).
 - The output is a page body without `<html>`/`<head>`: it is published as
@@ -96,6 +123,11 @@ copy; that listens on every interface, so only do it on a trusted network.
   `sample` (with images) capabilities, which provide the save dialog and
   Claude. Opened from disk it detects and edits, saves by a plain
   download, and hides the Claude step.
+- For the Android app (`android/`), `build:android` writes a whole
+  document with pdf.js next to it and `src/android-host.ts` in front:
+  it stands in for the claude.ai runtime, `sample` over the Claude API
+  with the user's own key (`src/api-sample.ts`) and `downloads` through
+  the app's save picker.
 
 `pnpm test` checks that the concatenated core detects exactly like the
 modules, that no top-level name is declared twice across the concatenated

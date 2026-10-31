@@ -49,7 +49,8 @@ export function updateMeasure(document: GtsDocument, id: string, patch: Partial<
   const m = measures(doc).find((x) => x.id === id);
   if (!m) throw new Error(`no measure ${id}`);
   for (const [key, value] of Object.entries(patch) as [keyof Measure, unknown][]) {
-    if (value === undefined || (Array.isArray(value) && value.length === 0 && key !== "chords")) delete m[key];
+    // Empty chords and beats are kept: read, nothing written there.
+    if (value === undefined || (Array.isArray(value) && value.length === 0 && key !== "chords" && key !== "beats")) delete m[key];
     else (m as Record<string, unknown>)[key] = value;
   }
   if (m.simile) delete m.beats;

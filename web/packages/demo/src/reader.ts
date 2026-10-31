@@ -5,8 +5,17 @@
  * account and nothing else sees the score.
  */
 
-import type { GtsDocument } from "@guitarmr/gts";
-import { type SystemCrop, applyReading, cropsByPage, pagePrompt, parseReading } from "@guitarmr/extract";
+import { type GtsDocument, measures } from "@guitarmr/gts";
+import {
+  type SystemCrop,
+  applyReading,
+  applyTabReading,
+  cropsByPage,
+  pagePrompt,
+  parseReading,
+  parseTabReading,
+  tabPrompt,
+} from "@guitarmr/extract";
 
 /** The part of the claude.ai sample capability used here. */
 export interface Sample {
@@ -100,8 +109,17 @@ export interface ReadResult {
   error?: { code: string; message: string };
 }
 
+/** What a reading pass fills: structure and chords (with the header), or the tab layer. */
+export type ReadLayer = "structure" | "tab";
+
 /** Read the given pages in order; each finished request is committed at once. */
-export async function readPages(sample: Sample, host: ReaderHost, pages: number[], signal: AbortSignal): Promise<ReadResult> {
+export async function readPages(
+  sample: Sample,
+  host: ReaderHost,
+  pages: number[],
+  signal: AbortSignal,
+  layer: ReadLayer = "structure",
+): Promise<ReadResult> {
   const maxCount = (await sample.limits().catch(() => null))?.images?.maxCount ?? 0;
   if (maxCount < 1) return { warnings: [], error: { code: "images_unavailable", message: "no images" } };
   const firstPage = Math.min(...cropsByPage(host.doc()).keys());
@@ -111,15 +129,23 @@ export async function readPages(sample: Sample, host: ReaderHost, pages: number[
     const image = host.pageImage(page);
     if (!crops.length || !image) continue;
     // The page-top image for the header takes one of the first request's slots.
-    const header = page === firstPage && maxCount > 1;
+    const header = layer === "structure" && page === firstPage && maxCount > 1;
     for (let i = 0; i < crops.length; ) {
       const first = i === 0 && header;
       const chunk = crops.slice(i, i + maxCount - (first ? 1 : 0));
       i += chunk.length;
       const ids = chunk.flatMap((c) => c.measures.map((m) => m.id));
-      host.progress(`p${page + 1} を読んでいます（${n + 1} / ${pages.length} ページ）…`);
+      host.progress(`p${page + 1}${layer === "tab" ? " の TAB" : ""} を読んでいます（${n + 1} / ${pages.length} ページ）…`);
       try {
         const images = await systemImages(image, chunk, first);
+        if (layer === "tab") {
+          const simile = new Set(measures(host.doc()).filter((m) => m.simile).map((m) => m.id!));
+          const answer = await sample.json(tabPrompt(chunk, simile), { images, signal });
+          const reading = parseTabReading(answer, ids);
+          warnings.push(...reading.warnings.map((w) => `p${page + 1} ${w}`));
+          host.commit(applyTabReading(host.doc(), reading));
+          continue;
+        }
         const prompt = pagePrompt(chunk, { header: first });
         const answer = await sample.json(prompt, { images, signal });
         const reading = parseReading(answer, ids);

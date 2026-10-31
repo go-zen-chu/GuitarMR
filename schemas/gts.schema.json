@@ -61,8 +61,12 @@
       "required": ["file", "pages"],
       "additionalProperties": false,
       "properties": {
-        "file": { "description": "PDF file name the data was extracted from.", "type": "string" },
-        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "file": { "description": "PDF file name the data was extracted from; for a score taken as photos, the first photo's file name.", "type": "string" },
+        "sha256": {
+          "description": "SHA-256 of the PDF file; for photos, of the photo files' bytes concatenated in page order.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
         "pages": {
           "type": "array",
           "minItems": 1,
@@ -71,10 +75,23 @@
             "required": ["index", "rotation"],
             "additionalProperties": false,
             "properties": {
-              "index": { "description": "0-based page index in the PDF.", "type": "integer", "minimum": 0 },
+              "index": { "description": "0-based page index in the PDF, or in the list of photos.", "type": "integer", "minimum": 0 },
               "rotation": {
                 "description": "Clockwise degrees to rotate the rendered page to make it upright. Regions are expressed in upright coordinates.",
                 "enum": [0, 90, 180, 270]
+              },
+              "file": { "description": "For a score taken as photos (one photo per page): the photo file of this page.", "type": "string" },
+              "paper": {
+                "description": "For photos: corners of the sheet of paper found in the photo (top-left, top-right, bottom-right, bottom-left as seen in the photo), as [x, y] normalized to 0..1 of the photo after its EXIF orientation. The sheet was cut out along them, its perspective undone and its lighting flattened; that corrected page is the rendered page that rotation and regions refer to. Absent when no sheet was found and the whole photo was used.",
+                "type": "array",
+                "minItems": 4,
+                "maxItems": 4,
+                "items": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 2,
+                  "items": { "type": "number", "minimum": 0, "maximum": 1 }
+                }
               }
             }
           }

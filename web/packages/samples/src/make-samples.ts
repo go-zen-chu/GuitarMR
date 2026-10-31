@@ -10,11 +10,11 @@
 import { writeFileSync } from "node:fs";
 import type { GtsDocument, Measure } from "@guitarmr/gts";
 import { validate } from "@guitarmr/gts/validate";
-import { type ScannedPage, analyzePage, buildDocument, renderPages, sha256Hex } from "@guitarmr/layoutscan";
+import { type Quad, type ScannedPage, analyzePage, buildDocument, renderPages, sha256Hex } from "@guitarmr/layoutscan";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { type SKRSContext2D } from "@napi-rs/canvas";
 import { addJapaneseTeacherNotes, addTeacherNotes, engrave, pixels } from "./engrave.ts";
-import { simulateScan, writePdf } from "./scan.ts";
+import { PHOTO_CORNERS, encodeJpeg, simulatePhoto, simulateScan, writePdf } from "./scan.ts";
 import { sakura, twinkle } from "./songs.ts";
 
 export const EXAMPLES = new URL("../../../../schemas/examples/", import.meta.url);
@@ -102,6 +102,25 @@ export async function generatePdf(name: string): Promise<Uint8Array> {
   const sample = SAMPLES[name];
   if (!sample) throw new Error(`unknown sample ${name}; known: ${Object.keys(SAMPLES).join(", ")}`);
   return writePdf(scanPages(sample, sample.build()));
+}
+
+/**
+ * Phone photos of the sample's pages (JPEG, one per page), the engraved
+ * pages with the teacher's notes lying on a desk (see simulatePhoto). The
+ * second and later pages are photographed upside down.
+ */
+export async function generatePhotos(name: string): Promise<Uint8Array[]> {
+  const sample = SAMPLES[name];
+  if (!sample) throw new Error(`unknown sample ${name}; known: ${Object.keys(SAMPLES).join(", ")}`);
+  const { pages } = engrave(sample.build(), sample.systemsPerPage);
+  const photos: Uint8Array[] = [];
+  for (const [i, ctx] of pages.entries()) {
+    if (i === 0) sample.teacherNotes(ctx);
+    const [tl, tr, br, bl] = PHOTO_CORNERS;
+    const corners: Quad = i === 0 ? [tl, tr, br, bl] : [br, bl, tl, tr];
+    photos.push(await encodeJpeg(simulatePhoto(pixels(ctx), corners, i).image));
+  }
+  return photos;
 }
 
 /**

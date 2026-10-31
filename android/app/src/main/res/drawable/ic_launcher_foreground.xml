@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Six tab lines with one fret mark, inside the adaptive icon's 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/icon_foreground"
+        android:pathData="M30,36h48v2.5h-48zM30,43h48v2.5h-48zM30,50h48v2.5h-48zM30,57h48v2.5h-48zM30,64h48v2.5h-48zM30,71h48v2.5h-48zM30,36h2.5v37.5h-2.5zM75.5,36h2.5v37.5h-2.5z" />
+    <path
+        android:fillColor="@color/icon_accent"
+        android:pathData="M54,51.25m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" />
+</vector>

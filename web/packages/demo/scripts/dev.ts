@@ -9,6 +9,7 @@
 
 import { watch } from "node:fs";
 import { type ServerResponse, createServer } from "node:http";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { loadSamples, renderPage } from "./build.ts";
 
@@ -100,7 +101,7 @@ export function watchSources(folders: URL[], onChange: (file: string) => void, d
   let last = "";
   const watchers = folders.map((folder) =>
     watch(folder, { recursive: true }, (_event, file) => {
-      last = `${folder.pathname}${file ?? ""}`;
+      last = `${fileURLToPath(folder)}${file ?? ""}`;
       clearTimeout(timer);
       timer = setTimeout(() => onChange(last), debounceMs);
     }),
@@ -127,7 +128,8 @@ export function parseOptions(args: string[]): { host: string; port: number; with
   return { host: values.host, port, withSamples: !values["no-samples"] };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Compared as paths: the URL form percent-encodes non-ASCII directory names.
+if (fileURLToPath(import.meta.url) === process.argv[1]) {
   const { host, port, withSamples } = parseOptions(process.argv.slice(2));
   const samples = await loadSamples(withSamples);
   const server = await startDevServer({ host, port, render: () => renderPage(samples) });

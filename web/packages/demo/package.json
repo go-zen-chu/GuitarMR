@@ -6,6 +6,7 @@
   "description": "Single-file browser demo of layoutscan: pick a PDF, detect systems and measures on the device, save the gts layout layer",
   "scripts": {
     "build": "node scripts/build.ts",
+    "build:android": "node scripts/build.ts --android",
     "dev": "node scripts/dev.ts",
     "test": "node --test \"test/**/*.test.ts\"",
     "typecheck": "tsc -p ."
