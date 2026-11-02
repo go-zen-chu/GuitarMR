@@ -47,9 +47,8 @@ open packages/demo/dist/layoutscan-demo.html   # macOS; or open the file in any 
 ```
 
 To keep it running while editing, `pnpm --filter @guitarmr/demo dev`
-serves it on http://127.0.0.1:5173/ and reloads the page on every save;
-see [web/packages/demo](web/packages/demo/README.md#local-dev-server) for
-opening it from another device over Tailscale.
+serves it on http://127.0.0.1:5173/ and reloads the page on every save
+(see [web/packages/demo](web/packages/demo/README.md#local-dev-server)).
 
 Opened from disk or the dev server, the page detects measures, edits, plays and saves gts
 files; reading chords and structure with Claude ("読み取る") only works
