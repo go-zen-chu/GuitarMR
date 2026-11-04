@@ -97,15 +97,27 @@ const inline = (code: string) => code.replaceAll("</script", "<\\/script");
 
 export const androidHostScript = (): string => `(() => {\n${ANDROID_HOST.map(scriptOf).join("\n")}\ninstallAndroidHost();\n})();`;
 
-/** The page body (what the claude.ai Artifact host wraps), loading pdf.js from `pdfjsBase`. */
-export async function build(withSamples = true, pdfjsBase = PDFJS_CDN): Promise<string> {
-  const samples: ((typeof SAMPLES)[number] & { pdf: string })[] = [];
+export type EmbeddedSample = (typeof SAMPLES)[number] & { pdf: string };
+
+/** The sample PDFs, generated and base64-encoded for embedding (none without samples). */
+export async function loadSamples(withSamples = true): Promise<EmbeddedSample[]> {
+  const samples: EmbeddedSample[] = [];
   if (withSamples) {
     for (const s of SAMPLES) {
       const pdf = await generatePdf(s.file.replace(/\.pdf$/, ""));
       samples.push({ ...s, pdf: Buffer.from(pdf).toString("base64") });
     }
   }
+  return samples;
+}
+
+/** The page body (what the claude.ai Artifact host wraps), loading pdf.js from `pdfjsBase`. */
+export async function build(withSamples = true, pdfjsBase = PDFJS_CDN): Promise<string> {
+  return renderPage(await loadSamples(withSamples), pdfjsBase);
+}
+
+/** The page body from the current sources with the given samples embedded (the dev server calls it on every change). */
+export function renderPage(samples: EmbeddedSample[], pdfjsBase = PDFJS_CDN): string {
   const app = appScript()
     .replace('from "pdfjs-dist"', `from "${pdfjsBase}pdf.min.mjs"`)
     .replace('"@PDFJS_WORKER@"', JSON.stringify(`${pdfjsBase}pdf.worker.min.mjs`));

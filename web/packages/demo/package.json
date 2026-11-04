@@ -7,6 +7,7 @@
   "scripts": {
     "build": "node scripts/build.ts",
     "build:android": "node scripts/build.ts --android",
+    "dev": "node scripts/dev.ts",
     "test": "node --test \"test/**/*.test.ts\"",
     "typecheck": "tsc -p ."
   },

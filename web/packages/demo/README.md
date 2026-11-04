@@ -89,3 +89,17 @@ pnpm --filter @guitarmr/demo build:android      # dist/android/ for the Android 
 `pnpm test` checks that the concatenated core detects exactly like the
 modules, that no top-level name is declared twice across the concatenated
 files, and that the page only loads the pinned pdf.js and fonts.
+
+## Local dev server
+
+```sh
+pnpm --filter @guitarmr/demo dev   # http://127.0.0.1:5173/
+```
+
+`scripts/dev.ts` serves the page and rebuilds it when a file under
+`gts/src`, `layoutscan/src`, `extract/src`, `demo/src` or
+`schemas/examples` changes; open tabs reload by themselves, and a build
+error is shown in the page until it is fixed. Options: `--port <n>`,
+`--host <addr>`, `--no-samples` (the sample PDFs are generated once at
+start; restart after changing `@guitarmr/samples`). As when opened from
+disk, the Claude step is hidden and pdf.js and fonts load from their CDNs.
