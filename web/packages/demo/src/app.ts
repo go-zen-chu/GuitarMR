@@ -1,11 +1,12 @@
 /**
- * The demo page: pick a PDF or take photos of the pages, render or decode
- * them, detect every page in the worker (photos are corrected first: the
- * sheet cut out, perspective and lighting fixed), let Claude read chords
- * and structure from the measure images, review and correct them measure
- * by measure, and save the gts file. The files and the work stay on the
- * device (the library, in IndexedDB); only the system images go to Claude,
- * on the viewer's own claude.ai account.
+ * The phone page (tky): the scores read so far come first; scanning is a
+ * screen of its own: pick a PDF or take photos of the pages, render or
+ * decode them, detect every page in the worker (photos are corrected first:
+ * the sheet cut out, perspective and lighting fixed), and the score opens.
+ * There Claude reads chords and structure from the measure images, they are
+ * reviewed and corrected measure by measure, played and saved as a gts file.
+ * The files and the work stay on the device (the library, in IndexedDB);
+ * only the system images go to Claude, on the viewer's own claude.ai account.
  *
  * The core packages are not imported at run time: scripts/build.ts puts
  * them in a classic script before this module (their functions become
@@ -23,6 +24,7 @@ import { exportLibrary, importLibrary, isLibraryExport, linesOf, mergeEntry } fr
 import { createPlayer } from "./player.ts";
 import type { DetectResult } from "./preview.ts";
 import { type ReadLayer, type Sample, readPages } from "./reader.ts";
+import { type Route, parentRoute, parseRoute, routeHash } from "./router.ts";
 import { type PageView, drawPage, statusOf } from "./score-view.ts";
 
 /** Replaced by scripts/build.ts with the pdf.js worker on the CDN. */
@@ -38,10 +40,24 @@ interface SampleFile {
 interface Downloads {
   save(request: { filename: string; data: string }): Promise<{ status: string }>;
 }
+/** The Android app's own dialog to change or remove the Claude API key. */
+interface ApiKeySettings {
+  open(): void;
+}
 const claude = (globalThis as { claude?: { use(name: string): Promise<unknown> } }).claude;
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const ui = {
+  views: {
+    library: $<HTMLElement>("view-library"),
+    scan: $<HTMLElement>("view-scan"),
+    score: $<HTMLElement>("view-score"),
+    settings: $<HTMLElement>("view-settings"),
+  } satisfies Record<Route["view"], HTMLElement>,
+  tabs: [...document.querySelectorAll<HTMLAnchorElement>(".tabs [data-tab]")],
+  settingsLink: $<HTMLAnchorElement>("settings-link"),
+  apiKey: $<HTMLElement>("api-key"),
+  apiKeyOpen: $<HTMLButtonElement>("api-key-open"),
   file: $<HTMLInputElement>("pdf-file"),
   camera: $<HTMLInputElement>("camera"),
   trayCamera: $<HTMLInputElement>("tray-camera"),
@@ -50,11 +66,13 @@ const ui = {
   libraryList: $<HTMLUListElement>("library-list"),
   libraryNote: $<HTMLElement>("library-note"),
   libraryEmpty: $<HTMLElement>("library-empty"),
+  libraryUnavailable: $<HTMLElement>("library-unavailable"),
   libraryExport: $<HTMLButtonElement>("library-export"),
   libraryWithFiles: $<HTMLInputElement>("library-with-files"),
   libraryImport: $<HTMLInputElement>("library-import"),
   libraryMessage: $<HTMLElement>("library-message"),
   samples: $<HTMLDivElement>("samples"),
+  statusBox: $<HTMLElement>("status-box"),
   status: $<HTMLParagraphElement>("status"),
   progress: $<HTMLProgressElement>("progress"),
   summary: $<HTMLElement>("summary"),
@@ -127,6 +145,7 @@ const state = {
 let run = 0; // a newer analysis cancels the running one
 
 function setStatus(text: string, progress: number | null = null) {
+  ui.statusBox.hidden = !text && progress === null;
   ui.status.textContent = text;
   ui.progress.hidden = progress === null;
   if (progress !== null) ui.progress.value = progress;
@@ -361,6 +380,7 @@ function reset() {
   state.photoUrls = [];
   state.pages.clear();
   state.doc = state.detected = null;
+  state.sha256 = "";
   ui.summary.hidden = true;
   ui.pages.replaceChildren();
 }
@@ -469,6 +489,8 @@ async function analyze(source: Source) {
   commit(draft ?? state.detected, false);
   setStatus("");
   void renderLibrary();
+  // A finished scan opens its score; one finished while the viewer went elsewhere waits in the list.
+  if (route.view === "scan" || route.view === "score") navigate({ view: "score", id: sha256 }, route.view === "score");
 }
 
 function dropLegacy(sha256: string) {
@@ -627,6 +649,7 @@ async function openGts(file: File) {
     commit(doc);
     ui.draftNote.hidden = true;
     ui.saveNote.textContent = `${file.name} を開きました。`;
+    navigate({ view: "score", id: state.sha256 });
   } catch (e) {
     ui.saveNote.textContent = `${file.name} を開けませんでした（${(e as Error).message}）。`;
   }
@@ -655,7 +678,7 @@ for (const s of scores) {
   button.querySelector("span")!.textContent = s.label;
   button.querySelector("small")!.textContent = s.note;
   button.addEventListener("click", () => player.open(structuredClone(s.gts)));
-  ui.playSamples.insertBefore(button, ui.playSamples.querySelector(".file-link"));
+  ui.playSamples.append(button);
 }
 ui.playOpen.addEventListener("click", () => state.doc && player.open(state.doc));
 ui.playGts.addEventListener("change", () => {
@@ -667,6 +690,12 @@ ui.playGts.addEventListener("change", () => {
 const decode = (b64: string): Uint8Array => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 
 const samples: SampleFile[] = JSON.parse($("samples-data").textContent!);
+let sampleIds: Promise<Map<string, SampleFile>> | null = null;
+/** The built-in sample whose PDF has the SHA-256 `id`, if any (hashed once, on first use). */
+async function sampleById(id: string): Promise<SampleFile | undefined> {
+  sampleIds ??= Promise.all(samples.map(async (s) => [await sha256Hex(decode(s.pdf)), s] as const)).then((pairs) => new Map(pairs));
+  return (await sampleIds).get(id);
+}
 for (const s of samples) {
   const button = document.createElement("button");
   button.type = "button";
@@ -705,6 +734,7 @@ async function openFiles(files: File[]) {
     const head = new TextDecoder().decode(bytes.subarray(0, 1024));
     if (files.length === 1 && isLibraryExport(head)) {
       setStatus("");
+      navigate({ view: "settings" });
       return importFile(file);
     }
     if (files.length === 1 && head.trimStart().startsWith("{") && state.doc) {
@@ -713,12 +743,14 @@ async function openFiles(files: File[]) {
     }
     if (head.indexOf("%PDF-") >= 0) {
       tray.clear();
+      navigate({ view: "scan" });
       return analyze({ kind: "pdf", name: file.name, bytes });
     }
     if (isImage(bytes, file.type)) photos.push({ name: file.name, type: file.type || "image/jpeg", bytes });
     else skipped.push(file.name);
   }
   if (photos.length) {
+    navigate({ view: "scan" });
     tray.add(photos);
     setStatus(skipped.length ? `${skipped.join("、")} は PDF でも写真でもないので外しました。` : "");
     return;
@@ -732,7 +764,8 @@ const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "nu
 async function renderLibrary() {
   const [available, entries, usage] = await Promise.all([library.available(), library.list(), library.usage()]);
   ui.library.hidden = !available;
-  ui.libraryEmpty.hidden = entries.length > 0;
+  ui.libraryUnavailable.hidden = available;
+  ui.libraryEmpty.hidden = !available || entries.length > 0;
   ui.libraryExport.disabled = entries.length === 0;
   ui.libraryList.replaceChildren(
     ...entries.map((entry) => {
@@ -751,21 +784,29 @@ async function renderLibrary() {
             ? `写真 ${entry.files.length} 枚`
             : "PDF",
         summary ? `確認済み ${summary.reviewed} / ${summary.total} 小節` : "未読",
+        ...(summary?.attention ? [`要確認 ${summary.attention}`] : []),
         dateFormat.format(entry.updated),
       ].join(" · ");
       text.append(title, facts);
-      const open = document.createElement("button");
-      open.type = "button";
+      const actions = document.createElement("div");
+      actions.className = "entry-actions";
       if (entry.files.length) {
-        open.textContent = entry.id === state.sha256 ? "開き直す" : "開く";
-        open.addEventListener("click", () => void openEntry(entry.id));
-      } else {
-        // Work without its files (imported without them): it still plays.
-        open.textContent = "演奏ビュー";
-        open.disabled = !entry.doc;
-        open.addEventListener("click", () => entry.doc && player.open(entry.doc));
+        const open = document.createElement("button");
+        open.type = "button";
+        open.className = "primary";
+        open.textContent = "開く";
+        open.title = pages ? `${pages} ページ` : "";
+        open.addEventListener("click", () => navigate({ view: "score", id: entry.id }));
+        actions.append(open);
       }
-      open.title = pages ? `${pages} ページ` : "";
+      // Something read can be played; work without its files (imported without them) still plays.
+      if (entry.doc && (!entry.files.length || (summary && summary.unread < summary.total))) {
+        const play = document.createElement("button");
+        play.type = "button";
+        play.textContent = "演奏ビュー";
+        play.addEventListener("click", () => entry.doc && player.open(entry.doc));
+        actions.append(play);
+      }
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "danger";
@@ -776,7 +817,8 @@ async function renderLibrary() {
         await library.remove(entry.id);
         void renderLibrary();
       });
-      li.append(text, open, remove);
+      actions.append(remove);
+      li.append(text, actions);
       return li;
     }),
   );
@@ -837,22 +879,84 @@ ui.libraryImport.addEventListener("change", () => {
   if (file) void importFile(file);
 });
 
-/** Open a score from the library: analyze its stored files again, then continue the stored work. */
+/** Open the score `id`: analyze its stored files (or the built-in sample) again, then continue the stored work. */
 async function openEntry(id: string) {
-  const entry = await library.get(id);
-  if (!entry?.files.length) {
-    setStatus("このスコアのファイルが端末に残っていません。");
-    return;
+  opening = id;
+  try {
+    const entry = await library.get(id);
+    const bytes = (f: StoredFile) => new Uint8Array(f.data);
+    if (entry?.files.length) {
+      tray.clear();
+      await analyze(
+        entry.kind === "photos"
+          ? { kind: "photos", name: entry.name, photos: entry.files.map((f) => ({ name: f.name, type: f.type, bytes: bytes(f) })) }
+          : { kind: "pdf", name: entry.name, bytes: bytes(entry.files[0]!) },
+      );
+      return;
+    }
+    const sample = await sampleById(id);
+    if (sample) {
+      await analyze({ kind: "sample", name: sample.file, bytes: decode(sample.pdf) });
+      return;
+    }
+    setStatus(entry ? "この楽譜のファイルが端末に残っていません。" : "この楽譜はこの端末のライブラリにありません。");
+    if (route.view === "score" && route.id === id) navigate({ view: "library" }, true);
+  } finally {
+    if (opening === id) opening = null;
   }
-  tray.clear();
-  const bytes = (f: StoredFile) => new Uint8Array(f.data);
-  await analyze(
-    entry.kind === "photos"
-      ? { kind: "photos", name: entry.name, photos: entry.files.map((f) => ({ name: f.name, type: f.type, bytes: bytes(f) })) }
-      : { kind: "pdf", name: entry.name, bytes: bytes(entry.files[0]!) },
-  );
-  scrollTo({ top: ui.status.getBoundingClientRect().top + scrollY - 16 });
 }
+
+// The screens, kept in the URL hash (router.ts).
+let route: Route = parseRoute(location.hash);
+/** The score being opened from its route, so the route does not open it twice. */
+let opening: string | null = null;
+
+/** Show the screen of `next`, opening its score when another one is on screen. */
+function showRoute(next: Route) {
+  route = next;
+  for (const [view, el] of Object.entries(ui.views)) el.hidden = view !== next.view;
+  const tab = next.view === "score" ? "library" : next.view;
+  for (const a of ui.tabs) {
+    if (a.dataset.tab === tab) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  }
+  if (next.view === "settings") ui.settingsLink.setAttribute("aria-current", "page");
+  else ui.settingsLink.removeAttribute("aria-current");
+  if (next.view !== "score") editor.close();
+  scrollTo({ top: 0 });
+  if (next.view === "score" && next.id !== state.sha256 && next.id !== opening) void openEntry(next.id);
+}
+
+/** Go to the screen `next`; `replace` leaves no step back to the screen on show. */
+function navigate(next: Route, replace = false) {
+  const hash = routeHash(next);
+  if (location.hash === hash) return;
+  if (replace) location.replace(hash);
+  else location.hash = hash;
+}
+
+/**
+ * One step back, for the Android back button: close the editor or the play
+ * view, else go to the parent screen. False on the score list, where the
+ * app goes to the background.
+ */
+function back(): boolean {
+  if (player.isOpen()) {
+    player.close();
+    return true;
+  }
+  if (editor.current()) {
+    editor.close();
+    return true;
+  }
+  const parent = parentRoute(route);
+  if (!parent) return false;
+  navigate(parent, true);
+  return true;
+}
+(globalThis as { tky?: { back(): boolean } }).tky = { back };
+
+addEventListener("hashchange", () => showRoute(parseRoute(location.hash)));
 
 for (const input of [ui.file, ui.camera, ui.trayCamera, ui.trayFile]) {
   input.addEventListener("change", () => {
@@ -915,7 +1019,15 @@ ui.stop.addEventListener("click", () => readAbort?.abort());
 ui.save.addEventListener("click", save);
 ui.copy.addEventListener("click", copy);
 
+/** Offer the Android app's API key dialog in the settings. */
+async function setUpApiKeySettings() {
+  const settings = ((await claude?.use("apiKeySettings").catch(() => null)) as ApiKeySettings | null | undefined) ?? null;
+  if (!settings) return;
+  ui.apiKey.hidden = false;
+  ui.apiKeyOpen.addEventListener("click", () => settings.open());
+}
+
 void setUpAi();
+void setUpApiKeySettings();
 void renderLibrary();
-// Open in a working state: the first sample, analyzed on this device.
-if (samples[0]) void analyze({ kind: "sample", name: samples[0].file, bytes: decode(samples[0].pdf) });
+showRoute(route);

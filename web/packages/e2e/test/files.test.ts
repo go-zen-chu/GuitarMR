@@ -9,7 +9,7 @@ import { after, before, describe, it } from "node:test";
 import { validate } from "@guitarmr/gts/validate";
 import { generatePdf, writePdf } from "@guitarmr/samples";
 import type { Browser } from "playwright-core";
-import { analyzed, dropFiles, launch, loadExample, openPage } from "./helpers.ts";
+import { analyzed, dropFiles, launch, loadExample, openPage, openSample, show } from "./helpers.ts";
 
 type Doc = { source: { sha256: string }; sections: { measures: { id: string; review?: { status: string } }[] }[] };
 
@@ -35,7 +35,7 @@ describe("files in and out", { timeout: 300_000 }, () => {
 
   it("If a PDF is dropped on the page it should be analyzed like a picked one", async () => {
     const { page, errors } = await openPage(browser);
-    await analyzed(page, "sakura-sakura.pdf");
+    await openSample(page);
     await dropFiles(page, [{ name: "dropped.pdf", type: "application/pdf", bytes: song }]);
     await analyzed(page, "dropped.pdf");
     assert.match((await page.locator("#summary-stats").textContent())!, /1 ページ · 12 小節/);
@@ -44,7 +44,7 @@ describe("files in and out", { timeout: 300_000 }, () => {
 
   it("If several PDFs are picked the first should be analyzed", async () => {
     const { page, errors } = await openPage(browser);
-    await analyzed(page, "sakura-sakura.pdf");
+    await openSample(page);
     await page.setInputFiles("#pdf-file", [join(dir, "song.pdf"), join(dir, "other.pdf")]);
     await analyzed(page, "song.pdf");
     assert.deepEqual(errors, []);
@@ -52,7 +52,7 @@ describe("files in and out", { timeout: 300_000 }, () => {
 
   it("If a PDF is broken or has no TAB it should say so and keep the page usable", async () => {
     const { page, errors } = await openPage(browser);
-    await analyzed(page, "sakura-sakura.pdf");
+    await openSample(page);
     await page.setInputFiles("#pdf-file", join(dir, "broken.pdf"));
     await page.waitForFunction(() => document.querySelector("#status")?.textContent?.includes("broken.pdf を処理できませんでした"));
     await page.setInputFiles("#pdf-file", join(dir, "lyrics.pdf"));
@@ -66,7 +66,7 @@ describe("files in and out", { timeout: 300_000 }, () => {
 
   it("If a saved gts file is opened again it should continue only on its own PDF", async () => {
     const { page, errors } = await openPage(browser);
-    await analyzed(page, "sakura-sakura.pdf");
+    await openSample(page);
     // A gts of the open PDF, with one measure reviewed.
     const doc = structuredClone(loadExample("sakura-sakura.gts.json")) as Doc;
     doc.source.sha256 = sakuraSha;
@@ -90,7 +90,7 @@ describe("files in and out", { timeout: 300_000 }, () => {
 
   it("If the score is saved outside claude.ai it should download as a valid gts file", async () => {
     const { page, errors } = await openPage(browser);
-    await analyzed(page, "sakura-sakura.pdf");
+    await openSample(page);
     const download = page.waitForEvent("download");
     await page.click("#save");
     const file = join(dir, (await download).suggestedFilename());
@@ -104,7 +104,7 @@ describe("files in and out", { timeout: 300_000 }, () => {
 
   it("If the viewer declines the save dialog it should say it was cancelled", async () => {
     const { page, errors } = await openPage(browser, { claude: { truth: loadExample("sakura-sakura.gts.json"), save: "decline" } });
-    await analyzed(page, "sakura-sakura.pdf");
+    await openSample(page);
     await page.click("#save");
     await page.waitForFunction(() => document.querySelector("#save-note")?.textContent === "保存をキャンセルしました。");
     assert.deepEqual(errors, []);
@@ -112,7 +112,7 @@ describe("files in and out", { timeout: 300_000 }, () => {
 
   it("If the JSON is copied it should be on the clipboard, or selected when copying is refused", async () => {
     const granted = await openPage(browser, { permissions: ["clipboard-read", "clipboard-write"] });
-    await analyzed(granted.page, "sakura-sakura.pdf");
+    await openSample(granted.page);
     await granted.page.click("#copy");
     await granted.page.waitForFunction(() => document.querySelector("#save-note")?.textContent === "JSONをコピーしました。");
     const copied = JSON.parse(await granted.page.evaluate(() => navigator.clipboard.readText()));
@@ -124,7 +124,7 @@ describe("files in and out", { timeout: 300_000 }, () => {
           Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.reject(new Error("denied")) } });
         }),
     });
-    await analyzed(refused.page, "sakura-sakura.pdf");
+    await openSample(refused.page);
     await refused.page.click("#copy");
     await refused.page.waitForFunction(() => document.querySelector("#save-note")?.textContent?.includes("全体を選択しました"));
     assert.equal(await refused.page.locator("#json").isVisible(), true);
@@ -138,7 +138,8 @@ describe("files in and out", { timeout: 300_000 }, () => {
 
   it("If a gts file is opened in the play view it should play without its PDF, and a wrong file be refused", async () => {
     const { page, errors } = await openPage(browser);
-    await analyzed(page, "sakura-sakura.pdf");
+    await openSample(page);
+    await show(page, "settings");
     await page.setInputFiles("#play-gts", join(dir, "not-a-score.gts.json"));
     await page.waitForFunction(() => document.querySelector("#status")?.textContent?.includes("演奏ビューで開けませんでした"));
     writeFileSync(join(dir, "twinkle.gts.json"), JSON.stringify(loadExample("twinkle-twinkle.gts.json")));
@@ -146,7 +147,9 @@ describe("files in and out", { timeout: 300_000 }, () => {
     await page.waitForSelector("#player:not([hidden])");
     assert.match((await page.locator("#player-title").textContent())!, /Twinkle/);
     await page.click("#player-close");
-    // The score being worked on opens in the play view too.
+    // The score being worked on opens in the play view too; the browser's back returns to it.
+    await page.goBack();
+    await page.waitForSelector("#view-score:not([hidden])");
     await page.click("#play-open");
     await page.waitForSelector("#player:not([hidden])");
     assert.equal(await page.locator("#player-bars .bar").count() > 0, true);
@@ -170,7 +173,7 @@ describe("files in and out", { timeout: 300_000 }, () => {
           [`guitarmr.draft.${sakuraSha}`, JSON.stringify(doc)],
         ),
     });
-    await analyzed(page, "sakura-sakura.pdf");
+    await openSample(page);
     assert.equal(await page.locator("#draft-note").isVisible(), true);
     assert.match((await page.locator("#review-summary").textContent())!, /確認済み 1/);
     await page.waitForFunction((key) => localStorage.getItem(key) === null, `guitarmr.draft.${sakuraSha}`);
@@ -191,8 +194,11 @@ describe("files in and out", { timeout: 300_000 }, () => {
           });
         }),
     });
-    await analyzed(page, "sakura-sakura.pdf");
+    await openSample(page);
     assert.equal(await page.locator("#library").isVisible(), false);
+    await show(page, "library");
+    assert.equal(await page.locator("#library-unavailable").isVisible(), true);
+    assert.equal(await page.locator("#library-empty").isVisible(), false);
     await page.setInputFiles("#pdf-file", join(dir, "song.pdf"));
     await analyzed(page, "song.pdf");
     assert.match((await page.locator("#save-note").textContent())!, /端末に保存できません/);

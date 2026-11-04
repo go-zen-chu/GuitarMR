@@ -20,7 +20,11 @@ class HostBridgeTest {
     /** A host that answers at once with [key] and [outcome], keeping what it was asked to save. */
     private class FakeHost(val key: String = "", val outcome: SaveOutcome = SaveOutcome.SAVED) : PageHost {
         val saved = mutableListOf<Triple<String, String, String>>()
+        var keySettingsShown = 0
         override fun askApiKey(onResult: (String) -> Unit) = onResult(key)
+        override fun showApiKeySettings() {
+            keySettingsShown++
+        }
         override fun save(filename: String, mimeType: String, data: String, onResult: (SaveOutcome) -> Unit) {
             saved += Triple(filename, mimeType, data)
             onResult(outcome)
@@ -42,6 +46,13 @@ class HostBridgeTest {
         val page = Settled()
         bridge(host = FakeHost(key = "sk-ant-x"), page = page).askApiKey("c1")
         assertEquals(listOf(Triple("c1", null, "sk-ant-x")), page.calls)
+    }
+
+    @Test
+    fun `If the page's settings ask for the key dialog it should be shown`() {
+        val host = FakeHost()
+        bridge(host = host).showApiKeySettings()
+        assertEquals(1, host.keySettingsShown)
     }
 
     @Test

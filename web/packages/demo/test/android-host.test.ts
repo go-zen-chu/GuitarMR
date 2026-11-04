@@ -29,6 +29,7 @@ function fakeBridge(key = "sk-test") {
   const asked: string[] = [];
   const saves: { callId: string; filename: string; mimeType: string; data: string }[] = [];
   let forgotten = 0;
+  let keySettings = 0;
   const bridge: AndroidBridge = {
     apiKey: () => key,
     model: () => "",
@@ -36,9 +37,12 @@ function fakeBridge(key = "sk-test") {
     forgetApiKey: () => {
       forgotten++;
     },
+    showApiKeySettings: () => {
+      keySettings++;
+    },
     save: (callId, filename, mimeType, data) => saves.push({ callId, filename, mimeType, data }),
   };
-  return { bridge, asked, saves, forgotten: () => forgotten };
+  return { bridge, asked, saves, forgotten: () => forgotten, keySettings: () => keySettings };
 }
 
 const rejection = (promise: Promise<unknown>) => promise.then(() => assert.fail("should reject"), (e: { code: string }) => e.code);
@@ -97,11 +101,19 @@ describe("api sample", () => {
 });
 
 describe("android host", () => {
-  it("If the page asks for sample and downloads it should get both, and nothing else", async () => {
+  it("If the page asks for sample, downloads and the key settings it should get them, and nothing else", async () => {
     const host = createAndroidHost(fakeBridge().bridge);
     assert.ok(await host.use("sample"));
     assert.ok(await host.use("downloads"));
+    assert.ok(await host.use("apiKeySettings"));
     assert.equal(await host.use("other"), null);
+  });
+
+  it("If the page's settings open the key settings it should open the app's key dialog", async () => {
+    const fake = fakeBridge();
+    const settings = (await createAndroidHost(fake.bridge).use("apiKeySettings")) as { open(): void };
+    settings.open();
+    assert.equal(fake.keySettings(), 1);
   });
 
   it("If no key is stored it should ask the app and read with the key the user entered", async () => {

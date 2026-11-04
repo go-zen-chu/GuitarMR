@@ -19,6 +19,9 @@ fun jsString(value: String?): String {
     return out.append('"').toString()
 }
 
+/** The script that asks the page to go back one step; it evaluates to `true` when the page went back. */
+const val BACK_SCRIPT = "globalThis.tky ? globalThis.tky.back() : false;"
+
 /** The script that settles call [callId] in the page (see `settle` in android-host.ts). */
 fun settleScript(callId: String, error: String?, value: String): String =
     "globalThis.claude && globalThis.claude.settle(${jsString(callId)}, ${jsString(error)}, ${jsString(value)});"

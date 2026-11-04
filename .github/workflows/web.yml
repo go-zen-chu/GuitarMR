@@ -70,6 +70,6 @@ jobs:
           name: e2e
           path: |
             ${{ runner.temp }}/e2e
-            web/packages/demo/dist/layoutscan-demo.html
+            web/packages/demo/dist/tky.html
           if-no-files-found: ignore
           retention-days: 14

@@ -11,7 +11,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type Browser, type BrowserContextOptions, type Page, chromium } from "playwright-core";
 
-export const PAGE_FILE = fileURLToPath(new URL("../../demo/dist/layoutscan-demo.html", import.meta.url));
+export const PAGE_FILE = fileURLToPath(new URL("../../demo/dist/tky.html", import.meta.url));
 const PDFJS_DIR = dirname(fileURLToPath(import.meta.resolve("pdfjs-dist/legacy/build/pdf.mjs")));
 export const EXAMPLES = new URL("../../../../schemas/examples/", import.meta.url);
 
@@ -159,6 +159,24 @@ export const loadExample = (name: string): unknown => JSON.parse(readFileSync(ne
 /** Wait until the page has analyzed whatever it opened (the summary of a score is shown). */
 export const analyzed = (page: Page, source: string) =>
   page.waitForFunction((name) => document.querySelector("#summary-source")?.textContent === name, source, { timeout: 120_000 });
+
+export type Screen = "library" | "scan" | "settings";
+
+/** Go to a screen with the tabs or the gear, as the viewer would. */
+export async function show(page: Page, screen: Screen) {
+  await page.click(screen === "settings" ? "#settings-link" : `.tabs [data-tab="${screen}"]`);
+  await page.waitForSelector(`#view-${screen}:not([hidden])`);
+}
+
+const SAMPLE_LABELS: Record<string, string> = { "sakura-sakura.pdf": "さくらさくら", "twinkle-twinkle.pdf": "きらきら星" };
+
+/** Open a built-in sample from the scan screen and wait for its score, where a finished scan leaves the viewer. */
+export async function openSample(page: Page, file = "sakura-sakura.pdf") {
+  await show(page, "scan");
+  await page.locator("#samples .sample", { hasText: SAMPLE_LABELS[file]! }).click();
+  await analyzed(page, file);
+  await page.waitForSelector("#view-score:not([hidden])");
+}
 
 /** Wait until a reading pass has ended (its status names how it ended). */
 export const readEnded = (page: Page) =>

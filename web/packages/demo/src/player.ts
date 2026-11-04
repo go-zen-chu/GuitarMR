@@ -484,5 +484,5 @@ export function createPlayer() {
     document.body.classList.remove("in-player");
   }
 
-  return { open, close };
+  return { open, close, isOpen: () => !el.root.hidden };
 }
