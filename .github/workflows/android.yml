@@ -22,7 +22,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-${{ github.ref }}
+  # A closed PR's github.ref is the base branch, so PRs are grouped by number
+  # to keep their cleanup from cancelling main's release run.
+  group: android-${{ github.event_name == 'pull_request' && format('pr{0}', github.event.number) || github.ref }}
   # A main run is never cut off mid-release.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
