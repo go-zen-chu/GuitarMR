@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { validate } from "@guitarmr/gts/validate";
 import type { Browser, Page } from "playwright-core";
-import { ARTIFACTS, analyzed, launch, openPage } from "./helpers.ts";
+import { ARTIFACTS, analyzed, launch, openPage, openSample } from "./helpers.ts";
 
 type Measure = Record<string, unknown> & { id: string };
 type Doc = { sections: { label?: string; measures: Measure[] }[] };
@@ -23,7 +23,7 @@ describe("editing measures by hand", { timeout: 300_000 }, () => {
 
   async function open() {
     const opened = await openPage(browser);
-    await analyzed(opened.page, "sakura-sakura.pdf");
+    await openSample(opened.page);
     return opened;
   }
 

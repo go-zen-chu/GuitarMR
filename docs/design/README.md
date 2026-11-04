@@ -299,6 +299,25 @@ PWA only adds the other backend.
   the device. The file goes through the save dialog, like `.gts.json`, so
   it never passes a server of ours.
 
+**Amendment (2026-11-02)**: the page is laid out as an app, **tky** (the
+name of the Android app, ADR-010), with layout detection one feature in it.
+- **Screens**: the score list (楽譜, the first view: the library with
+  progress per score and the built-in play samples), scanning (スキャン:
+  picking PDFs and photos, the photo tray, the scan samples) and one
+  score (reading with Claude, checks, the measures, saving, playing).
+  Settings sit behind a gear (moving devices, storage, a gts file in the
+  play view, the Android app's API key). Two bottom tabs switch between
+  the list and scanning; the score is opened from the list.
+- **Flow**: a finished scan opens its score; one finished after the viewer
+  went elsewhere waits in the list. The page no longer opens a sample on
+  load.
+- **Routing**: the screen is kept in the URL hash (`#/`, `#/scan`,
+  `#/settings`, `#/score/<sha256>`), so the browser's back and a reload
+  work; a score's address opens it from the library (or the built-in
+  sample with that SHA-256). The Android back button asks the page
+  (`tky.back()`): it closes the editor or the play view, then goes to the
+  list, and on the list the app goes to the background.
+
 ## ADR-010: Ship the phone page as an Android app wrapping it in a WebView
 
 **Status**: Accepted (2026-10-28)

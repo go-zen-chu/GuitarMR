@@ -14,6 +14,9 @@ interface PageHost {
     /** Ask for an API key; [onResult] gets the checked key, or "" when the user cancels. */
     fun askApiKey(onResult: (String) -> Unit)
 
+    /** Let the user change or remove the stored API key. */
+    fun showApiKeySettings()
+
     /** Let the user pick where [data] goes as [filename]; [onResult] gets how it ended. */
     fun save(filename: String, mimeType: String, data: String, onResult: (SaveOutcome) -> Unit)
 }
@@ -46,6 +49,12 @@ class HostBridge(
     fun askApiKey(callId: String) {
         if (!isCallId(callId)) return
         host.askApiKey { key -> page.settle(callId, null, key) }
+    }
+
+    /** Opens the dialog to change or remove the key (the page's settings). */
+    @JavascriptInterface
+    fun showApiKeySettings() {
+        host.showApiKeySettings()
     }
 
     /** Drops a key the API rejected. */

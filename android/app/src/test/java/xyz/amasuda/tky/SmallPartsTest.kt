@@ -36,6 +36,11 @@ class SmallPartsTest {
     }
 
     @Test
+    fun `If back is pressed it should ask the page and be false without the page's handler`() {
+        assertEquals("globalThis.tky ? globalThis.tky.back() : false;", BACK_SCRIPT)
+    }
+
+    @Test
     fun `If an input accepts anything it should open the picker for any file`() {
         assertEquals(listOf("*/*"), chooserMimeTypes(arrayOf("")))
         assertEquals(listOf("*/*"), chooserMimeTypes(null))

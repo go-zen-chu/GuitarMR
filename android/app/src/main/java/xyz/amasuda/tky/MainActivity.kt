@@ -24,6 +24,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.window.OnBackInvokedDispatcher
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.Toast
@@ -82,6 +83,22 @@ class MainActivity : Activity(), PageHost {
         if (savedInstanceState == null) webView.loadUrl(PAGE_URL) else webView.restoreState(savedInstanceState)
         publishKeyShortcut()
         handleIntent(intent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { backInPage() }
+        }
+    }
+
+    /** Back before Android 13; later versions call the callback registered in [onCreate]. */
+    // Only reached below Android 13: the app uses no AndroidX, so OnBackPressedDispatcher is not an option.
+    @SuppressLint("GestureBackNavigation")
+    @Deprecated("Android 13 and later go through OnBackInvokedDispatcher.")
+    override fun onBackPressed() {
+        backInPage()
+    }
+
+    /** Lets the page go back a step (editor, play view, screen); on its first screen the app goes to the background. */
+    private fun backInPage() {
+        webView.evaluateJavascript(BACK_SCRIPT) { wentBack -> if (wentBack != "true") moveTaskToBack(true) }
     }
 
     /** Opens the key dialog when the running app is reached from the key shortcut. */
@@ -123,7 +140,12 @@ class MainActivity : Activity(), PageHost {
         runOnUiThread { showKeyDialog(withForget = false, onResult = onResult) }
     }
 
-    /** The key dialog from the shortcut: change the key, or remove it. */
+    /** The key dialog for the page's settings. */
+    override fun showApiKeySettings() {
+        runOnUiThread { showKeySettings() }
+    }
+
+    /** The key dialog from the shortcut or the page's settings: change the key, or remove it. */
     private fun showKeySettings() {
         showKeyDialog(withForget = keys.apiKey().isNotEmpty()) { key ->
             if (key.isNotEmpty()) Toast.makeText(this, R.string.api_key_saved, Toast.LENGTH_SHORT).show()

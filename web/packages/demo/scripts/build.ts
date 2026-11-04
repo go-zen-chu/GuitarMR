@@ -1,5 +1,5 @@
 /**
- * Build the demo as one self-contained HTML file (dist/layoutscan-demo.html):
+ * Build the demo as one self-contained HTML file (dist/tky.html):
  * the layoutscan core and the demo sources with their types stripped, the
  * sample PDFs as base64, and pdf.js from the jsDelivr CDN. No bundler: the
  * sources are concatenated into one scope, so the build drops their import
@@ -61,6 +61,7 @@ export const APP = [
   "../src/library.ts",
   "../src/transfer.ts",
   "../src/photos.ts",
+  "../src/router.ts",
   "../src/app.ts",
 ];
 
@@ -164,7 +165,7 @@ async function writeAndroid(dir: URL, withSamples: boolean): Promise<string> {
 if (fileURLToPath(import.meta.url) === process.argv[1]) {
   const withSamples = !process.argv.includes("--no-samples");
   const android = process.argv.includes("--android");
-  const out = android ? src("../dist/android/index.html") : src("../dist/layoutscan-demo.html");
+  const out = android ? src("../dist/android/index.html") : src("../dist/tky.html");
   mkdirSync(new URL(".", out), { recursive: true });
   const html = android ? await writeAndroid(new URL(".", out), withSamples) : await build(withSamples);
   if (!android) writeFileSync(out, html);

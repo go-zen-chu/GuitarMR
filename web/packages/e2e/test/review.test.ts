@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { validate } from "@guitarmr/gts/validate";
 import type { Browser } from "playwright-core";
-import { ARTIFACTS, launch, loadExample, openPage } from "./helpers.ts";
+import { ARTIFACTS, launch, loadExample, openPage, openSample } from "./helpers.ts";
 
 describe("reading and reviewing", { timeout: 240_000 }, () => {
   let browser: Browser;
@@ -15,7 +15,7 @@ describe("reading and reviewing", { timeout: 240_000 }, () => {
 
   it("If the score is read, edited and saved the file should hold the edits and survive a reload", async () => {
     const { page, errors } = await openPage(browser, { claudeFrom: loadExample("sakura-sakura.gts.json") });
-    await page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
+    await openSample(page);
     assert.equal(await page.locator("#ai").isVisible(), true);
 
     await page.click("#read");
@@ -78,7 +78,7 @@ describe("reading and reviewing", { timeout: 240_000 }, () => {
   it("If the tab is read after the chords its checks should mark what to fix, and fixing should clear them", async () => {
     const truth = loadExample("sakura-sakura.gts.json") as { sections: { measures: { id: string; beats?: unknown[] }[] }[] };
     const { page, errors } = await openPage(browser, { claudeFrom: truth });
-    await page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
+    await openSample(page);
     assert.equal(await page.locator("#read-tab").isVisible(), false); // chords and structure come first
     await page.click("#read");
     await page.waitForFunction(() => document.querySelector("#read-status")?.textContent?.startsWith("読み終わりました"), null, {
@@ -134,7 +134,7 @@ describe("reading and reviewing", { timeout: 240_000 }, () => {
 
   it("If the page runs outside claude.ai the reading step should stay hidden", async () => {
     const { page, errors } = await openPage(browser);
-    await page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
+    await openSample(page);
     assert.equal(await page.locator("#ai").isVisible(), false);
     assert.deepEqual(errors, []);
   });

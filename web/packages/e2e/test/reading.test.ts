@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import type { Browser, Page } from "playwright-core";
-import { type FakeClaude, analyzed, launch, loadExample, openPage, readEnded } from "./helpers.ts";
+import { type FakeClaude, launch, loadExample, openPage, openSample, readEnded } from "./helpers.ts";
 
 type Measure = { id: string; chords?: { symbol: string; beat?: number }[]; review?: { status: string } };
 type Doc = { meta: Record<string, unknown>; sections: { label?: string; measures: Measure[] }[] };
@@ -23,7 +23,7 @@ describe("reading with Claude, when things go wrong or are redone", { timeout: 3
 
   async function open(claude: Partial<FakeClaude> = {}) {
     const opened = await openPage(browser, { claude: { truth, ...claude } });
-    await analyzed(opened.page, "sakura-sakura.pdf");
+    await openSample(opened.page);
     await opened.page.waitForSelector("#ai:not([hidden])");
     return opened;
   }

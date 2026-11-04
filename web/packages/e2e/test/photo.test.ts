@@ -8,7 +8,7 @@ import { after, before, describe, it } from "node:test";
 import { validate } from "@guitarmr/gts/validate";
 import { encodeJpeg, generatePdf, generatePhotos } from "@guitarmr/samples";
 import type { Browser } from "playwright-core";
-import { ARTIFACTS, PHONE, launch, openPage } from "./helpers.ts";
+import { ARTIFACTS, PHONE, launch, openPage, openSample, show } from "./helpers.ts";
 
 describe("photos and the library", { timeout: 300_000 }, () => {
   let browser: Browser;
@@ -28,7 +28,7 @@ describe("photos and the library", { timeout: 300_000 }, () => {
 
   it("If pages are photographed one by one they should be cut out, corrected and analyzed as one score", async () => {
     const { page, errors } = await openPage(browser);
-    await page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
+    await openSample(page);
     await page.setInputFiles("#camera", join(dir, "IMG_0001.jpg"));
     await page.waitForSelector("#tray:not([hidden])");
     await page.setInputFiles("#tray-camera", join(dir, "IMG_0002.jpg"));
@@ -71,7 +71,7 @@ describe("photos and the library", { timeout: 300_000 }, () => {
 
   it("If photos are picked out of order they should be put in page order before analysis", async () => {
     const { page, errors } = await openPage(browser);
-    await page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
+    await openSample(page);
     await page.setInputFiles("#pdf-file", [join(dir, "IMG_0002.jpg"), join(dir, "IMG_0001.jpg")]);
     await page.waitForSelector("#tray:not([hidden])");
     await page.click('[aria-label="p2 を前へ"]');
@@ -90,11 +90,13 @@ describe("photos and the library", { timeout: 300_000 }, () => {
 
   it("If a score is opened again from the library it should come back from the device with the work on it", async () => {
     const { page, errors } = await openPage(browser);
-    await page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
+    await openSample(page);
+    await show(page, "library");
     assert.equal(await page.locator("#library-empty").isVisible(), true); // the built-in sample is not listed
     await page.setInputFiles("#pdf-file", join(dir, "song.pdf"));
     await page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "song.pdf", null, { timeout: 120_000 });
-    await page.waitForSelector("#library-list li");
+    await page.waitForSelector("#view-score:not([hidden])");
+    await page.waitForSelector("#library-list li", { state: "attached" });
     assert.match((await page.locator("#library-list li").textContent())!, /song\.pdf.*PDF · 確認済み 0 \/ 12 小節/);
 
     // Review one measure, then come back later.
@@ -105,15 +107,18 @@ describe("photos and the library", { timeout: 300_000 }, () => {
     await page.click("#sheet-close");
     await page.waitForFunction(() => document.querySelector("#library-list li")?.textContent?.includes("確認済み 1 / 12"));
 
-    await page.reload();
-    await page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
-    assert.equal(await page.locator("#summary-source").textContent(), "sakura-sakura.pdf");
+    // Opened again later: the score list comes first.
+    await page.goto("http://localhost/");
+    await page.waitForSelector("#library-list li");
+    assert.equal(await page.locator("#view-library").isVisible(), true);
+    assert.match((await page.locator("#library-list li").textContent())!, /song\.pdf.*確認済み 1 \/ 12/);
+    await page.screenshot({ path: `${ARTIFACTS}/library.png` });
     await page.locator("#library-list li", { hasText: "song.pdf" }).getByRole("button", { name: "開く" }).click();
     await page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "song.pdf", null, { timeout: 120_000 });
     assert.equal(await page.locator("#draft-note").isVisible(), true);
     assert.match((await page.locator("#review-summary").textContent())!, /確認済み 1/);
-    await page.screenshot({ path: `${ARTIFACTS}/library.png` });
 
+    await show(page, "library");
     page.once("dialog", (dialog) => void dialog.accept());
     await page.getByRole("button", { name: "song.pdf を端末から削除" }).click();
     await page.waitForSelector("#library-empty:not([hidden])");
@@ -124,7 +129,7 @@ describe("photos and the library", { timeout: 300_000 }, () => {
   it("If the library is moved to another device the work should arrive first and survive damaged photos", async () => {
     // The old device: a PDF with a reviewed measure, and two photos.
     const old = await openPage(browser);
-    await old.page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
+    await openSample(old.page);
     await old.page.setInputFiles("#pdf-file", join(dir, "song.pdf"));
     await old.page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "song.pdf", null, { timeout: 120_000 });
     await old.page.locator('[data-id="m2"]').click();
@@ -136,6 +141,7 @@ describe("photos and the library", { timeout: 300_000 }, () => {
       timeout: 120_000,
     });
     await old.page.waitForFunction(() => document.querySelectorAll("#library-list li").length === 2);
+    await show(old.page, "settings");
     await old.page.locator(".move summary").click();
     const download = old.page.waitForEvent("download");
     await old.page.click("#library-export");
@@ -153,8 +159,10 @@ describe("photos and the library", { timeout: 300_000 }, () => {
 
     // The new device: nothing there yet; take the export in.
     const fresh = await openPage(browser);
-    await fresh.page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
+    await openSample(fresh.page);
+    await show(fresh.page, "library");
     assert.equal(await fresh.page.locator("#library-empty").isVisible(), true);
+    await show(fresh.page, "settings");
     await fresh.page.locator(".move summary").click();
     await fresh.page.setInputFiles("#library-import", join(dir, "damaged.jsonl"));
     await fresh.page.waitForFunction(() => document.querySelector("#library-message")?.textContent?.includes("取り込みました"));
@@ -164,6 +172,7 @@ describe("photos and the library", { timeout: 300_000 }, () => {
     assert.match(items.find((t) => t.includes("IMG_0001"))!, /ファイルなし/);
     assert.match(items.find((t) => t.includes("song.pdf"))!, /PDF · 確認済み 1 \/ 12/);
     // The photos' work still plays without them; the PDF opens with its work.
+    await show(fresh.page, "library");
     await fresh.page.locator("#library-list li", { hasText: "IMG_0001" }).getByRole("button", { name: "演奏ビュー" }).click();
     await fresh.page.waitForSelector("#player:not([hidden])");
     await fresh.page.click("#player-close");
@@ -182,7 +191,7 @@ describe("photos and the library", { timeout: 300_000 }, () => {
 
   it("If a photo has no score on it it should say what to retake", async () => {
     const { page, errors } = await openPage(browser);
-    await page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
+    await openSample(page);
     await page.setInputFiles("#camera", join(dir, "IMG_desk.jpg"));
     await page.click("#tray-go");
     await page.waitForFunction(() => document.querySelector("#status")?.textContent?.includes("どの写真にも段"), null, { timeout: 120_000 });
@@ -197,13 +206,14 @@ describe("photos and the library", { timeout: 300_000 }, () => {
 
   it("If only the work is moved it should arrive without files, which come back when the PDF is opened", async () => {
     const old = await openPage(browser);
-    await old.page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
+    await openSample(old.page);
     await old.page.setInputFiles("#pdf-file", join(dir, "song.pdf"));
     await old.page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "song.pdf", null, { timeout: 120_000 });
     await old.page.locator('[data-id="m3"]').click();
     await old.page.click("#sheet-ok");
     await old.page.click("#sheet-close");
     await old.page.waitForFunction(() => document.querySelector("#library-list li")?.textContent?.includes("確認済み 1"));
+    await show(old.page, "settings");
     await old.page.locator(".move summary").click();
     await old.page.uncheck("#library-with-files");
     const download = old.page.waitForEvent("download");
@@ -217,7 +227,8 @@ describe("photos and the library", { timeout: 300_000 }, () => {
     );
 
     const fresh = await openPage(browser);
-    await fresh.page.waitForSelector("#summary:not([hidden])", { timeout: 120_000 });
+    await openSample(fresh.page);
+    await show(fresh.page, "settings");
     await fresh.page.locator(".move summary").click();
     // Something else is refused, and taking the same export twice adds nothing.
     await fresh.page.setInputFiles("#library-import", join(dir, "notes.txt"));

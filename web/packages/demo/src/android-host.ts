@@ -2,7 +2,8 @@
  * The page's host inside the Android app (android/): stands in for the
  * claude.ai runtime as `globalThis.claude`, so the page runs unchanged.
  * `sample` reads with the Claude API on the user's own key, kept by the app;
- * `downloads` saves through Android's file picker. The app injects this
+ * `downloads` saves through Android's file picker; `apiKeySettings` opens the
+ * app's key dialog from the page's settings. The app injects this
  * script before the page script; calls into the app finish asynchronously,
  * when the app calls back `settle`.
  */
@@ -18,6 +19,8 @@ export interface AndroidBridge {
   askApiKey(callId: string): void;
   /** Drop a key the API rejected, so the next reading asks again. */
   forgetApiKey(): void;
+  /** Open the app's dialog to change or remove the key (the page's settings). */
+  showApiKeySettings(): void;
   /** Let the user pick where to save; settles with "saved" or fails with `declined`. */
   save(callId: string, filename: string, mimeType: string, data: string): void;
 }
@@ -68,8 +71,10 @@ export function createAndroidHost(bridge: AndroidBridge, fetchImpl?: typeof fetc
     }),
   };
 
+  const apiKeySettings = { open: () => bridge.showApiKeySettings() };
+
   return {
-    use: async (name) => (name === "sample" ? sample : name === "downloads" ? downloads : null),
+    use: async (name) => (name === "sample" ? sample : name === "downloads" ? downloads : name === "apiKeySettings" ? apiKeySettings : null),
     settle(callId, error, value) {
       const pending = calls.get(callId);
       calls.delete(callId);
