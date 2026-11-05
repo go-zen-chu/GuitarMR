@@ -8,7 +8,7 @@ plugins {
 // Signing comes from the environment so the keystores never live in the repo.
 // The release and the preview app have their own keys, so PR builds never hold the
 // release key. Without them both builds fall back to the debug key (fine for local
-// sideloading); CI refuses to publish an APK that carries the debug key.
+// sideloading); CI checks each APK against its key's certificate before publishing.
 val releaseKeystore: String? = System.getenv("TKY_KEYSTORE_FILE")
 val previewKeystore: String? = System.getenv("TKY_PREVIEW_KEYSTORE_FILE")
 val versionBase = providers.gradleProperty("tky.versionBase").get()

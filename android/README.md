@@ -17,7 +17,7 @@ JavaScript side of the bridge is `web/packages/demo/src/android-host.ts`.
 | App | Package | Built by |
 | --- | --- | --- |
 | tky | `xyz.amasuda.tky` | `main` → GitHub Release `vX.Y.N` |
-| tky preview | `xyz.amasuda.tky.preview` | each PR → prerelease `tky preview prN X.Y.N` |
+| tky preview | `xyz.amasuda.tky.preview` | each PR → prerelease `tky preview X.Y.N (PR #N)`, tag `vX.Y.N-prN` |
 
 Both install side by side with their own data. To change or remove the API
 key later, open the settings (the gear) → **API キーを変える・消す**, or
@@ -35,7 +35,7 @@ app straight from this repository's GitHub releases.
 - **Preview app (PR builds)**: add the same URL once more with
   - *Include prereleases*: on
   - *Filter release titles by regular expression*: `^tky preview`
-    (every PR, newest build first), or `^tky preview pr12 ` for one PR
+    (every PR, newest build first), or `\(PR #12\)$` for one PR
 
   Each push to a PR publishes a new prerelease and removes that PR's
   previous one; closing the PR removes them all. A PR from a fork gets no
@@ -64,8 +64,11 @@ page in a debug build can be inspected from `chrome://inspect`.
 ## Signing
 
 CI signs each app with its own keystore; a `main` build fails without the
-release key, and the workflow checks that no published APK carries the
-debug key.
+release key. The release APK is built in a job of its own (no Gradle cache,
+only after the tests pass) in the `release` environment. Before publishing,
+`scripts/verify-apk-cert.sh` checks every APK against its key's certificate
+SHA-256, written in `.github/workflows/android.yml` (`TKY_*_CERT_SHA256`) so
+that a change of key goes through review.
 
 | App | Where the secrets live | Secrets |
 | --- | --- | --- |
@@ -79,7 +82,8 @@ one it would mask every "tky" in the CI logs.
 key once (`~/.config/tky/tky-<app>.jks` by default) and register its
 secrets with `gh`; `release` also creates the environment and removes the
 release key from the repository secrets. Back up each keystore and its
-password file: Android only accepts updates signed with the same key.
+password file offline: Android only accepts updates signed with the same key.
+A new key also needs its certificate SHA-256 updated in the workflow.
 
 A preview app installed before the preview key was split off carries the
 release key: uninstall it once to take the first preview-signed build.
