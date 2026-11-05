@@ -61,5 +61,5 @@ else
 	gh secret set TKY_PREVIEW_KEYSTORE_PASSWORD -R "$REPO" < "$PASSWORD_FILE"
 	echo "Registered the preview key in $REPO."
 fi
-sha256=$(keytool -list -v -keystore "$KEYSTORE" -storepass:file "$PASSWORD_FILE" | grep -m1 "SHA256:" | awk '{print $NF}' | tr -d ':' | tr 'A-F' 'a-f')
-echo "Certificate SHA-256: $sha256 (TKY_$(tr 'a-z' 'A-Z' <<<"$APP")_CERT_SHA256 in .github/workflows/android.yml)"
+sha256=$(keytool -list -v -keystore "$KEYSTORE" -storepass:file "$PASSWORD_FILE" | grep -m1 "SHA256:" | awk '{print $NF}' | tr -d ':' | tr '[:upper:]' '[:lower:]')
+echo "Certificate SHA-256: $sha256 (TKY_$(tr '[:lower:]' '[:upper:]' <<<"$APP")_CERT_SHA256 in .github/workflows/android.yml)"
