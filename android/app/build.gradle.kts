@@ -5,10 +5,12 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// Signing comes from the environment so the keystore never lives in the repo.
-// Without it both builds fall back to the debug key (fine for local sideloading);
-// CI refuses to publish a release that is not signed with the release key.
+// Signing comes from the environment so the keystores never live in the repo.
+// The release and the preview app have their own keys, so PR builds never hold the
+// release key. Without them both builds fall back to the debug key (fine for local
+// sideloading); CI refuses to publish an APK that carries the debug key.
 val releaseKeystore: String? = System.getenv("TKY_KEYSTORE_FILE")
+val previewKeystore: String? = System.getenv("TKY_PREVIEW_KEYSTORE_FILE")
 val versionBase = providers.gradleProperty("tky.versionBase").get()
 
 // The phone page is built by the web workspace (pnpm --filter @guitarmr/demo build:android)
@@ -49,6 +51,15 @@ android {
                 keyPassword = System.getenv("TKY_KEY_PASSWORD")
             }
         }
+        if (previewKeystore != null) {
+            create("preview") {
+                storeFile = file(previewKeystore)
+                // PKCS12 keystores use one password for the store and the key.
+                storePassword = System.getenv("TKY_PREVIEW_KEYSTORE_PASSWORD")
+                keyAlias = "tky"
+                keyPassword = System.getenv("TKY_PREVIEW_KEYSTORE_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -60,8 +71,8 @@ android {
         debug {
             applicationIdSuffix = ".preview"
             versionNameSuffix = "-" + (System.getenv("TKY_PREVIEW_LABEL") ?: "preview")
-            // Same key as release so CI builds update the installed preview in place.
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            // One preview key for every PR, so CI builds update the installed preview in place.
+            signingConfig = signingConfigs.findByName("preview") ?: signingConfigs.getByName("debug")
         }
     }
 

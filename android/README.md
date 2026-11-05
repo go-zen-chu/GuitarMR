@@ -41,8 +41,10 @@ app straight from this repository's GitHub releases.
   previous one; closing the PR removes them all. A PR from a fork gets no
   signing secrets and publishes nothing.
 
-Every build is signed with the same release key, so updates install in
-place. The release APK of a run is also kept as a workflow artifact.
+The two apps have their own signing keys: the release key is only available
+to `main` builds, so a PR build can never sign as the release app. Each app
+keeps one key, so updates install in place. The APK of a run is also kept as
+a workflow artifact.
 
 ## Build locally
 
@@ -52,7 +54,7 @@ setup (`web/README.md`).
 ```sh
 (cd web && pnpm install && pnpm --filter @guitarmr/demo build:android)  # web/packages/demo/dist/android
 cd android
-./gradlew testReleaseUnitTest lintRelease assembleRelease assembleDebug  # the same as CI
+./gradlew testReleaseUnitTest lintRelease assembleRelease assembleDebug  # CI builds one of the two
 adb install -r app/build/outputs/apk/debug/app-debug.apk                 # the preview app
 ```
 
@@ -61,23 +63,26 @@ page in a debug build can be inspected from `chrome://inspect`.
 
 ## Signing
 
-CI signs with a keystore from these repository secrets; a `main` build
-fails without them, and the workflow checks that no published APK carries
-the debug key.
+CI signs each app with its own keystore; a `main` build fails without the
+release key, and the workflow checks that no published APK carries the
+debug key.
 
-| Secret | Value |
-| --- | --- |
-| `TKY_KEYSTORE_BASE64` | The keystore, base64 |
-| `TKY_KEYSTORE_PASSWORD` | Its password |
-| `TKY_KEY_PASSWORD` | The key password |
+| App | Where the secrets live | Secrets |
+| --- | --- | --- |
+| tky | Environment `release` (deployable from `main` only) | `TKY_KEYSTORE_BASE64` (the keystore, base64), `TKY_KEYSTORE_PASSWORD`, `TKY_KEY_PASSWORD` |
+| tky preview | Repository secrets | `TKY_PREVIEW_KEYSTORE_BASE64`, `TKY_PREVIEW_KEYSTORE_PASSWORD` |
 
 The key alias is `tky` (in `app/build.gradle.kts`): not a secret, and as
 one it would mask every "tky" in the CI logs.
 
-`android/scripts/setup-signing.sh` creates the key once (in
-`~/.config/tky/` by default) and registers the secrets with `gh`.
-Back up the keystore and its password file: Android only accepts updates
-signed with the same key.
+`android/scripts/setup-signing.sh release` and `... preview` create each
+key once (`~/.config/tky/tky-<app>.jks` by default) and register its
+secrets with `gh`; `release` also creates the environment and removes the
+release key from the repository secrets. Back up each keystore and its
+password file: Android only accepts updates signed with the same key.
+
+A preview app installed before the preview key was split off carries the
+release key: uninstall it once to take the first preview-signed build.
 
 ## Layout
 

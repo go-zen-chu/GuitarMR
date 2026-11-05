@@ -1,11 +1,13 @@
 # The Android app tky (android/): the phone page built by the web workspace,
-# wrapped in a WebView app. Every build is signed with the release key.
+# wrapped in a WebView app.
 #
-# - main: publishes a GitHub Release (vX.Y.N) with the release APK
+# - main: builds in the "release" environment, the only place the release key
+#   is available (its secrets are environment secrets limited to main), and publishes a GitHub Release (vX.Y.N) with the release APK
 #   (xyz.amasuda.tky). Obtainium tracks it with default settings.
 # - PRs: publish the preview APK (xyz.amasuda.tky.preview) as a
 #   prerelease "tky preview prN X.Y.N", one per PR (the older one is
-#   replaced), so Obtainium can install it with prereleases turned on.
+#   replaced), so Obtainium can install it with prereleases turned on. PRs are
+#   signed with the preview key (repository secrets TKY_PREVIEW_KEYSTORE_*).
 #   Closing the PR removes its prereleases.
 name: android
 
@@ -33,13 +35,18 @@ jobs:
     if: github.event.action != 'closed'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    # An empty name runs the job outside any environment.
+    environment: ${{ github.event_name == 'push' && 'release' || '' }}
     outputs:
       version: ${{ steps.version.outputs.version }}
       signed: ${{ steps.keystore.outputs.signed }}
     env:
+      TKY_APP: ${{ github.event_name == 'push' && 'release' || 'preview' }}
       KEYSTORE_BASE64: ${{ secrets.TKY_KEYSTORE_BASE64 }}
       TKY_KEYSTORE_PASSWORD: ${{ secrets.TKY_KEYSTORE_PASSWORD }}
       TKY_KEY_PASSWORD: ${{ secrets.TKY_KEY_PASSWORD }}
+      PREVIEW_KEYSTORE_BASE64: ${{ secrets.TKY_PREVIEW_KEYSTORE_BASE64 }}
+      TKY_PREVIEW_KEYSTORE_PASSWORD: ${{ secrets.TKY_PREVIEW_KEYSTORE_PASSWORD }}
       TKY_VERSION_CODE: ${{ github.run_number }}
       TKY_PREVIEW_LABEL: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.number) || github.ref_name }}
     steps:
@@ -76,16 +83,21 @@ jobs:
       - name: Restore the signing keystore
         id: keystore
         run: |
-          if [[ -z "$KEYSTORE_BASE64" ]]; then
-            if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-              echo "::error::TKY_KEYSTORE_BASE64 is not set: a release must be signed (see android/README.md)"
+          if [[ "$TKY_APP" == "release" ]]; then
+            if [[ -z "$KEYSTORE_BASE64" ]]; then
+              echo "::error::TKY_KEYSTORE_BASE64 is not set in the release environment: a release must be signed (see android/README.md)"
               exit 1
             fi
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/tky.jks"
+            echo "TKY_KEYSTORE_FILE=$RUNNER_TEMP/tky.jks" >> "$GITHUB_ENV"
+          else
+            if [[ -z "$PREVIEW_KEYSTORE_BASE64" ]]; then
+              echo "signed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "$PREVIEW_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/tky-preview.jks"
+            echo "TKY_PREVIEW_KEYSTORE_FILE=$RUNNER_TEMP/tky-preview.jks" >> "$GITHUB_ENV"
           fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/tky.jks"
-          echo "TKY_KEYSTORE_FILE=$RUNNER_TEMP/tky.jks" >> "$GITHUB_ENV"
           echo "signed=true" >> "$GITHUB_OUTPUT"
 
       - name: Set version
@@ -98,14 +110,22 @@ jobs:
 
       - name: Test, lint and build
         working-directory: android
-        run: ./gradlew --no-daemon testReleaseUnitTest lintRelease assembleRelease assembleDebug
+        run: |
+          if [[ "$TKY_APP" == "release" ]]; then
+            ./gradlew --no-daemon testReleaseUnitTest lintRelease assembleRelease
+          else
+            ./gradlew --no-daemon testReleaseUnitTest lintRelease assembleDebug
+          fi
 
-      - name: Collect APKs
+      - name: Collect the APK
         run: |
           mkdir -p dist
-          cp android/app/build/outputs/apk/release/app-release.apk "dist/tky-$TKY_VERSION_NAME.apk"
-          label="${TKY_PREVIEW_LABEL//[^A-Za-z0-9._-]/-}"
-          cp android/app/build/outputs/apk/debug/app-debug.apk "dist/tky-preview-$TKY_VERSION_NAME-$label.apk"
+          if [[ "$TKY_APP" == "release" ]]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "dist/tky-$TKY_VERSION_NAME.apk"
+          else
+            label="${TKY_PREVIEW_LABEL//[^A-Za-z0-9._-]/-}"
+            cp android/app/build/outputs/apk/debug/app-debug.apk "dist/tky-preview-$TKY_VERSION_NAME-$label.apk"
+          fi
 
       # A signed build must carry the release key, never the debug one.
       - name: Check the signature
@@ -123,14 +143,8 @@ jobs:
 
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: tky-preview
-          path: dist/tky-preview-*.apk
-          retention-days: 14
-
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: tky-release
-          path: dist/tky-${{ steps.version.outputs.version }}.apk
+          name: tky-${{ env.TKY_APP }}
+          path: dist/*.apk
           retention-days: 14
 
   # Only main publishes a GitHub Release.
