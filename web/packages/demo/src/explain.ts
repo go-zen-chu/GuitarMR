@@ -20,6 +20,7 @@ import {
   sameNoteScales,
   scaleStepName,
 } from "@guitarmr/gts";
+import type { Messages } from "./i18n.ts";
 import { SVG, prettyChord } from "./player.ts";
 
 /** Progressions shown in the score; the rest are the less telling ones. */
@@ -75,14 +76,14 @@ export function brackets(list: readonly Progression[], steps: readonly PlayStep[
 /** Frets drawn on the scale's fretboard, from the open strings (or the capo). */
 const FRETBOARD_FRETS = 12;
 
-/** "A マイナー", "C メジャー". */
-function keyLabel(key: Key): string {
-  return `${noteNamesIn(key)[key.tonic]} ${key.minor ? "マイナー" : "メジャー"}`;
+/** "A マイナー", "C major". */
+function keyLabel(key: Key, text: Messages): string {
+  return `${noteNamesIn(key)[key.tonic]} ${key.minor ? text.minorKey : text.majorKey}`;
 }
 
-/** "A ヨナ抜き短音階（平調子）". */
-function scaleLabel(fit: ScaleFit, key: Key): string {
-  return `${noteNamesIn(key)[fit.tonic]} ${fit.scale.name}`;
+/** "A ヨナ抜き短音階（平調子）", "A yonanuki minor (hirajōshi)". */
+function scaleLabel(fit: ScaleFit, key: Key, text: Messages): string {
+  return `${noteNamesIn(key)[fit.tonic]} ${text.scales[fit.scale.id]?.name ?? fit.scale.id}`;
 }
 
 /** The scale's notes from its tonic, as the key spells them. */
@@ -101,12 +102,12 @@ function scaleButton(label: string, which: string): HTMLButtonElement {
 }
 
 /** The lines above the measures: the key and the scale, what the degrees count from, and what to tap. */
-export function keyNote(key: Key, scale: SongScale | null, capo: number, found: number): HTMLElement[] {
+export function keyNote(key: Key, scale: SongScale | null, capo: number, found: number, text: Messages): HTMLElement[] {
   const head = document.createElement("p");
   head.className = "notes-head";
-  head.append(`Key ${prettyChord(key.name)}（${keyLabel(key)}）`);
+  head.append(text.aside(`Key ${prettyChord(key.name)}`, keyLabel(key, text)));
   if (scale) {
-    head.append("・スケール ", scaleButton(scaleLabel(scale.main, key), "main"));
+    head.append(text.scaleIntro, scaleButton(scaleLabel(scale.main, key, text), "main"));
     const notes = document.createElement("span");
     notes.className = "scale-notes";
     notes.textContent = scaleNotes(scale.main, key).join(" ");
@@ -116,16 +117,15 @@ export function keyNote(key: Key, scale: SongScale | null, capo: number, found: 
   if (scale?.others.length) {
     const others = document.createElement("p");
     others.className = "notes-others";
-    others.append("ほかに合うスケール:");
-    scale.others.forEach((fit, i) => others.append(scaleButton(scaleLabel(fit, key), String(i))));
+    others.append(text.otherScales);
+    scale.others.forEach((fit, i) => others.append(scaleButton(scaleLabel(fit, key, text), String(i))));
     lines.push(others);
   }
   const note = document.createElement("p");
   note.className = "notes-key";
-  const source = key.estimated ? "コードから推定" : "楽譜の表記";
-  const sounding = capo ? `カポ${capo}で実音は ${prettyChord(keyName(key.tonic + capo, key.minor))}。` : "";
-  const hint = found ? "括弧の進行名やスケール名をタップすると解説が出ます。" : "代表的なコード進行は見つかりませんでした。";
-  note.textContent = `度数はキー（${source}）の主音を Ⅰ として表示。${sounding}${hint}`;
+  const sounding = capo ? text.soundingKey(capo, prettyChord(keyName(key.tonic + capo, key.minor))) : "";
+  const hint = found ? text.tapHint : text.noProgressions;
+  note.textContent = `${text.degreesNote(key.estimated ? text.fromChords : text.fromScore)}${sounding}${hint}`;
   lines.push(note);
   return lines;
 }
@@ -166,9 +166,9 @@ function fretboard(fit: ScaleFit, tuning: readonly number[]): SVGSVGElement {
 }
 
 /** The details of a scale: its notes and their steps, its sound, the same notes under other names, and the fretboard. */
-export function scaleDetail(fit: ScaleFit, key: Key, scale: SongScale, tuning: readonly number[]): Element[] {
+export function scaleDetail(fit: ScaleFit, key: Key, scale: SongScale, tuning: readonly number[], text: Messages): Element[] {
   const heading = document.createElement("h3");
-  heading.textContent = scaleLabel(fit, key);
+  heading.textContent = scaleLabel(fit, key, text);
   const notes = document.createElement("p");
   notes.className = "detail-notes";
   const names = scaleNotes(fit, key);
@@ -182,60 +182,59 @@ export function scaleDetail(fit: ScaleFit, key: Key, scale: SongScale, tuning: r
     note.append(name, step);
     notes.append(note);
   });
-  const text = document.createElement("p");
-  text.className = "detail-text";
-  text.textContent = fit.scale.description;
-  const out: Element[] = [heading, notes, text];
+  const description = document.createElement("p");
+  description.className = "detail-text";
+  description.textContent = text.scales[fit.scale.id]?.description ?? "";
+  const out: Element[] = [heading, notes, description];
   const same = sameNoteScales(fit);
   if (same.length) {
     const also = document.createElement("p");
     also.className = "detail-chords";
-    also.textContent = `同じ音の並び: ${same.map((f) => scaleLabel(f, key)).join("、")}`;
+    also.textContent = text.sameNotes(same.map((f) => scaleLabel(f, key, text)).join(text.listSeparator));
     out.push(also);
   }
   const basis = document.createElement("p");
   basis.className = "detail-chords";
-  const counted = scale.from === "melody" ? "メロディ（TAB の単音）" : "コードの構成音";
+  const counted = scale.from === "melody" ? text.fromMelody : text.fromChordTones;
   const outside = scale.weights.flatMap((w, pc) =>
     w > 0 && !fit.scale.intervals.includes((pc - fit.tonic + 12) % 12) ? [noteNamesIn(key)[pc]!] : [],
   );
   basis.textContent =
-    `${counted}で使われている音の ${Math.round(fit.coverage * 100)}% がこのスケールの音` +
-    (outside.length ? `（外れる音: ${outside.join(" ")}）` : "") +
-    "。";
+    text.coverage(counted, Math.round(fit.coverage * 100)) + (outside.length ? text.outside(outside.join(" ")) : "") + text.sentenceEnd;
   const board = fretboard(fit, tuning);
-  board.setAttribute("aria-label", `${heading.textContent}の指板上の位置`);
+  board.setAttribute("aria-label", text.onFretboard(heading.textContent));
   out.push(basis, board);
   return out;
 }
 
 /** The details of one place of a progression, with its other places to go to. */
-export function progressionDetail(progression: Progression, index: number, place: number): HTMLElement[] {
+export function progressionDetail(progression: Progression, index: number, place: number, text: Messages): HTMLElement[] {
   const occurrence = progression.occurrences[place]!;
+  const about = text.progressions[progression.id];
   const heading = document.createElement("h3");
-  heading.textContent = progression.name;
+  heading.textContent = about?.name ?? progression.id;
   const degrees = document.createElement("p");
   degrees.className = "detail-degrees";
   degrees.textContent = occurrence.degrees.join(" → ");
   const chords = document.createElement("p");
   chords.className = "detail-chords";
-  chords.textContent = `${occurrence.chords.map(prettyChord).join(" → ")}（${occurrence.steps[0]! + 1}小節目から）`;
-  const text = document.createElement("p");
-  text.className = "detail-text";
-  text.textContent = progression.description;
-  const out = [heading, degrees, chords, text];
+  chords.textContent = text.aside(occurrence.chords.map(prettyChord).join(" → "), text.fromMeasure(occurrence.steps[0]! + 1));
+  const description = document.createElement("p");
+  description.className = "detail-text";
+  description.textContent = about?.description ?? "";
+  const out = [heading, degrees, chords, description];
   if (progression.occurrences.length > 1) {
     const places = document.createElement("p");
     places.className = "detail-places";
-    places.append("この曲で弾く場所:");
+    places.append(text.placesInSong);
     progression.occurrences.forEach((o, n) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "detail-place";
       button.dataset.pick = String(index);
       button.dataset.place = String(n);
-      button.textContent = `${o.steps[0]! + 1}小節`;
-      button.setAttribute("aria-label", `${o.steps[0]! + 1}小節目 ${o.chords.join(" ")}`);
+      button.textContent = text.measureShort(o.steps[0]! + 1);
+      button.setAttribute("aria-label", `${text.measureLabel(o.steps[0]! + 1)} ${o.chords.join(" ")}`);
       if (n === place) button.setAttribute("aria-current", "true");
       places.append(button);
     });

@@ -206,6 +206,28 @@ describe("play view", { timeout: 180_000 }, () => {
     assert.deepEqual(errors, []);
   });
 
+  it("If the device is in English the page and the play view's explanation should be in English", async () => {
+    const { page, errors } = await openPage(browser, { locale: "en-US" });
+    assert.equal(await page.getAttribute("html", "lang"), "en");
+    assert.equal(await page.locator("#library-title").textContent(), "Scores");
+    assert.equal(await page.locator('.tabs [data-tab="scan"]').textContent(), "Scan");
+    await page.locator("#sample-list li", { hasText: "さくらさくら" }).getByRole("button", { name: "Play view" }).click();
+    await page.waitForSelector("#player:not([hidden])");
+    assert.equal(await page.locator("#player-play").textContent(), "Play");
+    assert.match(await page.locator("#player-meta").textContent() ?? "", /28 measures/);
+    await page.click("#player-explain");
+    assert.equal(await page.locator("#player-explain").textContent(), "Explain");
+    assert.match(await page.locator("#player-notes .notes-head").textContent() ?? "", /Key Am \(A minor\)/);
+    assert.equal(await page.locator('#player-notes .scale-name[data-scale="main"]').textContent(), "A yonanuki minor (hirajōshi)");
+    await page.locator("#player-bars .bracket-name", { hasText: "Two-five-one" }).first().click();
+    assert.match(await page.locator("#player-detail .detail-chords").textContent() ?? "", /\(from measure 13\)/);
+    await page.click("#player-play");
+    assert.equal(await page.locator("#player-play").textContent(), "Pause");
+    await page.click("#player-play");
+    await page.screenshot({ path: `${ARTIFACTS}/player-explain-en.png` });
+    assert.deepEqual(errors, []);
+  });
+
   it("If a song has D.S. al Coda and chord shapes they should be expanded and drawn", async () => {
     const { page, errors } = await openPlayer(browser, "練習曲", { colorScheme: "dark" });
     const heads = await page.locator("#player-bars .bar .bar-head").allTextContents();
