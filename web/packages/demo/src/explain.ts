@@ -86,18 +86,33 @@ function scaleLabel(fit: ScaleFit, key: Key, text: Messages): string {
   return `${noteNamesIn(key)[fit.tonic]} ${text.scales[fit.scale.id]?.name ?? fit.scale.id}`;
 }
 
+/** "A Hirajoshi scale": the English name next to a Japanese one; empty in English. */
+function scaleAlias(fit: ScaleFit, key: Key, text: Messages): string {
+  const alias = text.scales[fit.scale.id]?.alias;
+  return alias ? `${noteNamesIn(key)[fit.tonic]} ${alias}` : "";
+}
+
 /** The scale's notes from its tonic, as the key spells them. */
 function scaleNotes(fit: ScaleFit, key: Key): string[] {
   return fit.scale.intervals.map((i) => noteNamesIn(key)[(fit.tonic + i) % 12]!);
 }
 
-/** A button that opens the details of a scale ("main" or the index of another one). */
-function scaleButton(label: string, which: string): HTMLButtonElement {
+/** A button that opens the details of a scale ("main" or the index of another one), its English name under a Japanese one. */
+function scaleButton(fit: ScaleFit, key: Key, text: Messages, which: string): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "scale-name";
   button.dataset.scale = which;
-  button.textContent = label;
+  const name = document.createElement("span");
+  name.textContent = scaleLabel(fit, key, text);
+  button.append(name);
+  const alias = scaleAlias(fit, key, text);
+  if (alias) {
+    const small = document.createElement("small");
+    small.className = "scale-alias";
+    small.textContent = alias;
+    button.append(small);
+  }
   return button;
 }
 
@@ -107,7 +122,7 @@ export function keyNote(key: Key, scale: SongScale | null, capo: number, found: 
   head.className = "notes-head";
   head.append(text.aside(`Key ${prettyChord(key.name)}`, keyLabel(key, text)));
   if (scale) {
-    head.append(text.scaleIntro, scaleButton(scaleLabel(scale.main, key, text), "main"));
+    head.append(text.scaleIntro, scaleButton(scale.main, key, text, "main"));
     const notes = document.createElement("span");
     notes.className = "scale-notes";
     notes.textContent = scaleNotes(scale.main, key).join(" ");
@@ -118,7 +133,7 @@ export function keyNote(key: Key, scale: SongScale | null, capo: number, found: 
     const others = document.createElement("p");
     others.className = "notes-others";
     others.append(text.otherScales);
-    scale.others.forEach((fit, i) => others.append(scaleButton(scaleLabel(fit, key, text), String(i))));
+    scale.others.forEach((fit, i) => others.append(scaleButton(fit, key, text, String(i))));
     lines.push(others);
   }
   const note = document.createElement("p");
@@ -169,6 +184,14 @@ function fretboard(fit: ScaleFit, tuning: readonly number[]): SVGSVGElement {
 export function scaleDetail(fit: ScaleFit, key: Key, scale: SongScale, tuning: readonly number[], text: Messages): Element[] {
   const heading = document.createElement("h3");
   heading.textContent = scaleLabel(fit, key, text);
+  const out: Element[] = [heading];
+  const alias = scaleAlias(fit, key, text);
+  if (alias) {
+    const english = document.createElement("p");
+    english.className = "detail-alias";
+    english.textContent = alias;
+    out.push(english);
+  }
   const notes = document.createElement("p");
   notes.className = "detail-notes";
   const names = scaleNotes(fit, key);
@@ -185,12 +208,14 @@ export function scaleDetail(fit: ScaleFit, key: Key, scale: SongScale, tuning: r
   const description = document.createElement("p");
   description.className = "detail-text";
   description.textContent = text.scales[fit.scale.id]?.description ?? "";
-  const out: Element[] = [heading, notes, description];
+  out.push(notes, description);
   const same = sameNoteScales(fit);
   if (same.length) {
     const also = document.createElement("p");
     also.className = "detail-chords";
-    also.textContent = text.sameNotes(same.map((f) => scaleLabel(f, key, text)).join(text.listSeparator));
+    also.textContent = text.sameNotes(
+      same.map((f) => [scaleLabel(f, key, text), scaleAlias(f, key, text)].filter(Boolean).join(" / ")).join(text.listSeparator),
+    );
     out.push(also);
   }
   const basis = document.createElement("p");

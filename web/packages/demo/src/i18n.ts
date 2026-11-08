@@ -169,6 +169,8 @@ export const PAGE_EN: Record<string, string> = {
 interface Described {
   name: string;
   description: string;
+  /** The English name guitarists use, shown next to a Japanese name. */
+  alias?: string;
 }
 
 const JA = {
@@ -333,39 +335,45 @@ const JA = {
     sus4: { name: "sus4 の解決", description: "sus4 の 4 度の音が 3 度へ下りて解決する。宙に浮いた響きが落ち着く、小さな動き。" },
   } as Record<string, Described>,
   scales: {
-    major: { name: "メジャースケール（長音階）", description: "ドレミファソラシド。明るく安定した、西洋音楽のいちばん基本の音階。" },
-    "natural-minor": { name: "ナチュラルマイナースケール（自然短音階）", description: "ラシドレミファソラ。暗く落ち着いた響きの、マイナーキーの基本の音階。" },
+    major: { name: "メジャースケール（長音階）", alias: "Major scale (Ionian)", description: "C から始めると C D E F G A B C。明るく安定した、西洋音楽のいちばん基本の音階。" },
+    "natural-minor": { name: "ナチュラルマイナースケール（自然短音階）", alias: "Natural minor (Aeolian)", description: "A から始めると A B C D E F G A。暗く落ち着いた響きの、マイナーキーの基本の音階。" },
     "major-pentatonic": {
       name: "メジャーペンタトニック（ヨナ抜き長音階）",
-      description: "長音階から 4 番目と 7 番目（ファとシ）を抜いた 5 音。童謡や演歌、J-POP のメロディに多い、素朴で明るい響き。",
+      alias: "Major pentatonic",
+      description: "長音階から 4 番目と 7 番目（C から始めると F と B）を抜いた 5 音。童謡や演歌、J-POP のメロディに多い、素朴で明るい響き。",
     },
     "minor-pentatonic": {
       name: "マイナーペンタトニック（民謡音階）",
+      alias: "Minor pentatonic",
       description: "短音階から 2 番目と 6 番目を抜いた 5 音。ロックのギターソロの定番で、日本の民謡にも同じ並びが現れる。",
     },
-    "yona-nuki-minor": { name: "ヨナ抜き短音階（平調子）", description: "短音階から 4 番目と 7 番目を抜いた 5 音。箏の平調子と同じ並びで、もの悲しい和の響き。" },
+    "yona-nuki-minor": { name: "ヨナ抜き短音階（平調子）", alias: "Hirajoshi scale", description: "短音階から 4 番目と 7 番目を抜いた 5 音。箏の平調子と同じ並びで、もの悲しい和の響き。" },
     "miyako-bushi": {
       name: "都節音階（陰音階）",
+      alias: "In scale (Miyako-bushi)",
       description: "半音を 2 か所に含む 5 音。さくらさくらや江戸の俗謡に聞かれる、しっとりと陰りのある日本の音階。",
     },
     ryukyu: {
       name: "沖縄音階（琉球音階）",
-      description: "ドミファソシ。長音階から 2 番目と 6 番目（レとラ）を抜いた 5 音で、沖縄民謡らしい南国の明るさが出る。",
+      alias: "Ryukyu scale (Okinawan)",
+      description: "C から始めると C E F G B。長音階から 2 番目と 6 番目（D と A）を抜いた 5 音で、沖縄民謡らしい南国の明るさが出る。",
     },
-    ritsu: { name: "律音階", description: "雅楽や民謡に使われる 5 音。3 度の音がなく、長調とも短調ともつかない、おおらかな響き。" },
-    blues: { name: "ブルーノートスケール", description: "マイナーペンタトニックに ♭5 のブルーノートを加えた音階。ブルースやロックの泥くさい響き。" },
+    ritsu: { name: "律音階", alias: "Ritsu scale", description: "雅楽や民謡に使われる 5 音。3 度の音がなく、長調とも短調ともつかない、おおらかな響き。" },
+    blues: { name: "ブルーノートスケール", alias: "Blues scale", description: "マイナーペンタトニックに ♭5 のブルーノートを加えた音階。ブルースやロックの泥くさい響き。" },
     "harmonic-minor": {
       name: "ハーモニックマイナースケール（和声短音階）",
+      alias: "Harmonic minor",
       description: "自然短音階の 7 番目を半音上げ、Ⅴ7 から Ⅰm へ強く解決できるようにした音階。♭6 と 7 の間の広い音程が異国風。",
     },
     "melodic-minor": {
       name: "メロディックマイナースケール（旋律短音階）",
+      alias: "Melodic minor",
       description: "自然短音階の 6 番目と 7 番目を半音上げ、上りのメロディを滑らかにした音階。ジャズでもよく使う。",
     },
-    dorian: { name: "ドリアンスケール", description: "自然短音階の 6 番目を半音上げた教会旋法。マイナーなのに暗くなりすぎない、ファンクやジャズで好まれる響き。" },
-    mixolydian: { name: "ミクソリディアンスケール", description: "長音階の 7 番目を半音下げた教会旋法。ロックやブルースの、ゆるくて明るい響き。" },
-    lydian: { name: "リディアンスケール", description: "長音階の 4 番目を半音上げた教会旋法。浮遊感のある、映画音楽のような明るさ。" },
-    phrygian: { name: "フリジアンスケール", description: "自然短音階の 2 番目を半音下げた教会旋法。フラメンコのような、スペイン風の緊張感。" },
+    dorian: { name: "ドリアンスケール", alias: "Dorian", description: "自然短音階の 6 番目を半音上げた教会旋法。マイナーなのに暗くなりすぎない、ファンクやジャズで好まれる響き。" },
+    mixolydian: { name: "ミクソリディアンスケール", alias: "Mixolydian", description: "長音階の 7 番目を半音下げた教会旋法。ロックやブルースの、ゆるくて明るい響き。" },
+    lydian: { name: "リディアンスケール", alias: "Lydian", description: "長音階の 4 番目を半音上げた教会旋法。浮遊感のある、映画音楽のような明るさ。" },
+    phrygian: { name: "フリジアンスケール", alias: "Phrygian", description: "自然短音階の 2 番目を半音下げた教会旋法。フラメンコのような、スペイン風の緊張感。" },
   } as Record<string, Described>,
 };
 
@@ -525,8 +533,8 @@ const EN: Messages = {
     sus4: { name: "sus4 resolution", description: "The suspended 4th falls to the 3rd. A small move from a floating sound to a settled one." },
   },
   scales: {
-    major: { name: "major scale", description: "Do re mi fa sol la ti do. Bright and stable: the most basic scale of Western music." },
-    "natural-minor": { name: "natural minor scale", description: "La ti do re mi fa sol la. Dark and calm: the basic scale of a minor key." },
+    major: { name: "major scale", description: "From C: C D E F G A B C. Bright and stable: the most basic scale of Western music." },
+    "natural-minor": { name: "natural minor scale", description: "From A: A B C D E F G A. Dark and calm: the basic scale of a minor key." },
     "major-pentatonic": {
       name: "major pentatonic (yonanuki major)",
       description: "The major scale without its 4th and 7th: five notes. Simple and bright; common in children's songs, enka and J-pop melodies.",
@@ -536,7 +544,7 @@ const EN: Messages = {
       description: "The minor scale without its 2nd and 6th: five notes. The rock guitar solo standard; Japanese folk songs use the same notes.",
     },
     "yona-nuki-minor": {
-      name: "yonanuki minor (hirajōshi)",
+      name: "Hirajoshi scale (yonanuki minor)",
       description: "The minor scale without its 4th and 7th: five notes, the same as the koto's hirajōshi tuning. A wistful Japanese sound.",
     },
     "miyako-bushi": {
@@ -545,7 +553,7 @@ const EN: Messages = {
     },
     ryukyu: {
       name: "Okinawan scale (Ryūkyū scale)",
-      description: "Do mi fa sol ti: the major scale without its 2nd and 6th. Gives Okinawan folk songs their southern brightness.",
+      description: "From C: C E F G B, the major scale without its 2nd and 6th. Gives Okinawan folk songs their southern brightness.",
     },
     ritsu: { name: "ritsu scale", description: "Five notes of gagaku and folk songs. With no 3rd it is neither major nor minor: an open, easy sound." },
     blues: { name: "blues scale", description: "The minor pentatonic plus the ♭5 blue note. The gritty sound of blues and rock." },

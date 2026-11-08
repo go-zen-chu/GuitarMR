@@ -290,6 +290,9 @@ body.in-player { overflow: hidden; }
 .notes-others { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 0.8rem; color: var(--muted); }
 .scale-name { min-height: 36px; padding: 0 10px; font: inherit; color: var(--system); background: var(--surface); border: 1px solid var(--rule); border-radius: 18px; cursor: pointer; }
 .notes-head .scale-name { font-weight: 700; }
+.scale-name { display: inline-flex; flex-direction: column; align-items: flex-start; justify-content: center; padding-block: 3px; line-height: 1.3; text-align: left; border-radius: 12px; }
+.scale-alias { font-size: 0.72rem; font-weight: 500; opacity: 0.85; }
+.detail-alias { margin-top: -4px; font-size: 0.85rem; color: var(--muted); }
 .scale-name[aria-current="true"] { background: var(--system); border-color: var(--system); color: var(--surface); }
 .scale-notes { font-family: var(--font-mono); font-weight: 600; font-size: 0.9rem; color: var(--muted); }
 .notes-key { font-size: 0.8rem; line-height: 1.6; color: var(--muted); }

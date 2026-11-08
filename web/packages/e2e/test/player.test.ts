@@ -142,17 +142,21 @@ describe("play view", { timeout: 180_000 }, () => {
 
     // The scale, near the top; its name opens what it is and where it lies on the neck.
     const scale = page.locator('#player-notes .scale-name[data-scale="main"]');
-    assert.equal(await scale.textContent(), "A ヨナ抜き短音階（平調子）");
+    assert.equal(await scale.locator("span").textContent(), "A ヨナ抜き短音階（平調子）");
+    // The English name guitarists use, next to the Japanese one.
+    assert.equal(await scale.locator(".scale-alias").textContent(), "A Hirajoshi scale");
     assert.equal(await page.locator("#player-notes .scale-notes").textContent(), "A B C E F");
     await scale.click();
     assert.equal(await page.locator("#player-detail h3").textContent(), "A ヨナ抜き短音階（平調子）");
+    assert.equal(await page.locator("#player-detail .detail-alias").textContent(), "A Hirajoshi scale");
     assert.deepEqual(await page.locator("#player-detail .scale-note small").allTextContents(), ["1", "2", "♭3", "5", "♭6"]);
-    assert.match(await page.locator("#player-detail").textContent() ?? "", /同じ音の並び: E 都節音階/);
+    assert.match(await page.locator("#player-detail").textContent() ?? "", /同じ音の並び: E 都節音階（陰音階） \/ E In scale \(Miyako-bushi\)/);
     // 5 notes on 6 strings over 13 frets (open to 12th).
     assert.ok((await page.locator("#player-detail .fretboard circle").count()) >= 30);
     await page.screenshot({ path: `${ARTIFACTS}/player-scale-phone.png` });
     await page.locator("#player-notes .notes-others .scale-name").first().click();
     assert.equal(await page.locator("#player-detail h3").textContent(), "A ナチュラルマイナースケール（自然短音階）");
+    assert.match(await page.locator("#player-detail .detail-text").textContent() ?? "", /A B C D E F G A/);
     await page.click("#player-detail-close");
     for (const row of await rowAlignment(page)) {
       assert.ok(row.chord <= 1.5 && row.lyric <= 1.5 && row.sizes <= 0.1, JSON.stringify(row));
@@ -218,7 +222,9 @@ describe("play view", { timeout: 180_000 }, () => {
     await page.click("#player-explain");
     assert.equal(await page.locator("#player-explain").textContent(), "Explain");
     assert.match(await page.locator("#player-notes .notes-head").textContent() ?? "", /Key Am \(A minor\)/);
-    assert.equal(await page.locator('#player-notes .scale-name[data-scale="main"]').textContent(), "A yonanuki minor (hirajōshi)");
+    const scale = page.locator('#player-notes .scale-name[data-scale="main"]');
+    assert.equal(await scale.textContent(), "A Hirajoshi scale (yonanuki minor)");
+    assert.equal(await scale.locator(".scale-alias").count(), 0);
     await page.locator("#player-bars .bracket-name", { hasText: "Two-five-one" }).first().click();
     assert.match(await page.locator("#player-detail .detail-chords").textContent() ?? "", /\(from measure 13\)/);
     await page.click("#player-play");
