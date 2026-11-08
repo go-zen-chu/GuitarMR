@@ -7,7 +7,7 @@ import { ARTIFACTS, PHONE, TABLET, launch, openPage } from "./helpers.ts";
 
 async function openPlayer(browser: Browser, sample: string, options = {}) {
   const opened = await openPage(browser, options);
-  await opened.page.locator("#sample-list li", { hasText: sample }).getByRole("button", { name: "演奏ビュー" }).click();
+  await opened.page.locator("#library-list li.sample-song", { hasText: sample }).getByRole("button", { name: "演奏ビュー" }).click();
   await opened.page.waitForSelector("#player:not([hidden])");
   return opened;
 }

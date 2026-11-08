@@ -99,7 +99,6 @@ const ui = {
   json: $<HTMLTextAreaElement>("json"),
   playOpen: $<HTMLButtonElement>("play-open"),
   playGts: $<HTMLInputElement>("play-gts"),
-  sampleList: $<HTMLUListElement>("sample-list"),
   pages: $<HTMLOListElement>("pages"),
 };
 
@@ -862,102 +861,102 @@ async function renderLibrary() {
   ui.libraryUnavailable.hidden = available;
   ui.libraryEmpty.hidden = !available || entries.length > 0;
   ui.libraryExport.disabled = entries.length === 0;
-  ui.libraryList.replaceChildren(
-    ...entries.map((entry) => {
-      const summary = entry.doc ? reviewSummary(entry.doc) : null;
-      const pages = entry.doc?.source.pages.length;
-      const title = entry.doc?.meta.title && entry.doc.meta.title !== entry.name.replace(/\.[^.]*$/, "") ? `${entry.doc.meta.title}（${entry.name}）` : entry.name;
-      const facts = [
-        entry.files.length === 0
-          ? "ファイルなし（同じ PDF・写真を開くと戻ります）"
-          : entry.kind === "photos"
-            ? `写真 ${entry.files.length} 枚`
-            : "PDF",
-        summary ? `確認済み ${summary.reviewed} / ${summary.total} 小節` : "未読",
-        ...(summary?.attention ? [`要確認 ${summary.attention}`] : []),
-        dateFormat.format(entry.updated),
-      ].join(" · ");
-      const open = () => navigate({ view: "score", id: entry.id });
-      const play = () => entry.doc && player.open(entry.doc);
-      const actions: HTMLButtonElement[] = [];
-      if (entry.files.length) {
-        const button = actionButton("開く", open, "primary");
-        button.title = pages ? `${pages} ページ` : "";
-        actions.push(button);
-      }
-      // Something read can be played; work without its files (imported without them) still plays.
-      if (entry.doc && (!entry.files.length || (summary && summary.unread < summary.total))) actions.push(actionButton("演奏ビュー", play));
-      const remove = actionButton(
-        "削除",
-        async () => {
-          if (!confirm(`${entry.name} と作業内容をこの端末から削除しますか？（保存した gts.json は消えません）`)) return;
-          await library.remove(entry.id);
-          void renderLibrary();
-        },
-        "danger",
-      );
-      remove.setAttribute("aria-label", `${entry.name} を端末から削除`);
-      actions.push(remove);
-      const source = entry.cover ? null : entrySource(entry);
-      if (source) {
-        whenCovered(entry.id, source, async (cover) => {
-          const latest = await library.get(entry.id);
-          if (latest && !latest.cover && (await library.put({ ...latest, cover }))) void renderLibrary();
-        });
-      }
-      const li = scoreCard({
-        title,
-        facts,
-        tags: [],
-        cover: coverArt(entry.cover, entry.doc?.meta.title ?? entry.name, chordNames(entry.doc)),
-        primary: entry.files.length ? open : play,
-        actions,
+  const scanned = entries.map((entry) => {
+    const summary = entry.doc ? reviewSummary(entry.doc) : null;
+    const pages = entry.doc?.source.pages.length;
+    const title = entry.doc?.meta.title && entry.doc.meta.title !== entry.name.replace(/\.[^.]*$/, "") ? `${entry.doc.meta.title}（${entry.name}）` : entry.name;
+    const facts = [
+      entry.files.length === 0
+        ? "ファイルなし（同じ PDF・写真を開くと戻ります）"
+        : entry.kind === "photos"
+          ? `写真 ${entry.files.length} 枚`
+          : "PDF",
+      summary ? `確認済み ${summary.reviewed} / ${summary.total} 小節` : "未読",
+      ...(summary?.attention ? [`要確認 ${summary.attention}`] : []),
+      dateFormat.format(entry.updated),
+    ].join(" · ");
+    const open = () => navigate({ view: "score", id: entry.id });
+    const play = () => entry.doc && player.open(entry.doc);
+    const actions: HTMLButtonElement[] = [];
+    if (entry.files.length) {
+      const button = actionButton("開く", open, "primary");
+      button.title = pages ? `${pages} ページ` : "";
+      actions.push(button);
+    }
+    // Something read can be played; work without its files (imported without them) still plays.
+    if (entry.doc && (!entry.files.length || (summary && summary.unread < summary.total))) actions.push(actionButton("演奏ビュー", play));
+    const remove = actionButton(
+      "削除",
+      async () => {
+        if (!confirm(`${entry.name} と作業内容をこの端末から削除しますか？（保存した gts.json は消えません）`)) return;
+        await library.remove(entry.id);
+        void renderLibrary();
+      },
+      "danger",
+    );
+    remove.setAttribute("aria-label", `${entry.name} を端末から削除`);
+    actions.push(remove);
+    const source = entry.cover ? null : entrySource(entry);
+    if (source) {
+      whenCovered(entry.id, source, async (cover) => {
+        const latest = await library.get(entry.id);
+        if (latest && !latest.cover && (await library.put({ ...latest, cover }))) void renderLibrary();
       });
-      if (entry.id === state.sha256) li.classList.add("current");
-      return li;
-    }),
-  );
+    }
+    const li = scoreCard({
+      title,
+      facts,
+      tags: [],
+      cover: coverArt(entry.cover, entry.doc?.meta.title ?? entry.name, chordNames(entry.doc)),
+      primary: entry.files.length ? open : play,
+      actions,
+    });
+    li.classList.add("scanned");
+    if (entry.id === state.sha256) li.classList.add("current");
+    return li;
+  });
+  // The samples always come last, so new scans are never pushed down by them.
+  ui.libraryList.replaceChildren(...scanned, ...(await sampleCards()));
   ui.libraryNote.textContent =
     usage === null ? "" : `この端末で使っている容量: ${(usage / 1024 / 1024).toFixed(1)} MB`;
-  void renderSamples();
 }
 
 /** Covers of the sample PDFs, made on this visit (the samples are part of the page, not the library). */
 const sampleCovers = new Map<string, string>();
 
-/** The sample songs, tagged as such, with the work done on them here. */
-async function renderSamples() {
+/** Cards of the sample songs, tagged as such, with the work done on them here; they cannot be deleted. */
+async function sampleCards(): Promise<HTMLLIElement[]> {
   const [ids, stored] = await Promise.all([samplesById(), library.all()]);
   const idOf = new Map([...ids].map(([id, s]) => [s, id]));
-  ui.sampleList.replaceChildren(
-    ...sampleSongs.map((song) => {
-      const id = song.pdf && idOf.get(song.pdf);
-      const entry = id ? stored.find((e) => e.id === id) : undefined;
-      const work = entry?.doc;
-      const cover = sampleCovers.get(song.label) ?? entry?.cover;
-      const summary = work ? reviewSummary(work) : null;
-      const open = () => id && navigate({ view: "score", id });
-      const play = () => song.gts && player.open(structuredClone(song.gts));
-      const actions = [
-        ...(id ? [actionButton("開く", open, "primary")] : []),
-        ...(song.gts ? [actionButton("演奏ビュー", play)] : []),
-      ];
-      if (song.pdf && !cover) {
-        whenCovered(`sample:${song.label}`, { kind: "sample", name: song.pdf.file, bytes: decode(song.pdf.pdf) }, (cover) => {
-          sampleCovers.set(song.label, cover);
-          void renderSamples();
-        });
-      }
-      return scoreCard({
-        title: song.label,
-        facts: [...song.notes, ...(summary ? [`確認済み ${summary.reviewed} / ${summary.total} 小節`] : [])].join(" · "),
-        tags: ["サンプル"],
-        cover: coverArt(cover, song.label, chordNames(song.gts ?? work)),
-        primary: id ? open : play,
-        actions,
+  return sampleSongs.map((song) => {
+    const id = song.pdf && idOf.get(song.pdf);
+    const entry = id ? stored.find((e) => e.id === id) : undefined;
+    const work = entry?.doc;
+    const cover = sampleCovers.get(song.label) ?? entry?.cover;
+    const summary = work ? reviewSummary(work) : null;
+    const open = () => id && navigate({ view: "score", id });
+    const play = () => song.gts && player.open(structuredClone(song.gts));
+    const actions = [
+      ...(id ? [actionButton("開く", open, "primary")] : []),
+      ...(song.gts ? [actionButton("演奏ビュー", play)] : []),
+    ];
+    if (song.pdf && !cover) {
+      whenCovered(`sample:${song.label}`, { kind: "sample", name: song.pdf.file, bytes: decode(song.pdf.pdf) }, (cover) => {
+        sampleCovers.set(song.label, cover);
+        void renderLibrary();
       });
-    }),
-  );
+    }
+    const li = scoreCard({
+      title: song.label,
+      facts: [...song.notes, ...(summary ? [`確認済み ${summary.reviewed} / ${summary.total} 小節`] : [])].join(" · "),
+      tags: ["サンプル"],
+      cover: coverArt(cover, song.label, chordNames(song.gts ?? work)),
+      primary: id ? open : play,
+      actions,
+    });
+    li.classList.add("sample-song");
+    return li;
+  });
 }
 
 /** Write the whole library to one file, to move it to another device. */
