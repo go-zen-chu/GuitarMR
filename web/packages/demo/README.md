@@ -2,9 +2,9 @@
 
 **tky**: a single HTML file that digitizes a scanned guitar score on a
 phone, as the first step toward the phone/tablet PWA (ADR-009). It opens on
-the score list (楽譜); scanning is the other tab (スキャン), a finished scan
-opens its score, and the settings are behind the gear (ADR-009 amendment
-2026-11-02). The screen is kept in the URL hash (`src/router.ts`).
+the home screen (ホーム) with the score list (楽譜一覧) in it; scanning is
+the other tab (スキャン), a finished scan opens its score, and the settings
+are behind the gear (ADR-009 amendment 2026-11-02). The screen is kept in the URL hash (`src/router.ts`).
 
 1. Pick a scanned PDF, or take photos of the pages ("カメラで撮る", one
    photo per page; several photos can also be picked at once). Photos
@@ -35,7 +35,9 @@ opens its score, and the settings are behind the gear (ADR-009 amendment
    listed; tapping one opens its measure.
 4. Save `<name>.gts.json`. The library on the device (`src/library.ts`,
    IndexedDB) keeps every opened PDF or set of photos together with the
-   work on it; it is the score list, the first view, where a score is
+   work on it; it is the score list, the first view: one card per score
+   with its first page as the cover (`src/cover.ts`; made when the score is
+   scanned, or from the stored files for older entries), where a score is
    opened again (analyzed again from the stored files, then the stored
    work restored) or deleted. Nothing in it leaves the device. A saved gts
    file can also be opened again to continue. "別の端末へ引っ越す" writes
@@ -49,7 +51,10 @@ opens its score, and the settings are behind the gear (ADR-009 amendment
    `@guitarmr/gts`), each with its chords spread by duration, the verse
    for the current pass and chord diagrams from `chordShapes`. Playing
    follows the tempo with a one-measure count-in and an optional click
-   (Web Audio, scheduled ahead); the current measure is highlighted and
+   (Web Audio, scheduled ahead) and the score's sound, chords and tab
+   switched on their own (`soundEvents` in `@guitarmr/gts` times the
+   chords, strummed where they change, and the tab notes with tuning and
+   capo; `src/synth.ts` plucks them as Karplus-Strong strings); the current measure is highlighted and
    its beat marks fill in: 4, 8 or 16 per 4/4 measure (on-beat marks
    taller), from the song's `meta.beat` (default 4) or the 4/8/16 switch, and the view scrolls to keep the current line near the
    top. Measures per row and text sizes follow the screen and each
@@ -58,7 +63,8 @@ opens its score, and the settings are behind the gear (ADR-009 amendment
    shrinks long names as a whole, so chords and lyrics stay level across
    a row for the eye to follow. A gts file
    can be opened in it on its own, without the PDF; the committed
-   public-domain samples are built in.
+   public-domain samples are built in and always listed after the user's scores,
+   tagged サンプル (they cannot be deleted).
 
 ```sh
 pnpm --filter @guitarmr/demo build              # dist/tky.html

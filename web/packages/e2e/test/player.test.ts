@@ -7,7 +7,7 @@ import { ARTIFACTS, PHONE, TABLET, launch, openPage } from "./helpers.ts";
 
 async function openPlayer(browser: Browser, sample: string, options = {}) {
   const opened = await openPage(browser, options);
-  await opened.page.locator("#play-samples .sample", { hasText: sample }).click();
+  await opened.page.locator("#library-list li.sample-song", { hasText: sample }).getByRole("button", { name: "演奏ビュー" }).click();
   await opened.page.waitForSelector("#player:not([hidden])");
   return opened;
 }
@@ -94,6 +94,40 @@ describe("play view", { timeout: 180_000 }, () => {
     // A tap jumps to a measure.
     await page.locator('#player-bars .bar[data-k="3"]').click();
     assert.equal((await currentMarks(page)).k, 3);
+    assert.deepEqual(errors, []);
+  });
+
+  it("If a song is played it should sound its chords and tab, each only while switched on", async () => {
+    const { page, errors } = await openPlayer(browser, "練習曲", {
+      // Count the plucked strings the page starts.
+      setup: (p: Page) =>
+        p.addInitScript(() => {
+          const w = window as unknown as { __plucks: number };
+          w.__plucks = 0;
+          const start = AudioBufferSourceNode.prototype.start;
+          AudioBufferSourceNode.prototype.start = function (...args: Parameters<typeof start>) {
+            w.__plucks++;
+            return start.apply(this, args);
+          };
+        }),
+    });
+    const plucks = () => page.evaluate(() => (window as unknown as { __plucks: number }).__plucks);
+    assert.equal(await page.locator("#player-chord-sound").isVisible(), true);
+    assert.equal(await page.locator("#player-tab-sound").isVisible(), true);
+    await page.fill("#player-bpm", "240");
+    await page.locator("#player-bpm").dispatchEvent("change");
+    await page.click("#player-play");
+    await page.waitForFunction(() => (window as unknown as { __plucks: number }).__plucks > 10, null, { timeout: 10_000 });
+    await page.click("#player-play");
+
+    // Both switched off: playing on stays silent.
+    await page.uncheck("#player-chord-sound");
+    await page.uncheck("#player-tab-sound");
+    const before = await plucks();
+    await page.click("#player-play");
+    await page.waitForFunction(() => Number(document.querySelector<HTMLElement>(".bar.current")?.dataset.k) >= 2, null, { timeout: 10_000 });
+    await page.click("#player-play");
+    assert.equal(await plucks(), before);
     assert.deepEqual(errors, []);
   });
 

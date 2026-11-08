@@ -17,6 +17,31 @@ describe("screens", { timeout: 180_000 }, () => {
   });
   after(() => browser?.close());
 
+  it("If home opens its score list should show the sample songs tagged as samples, with their covers and no delete", async () => {
+    const { page, errors } = await openPage(browser);
+    // Home holds the score list, and its tab is named after it.
+    assert.equal(await page.locator("#view-library h1").textContent(), "ホーム");
+    assert.equal(await page.locator(".score-list h2").textContent(), "楽譜一覧");
+    assert.equal(await page.locator('.tabs [data-tab="library"]').textContent(), "ホーム");
+    const cards = page.locator("#library-list li.sample-song");
+    assert.deepEqual(await cards.locator(".entry-text strong").allTextContents(), ["さくらさくら", "きらきら星", "練習曲"]);
+    assert.deepEqual(await cards.locator(".tag").allTextContents(), ["サンプル", "サンプル", "サンプル"]);
+    // Before any scan the list is the samples, which cannot be deleted.
+    assert.equal(await page.locator("#library-list li").count(), 3);
+    assert.equal(await cards.getByRole("button", { name: /削除/ }).count(), 0);
+    // The scan-like PDFs show their first page; the gts-only song a drawn cover.
+    await page.waitForFunction(() => document.querySelectorAll("#library-list .sample-song .cover img").length === 2, null, { timeout: 60_000 });
+    assert.equal(await cards.nth(2).locator(".cover.drawn").count(), 1);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), PHONE.width);
+    await page.screenshot({ path: `${ARTIFACTS}/score-list.png`, fullPage: true });
+
+    // A sample's cover opens it like its button.
+    await cards.nth(1).locator(".cover").click();
+    await page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "twinkle-twinkle.pdf", null, { timeout: 120_000 });
+    assert.equal(await visibleView(page), "view-score");
+    assert.deepEqual(errors, []);
+  });
+
   it("If back is pressed it should close the editor, then the play view, then go to the score list, then leave", async () => {
     const { page, errors } = await openPage(browser);
     await openSample(page);

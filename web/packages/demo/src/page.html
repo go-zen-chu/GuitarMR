@@ -200,16 +200,26 @@ body.editing main { padding-bottom: 70dvh; }
 /* The library on this device. */
 .library { display: grid; gap: 10px; }
 .library h2 { font-size: 1.05rem; }
-.library-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.library-list li { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
-.library-list .entry-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-@media (min-width: 600px) { .library-list li { grid-template-columns: minmax(0, 1fr) auto; align-items: center; } }
-.library-list li.current { border-color: var(--system); }
-.library-list strong { display: block; font-weight: 700; overflow-wrap: anywhere; }
-.library-list small { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.score-list { display: grid; gap: 10px; }
+.score-list h2 { font-size: 1.05rem; }
+/* The score list: one card per score, its first page as the cover. */
+.library-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); }
+.library-list li { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); min-width: 0; }
+.library-list li.current { border-color: var(--system); box-shadow: 0 0 0 1px var(--system); }
+.library-list .cover { aspect-ratio: 1 / 1; border-radius: 6px; overflow: hidden; border: 1px solid var(--rule); background: #fbfbf8; cursor: pointer; }
+.library-list .cover img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+/* No page to show: the title and chords on staff lines, light like paper in either theme. */
+.library-list .cover.drawn { display: flex; flex-direction: column; gap: 10px; padding: 14px 10px; color: #14161a; background: repeating-linear-gradient(to bottom, #fbfbf8 0 14px, #c9cdc4 14px 15px) 0 50% / 100% 90px no-repeat, #fbfbf8; }
+.library-list .cover.drawn strong { font-family: var(--font-display); font-size: 1rem; line-height: 1.3; }
+.library-list .cover.drawn span { font-family: var(--font-mono); font-size: 0.75rem; line-height: 1.6; color: #3b4048; margin-top: auto; overflow-wrap: anywhere; }
+.library-list .entry-text { display: grid; gap: 2px; min-width: 0; }
+.library-list .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.library-list .tag { font-size: 0.7rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; color: var(--system); border: 1px solid var(--system); }
+.library-list strong { display: block; font-weight: 700; overflow-wrap: anywhere; line-height: 1.35; }
+.library-list small { color: var(--muted); font-size: 0.78rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.library-list .entry-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
 .library-list .entry-actions .primary { background: var(--button); border-color: var(--button); color: var(--button-ink); font-weight: 700; }
-.library-list .danger { margin-left: auto; }
-.library-list button { min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; cursor: pointer; }
+.library-list button { flex: 1 1 auto; min-height: 40px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; cursor: pointer; font-size: 0.85rem; white-space: nowrap; }
 .library-list .danger { color: var(--st-unread); }
 .library-note { font-size: 0.8rem; color: var(--muted); }
 .move { display: grid; gap: 8px; }
@@ -297,12 +307,14 @@ body.in-player { overflow: hidden; }
 <main>
   <div class="status" id="status-box" hidden aria-live="polite"><p id="status"></p><progress id="progress" max="1" value="0" hidden></progress></div>
 
-  <section class="view" id="view-library" aria-labelledby="library-title">
-    <h1 id="library-title">楽譜</h1>
-    <p class="library-note" id="library-empty">まだありません。<a href="#/scan">スキャン</a>で PDF や写真を開くと、読み取った楽譜がここに並びます。</p>
-    <p class="library-note" id="library-unavailable" hidden>この画面では端末に楽譜を残せません。<a href="#/scan">スキャン</a>で開いた楽譜は、作業が終わったら gts.json に保存してください。</p>
-    <ul class="library-list" id="library-list"></ul>
-    <div class="samples-row" id="play-samples"><p>サンプル曲：読み取ったコードを順に表示し、テンポに合わせて自動スクロールします（演奏ビュー）</p></div>
+  <section class="view" id="view-library" aria-labelledby="home-title">
+    <h1 id="home-title">ホーム</h1>
+    <section class="score-list" aria-labelledby="score-list-title">
+      <h2 id="score-list-title">楽譜一覧</h2>
+      <p class="library-note" id="library-empty"><a href="#/scan">スキャン</a>した楽譜は、サンプル曲より前に並びます。</p>
+      <p class="library-note" id="library-unavailable" hidden>この画面では端末に楽譜を残せません。<a href="#/scan">スキャン</a>で開いた楽譜は、作業が終わったら gts.json に保存してください。</p>
+      <ul class="library-list" id="library-list"></ul>
+    </section>
   </section>
 
   <section class="view" id="view-scan" hidden aria-labelledby="scan-title">
@@ -331,7 +343,7 @@ body.in-player { overflow: hidden; }
   </section>
 
   <section class="view" id="view-score" hidden aria-label="楽譜の詳細">
-    <a class="back" href="#/">← 楽譜</a>
+    <a class="back" href="#/">← ホーム</a>
     <div class="legend" aria-label="凡例"><span class="sys">段（五線＋TAB）</span><span class="mea">小節（番号は通し）</span></div>
     <section class="summary" id="summary" hidden aria-label="結果">
       <div><h2 id="summary-source"></h2><p class="stats" id="summary-stats"></p></div>
@@ -395,7 +407,7 @@ body.in-player { overflow: hidden; }
 </main>
 
 <nav class="tabs" aria-label="画面">
-  <a href="#/" data-tab="library">楽譜</a>
+  <a href="#/" data-tab="library">ホーム</a>
   <a href="#/scan" data-tab="scan">スキャン</a>
 </nav>
 
@@ -447,6 +459,8 @@ body.in-player { overflow: hidden; }
       </div>
       <div class="feel" id="player-feel" role="group" aria-label="ビートの数（1小節あたり）"><span>ビート</span><button type="button" data-feel="4" aria-pressed="true">4</button><button type="button" data-feel="8" aria-pressed="false">8</button><button type="button" data-feel="16" aria-pressed="false">16</button></div>
       <label class="toggle"><input type="checkbox" id="player-click">クリック音</label>
+      <label class="toggle"><input type="checkbox" id="player-chord-sound">コード音</label>
+      <label class="toggle"><input type="checkbox" id="player-tab-sound">TAB音</label>
       <div class="zoom"><button type="button" id="player-smaller" aria-label="文字を小さく">A−</button><button type="button" id="player-larger" aria-label="文字を大きく">A＋</button></div>
     </div>
   </div>
