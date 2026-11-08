@@ -98,6 +98,8 @@ describe("photos and the library", { timeout: 300_000 }, () => {
     await page.waitForSelector("#view-score:not([hidden])");
     await page.waitForSelector("#library-list li", { state: "attached" });
     assert.match((await page.locator("#library-list li").textContent())!, /song\.pdf.*PDF · 確認済み 0 \/ 12 小節/);
+    // The card shows the first page as its cover.
+    assert.match((await page.locator("#library-list li .cover img").getAttribute("src"))!, /^data:image\/jpeg;base64,/);
 
     // Review one measure, then come back later.
     await page.locator('[data-id="m1"]').click();

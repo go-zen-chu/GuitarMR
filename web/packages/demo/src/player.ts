@@ -5,20 +5,28 @@
  * follows the tempo: the current measure is highlighted, its beat marks
  * (4, 8 or 16 per 4/4 measure, from the song's feel) fill in, and the
  * view scrolls so the current line stays near the top, on any screen size.
+ * The chords and the tab can be heard (synth.ts), each switched on its own.
  */
 
 import {
   type GtsDocument,
   type PlayStep,
+  type SoundEvent,
   type SoundingChords,
   lyricsFor,
   playOrder,
+  soundEvents,
   soundingChords,
 } from "@guitarmr/gts";
+import { type Synth, createSynth } from "./synth.ts";
 
 const SVG = "http://www.w3.org/2000/svg";
 const ZOOM_KEY = "guitarmr.player.zoom";
 const CLICK_KEY = "guitarmr.player.click";
+const CHORD_SOUND_KEY = "guitarmr.player.chordSound";
+const TAB_SOUND_KEY = "guitarmr.player.tabSound";
+/** Seconds of sound scheduled ahead on the audio clock. */
+const LOOKAHEAD = 0.12;
 
 /** "F#m7-5" → "F♯m7-5", "Bb" → "B♭" (display only). */
 export function prettyChord(symbol: string): string {
@@ -62,6 +70,8 @@ export function createPlayer() {
     slower: $<HTMLButtonElement>("player-slower"),
     faster: $<HTMLButtonElement>("player-faster"),
     click: $<HTMLInputElement>("player-click"),
+    chordSound: $<HTMLInputElement>("player-chord-sound"),
+    tabSound: $<HTMLInputElement>("player-tab-sound"),
     smaller: $<HTMLButtonElement>("player-smaller"),
     larger: $<HTMLButtonElement>("player-larger"),
     count: $<HTMLElement>("player-count"),
@@ -85,6 +95,9 @@ export function createPlayer() {
   let frame = 0;
   let audio: AudioContext | null = null;
   let nextClick = 0;
+  let synth: Synth | null = null;
+  let sounds: SoundEvent[] = [];
+  let nextSound = 0;
   let wakeLock: { release(): Promise<void> } | null = null;
 
   const store = {
@@ -105,6 +118,8 @@ export function createPlayer() {
   };
   let zoom = Number(store.get(ZOOM_KEY)) || 1;
   el.click.checked = store.get(CLICK_KEY) === "1";
+  el.chordSound.checked = store.get(CHORD_SOUND_KEY) !== "0";
+  el.tabSound.checked = store.get(TAB_SOUND_KEY) !== "0";
   const applyZoom = () => el.root.style.setProperty("--zoom", String(zoom));
   applyZoom();
 
@@ -118,6 +133,10 @@ export function createPlayer() {
     steps = playOrder(doc);
     const sounding: SoundingChords[] = soundingChords(steps);
     totalBeats = steps.length ? steps[steps.length - 1]!.start + steps[steps.length - 1]!.beats : 0;
+    sounds = soundEvents(doc, steps);
+    // Each switch only shows when the score has that layer to hear.
+    el.chordSound.closest("label")!.hidden = !sounds.some((e) => e.part === "chord");
+    el.tabSound.closest("label")!.hidden = !sounds.some((e) => e.part === "tab");
     const shapes = doc.chordShapes ?? {};
     const hasLyrics = steps.some((s) => s.measure.lyrics?.length);
     el.title.textContent = doc.meta.title;
@@ -339,23 +358,35 @@ export function createPlayer() {
     if (beat < 0) el.count.textContent = String(Math.ceil(-beat));
     show(beat);
     if (audio) {
-      // Schedule clicks a little ahead on the audio clock (steady timing).
+      // Schedule clicks and notes a little ahead on the audio clock (steady timing).
       const secondsPerBeat = 60 / bpm();
-      while (anchorTime + (nextClick - anchorBeat) * secondsPerBeat < audio.currentTime + 0.12) {
+      while (anchorTime + (nextClick - anchorBeat) * secondsPerBeat < audio.currentTime + LOOKAHEAD) {
         const at = anchorTime + (nextClick - anchorBeat) * secondsPerBeat;
         const k = stepAt(Math.max(nextClick, 0));
         const downbeat = nextClick < 0 ? nextClick === -steps[0]!.beats : steps[k]!.start === nextClick;
         if (at >= audio.currentTime - 0.01) click(at, downbeat);
         nextClick++;
       }
+      for (; nextSound < sounds.length; nextSound++) {
+        const event = sounds[nextSound]!;
+        const at = anchorTime + (event.at - anchorBeat) * secondsPerBeat;
+        if (at >= audio.currentTime + LOOKAHEAD) break;
+        const wanted = event.part === "chord" ? el.chordSound.checked : el.tabSound.checked;
+        if (wanted && at >= audio.currentTime - 0.01) synth?.play(event, at, secondsPerBeat);
+      }
     }
     frame = requestAnimationFrame(tick);
   }
 
-  function anchor(beat: number) {
+  /** Time from `beat` on; `rewind` also starts the sound over from there (else what is scheduled stays). */
+  function anchor(beat: number, rewind = true) {
     anchorBeat = beat;
     anchorTime = clock();
+    if (!rewind) return;
     nextClick = Math.ceil(beat);
+    synth?.stop();
+    nextSound = sounds.findIndex((e) => e.at >= beat - 1e-6);
+    if (nextSound < 0) nextSound = sounds.length;
   }
 
   async function play() {
@@ -369,6 +400,8 @@ export function createPlayer() {
       }
     }
     await audio?.resume().catch(() => undefined);
+    if (audio && !synth) synth = createSynth(audio);
+    synth?.prepare(sounds);
     // Count in one measure before the first beat.
     const from = steps[stepAt(Math.max(anchorBeat, 0))]!;
     playing = true;
@@ -389,6 +422,7 @@ export function createPlayer() {
     anchorBeat = Math.max(position(), 0);
     playing = false;
     cancelAnimationFrame(frame);
+    synth?.stop();
     el.count.hidden = true;
     el.play.textContent = "再生";
     el.play.setAttribute("aria-pressed", "false");
@@ -407,7 +441,7 @@ export function createPlayer() {
   function setBpm(value: number) {
     const beat = position();
     el.bpm.value = String(Math.round(Math.min(Math.max(value, 30), 300)));
-    if (playing) anchor(beat);
+    if (playing) anchor(beat, false);
   }
 
   el.play.addEventListener("click", () => (playing ? pause() : void play()));
@@ -415,6 +449,8 @@ export function createPlayer() {
   el.faster.addEventListener("click", () => setBpm(bpm() + 4));
   el.bpm.addEventListener("change", () => setBpm(bpm()));
   el.click.addEventListener("change", () => store.set(CLICK_KEY, el.click.checked ? "1" : "0"));
+  el.chordSound.addEventListener("change", () => store.set(CHORD_SOUND_KEY, el.chordSound.checked ? "1" : "0"));
+  el.tabSound.addEventListener("change", () => store.set(TAB_SOUND_KEY, el.tabSound.checked ? "1" : "0"));
   el.smaller.addEventListener("click", () => {
     zoom = Math.max(0.7, Math.round((zoom - 0.15) * 100) / 100);
     store.set(ZOOM_KEY, String(zoom));

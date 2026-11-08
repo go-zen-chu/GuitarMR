@@ -17,11 +17,12 @@ import { type GtsDocument, measures } from "@guitarmr/gts";
 import { checkDocument, reviewSummary, tabUnread } from "@guitarmr/extract";
 import { type RgbaImage, type ScannedPage, buildDocument, renderPages, sha256Hex } from "@guitarmr/layoutscan";
 import * as pdfjs from "pdfjs-dist";
+import { coverArt, coverPixels, coverUrl } from "./cover.ts";
 import { createEditor } from "./editor.ts";
 import { type LibraryEntry, type StoredFile, library } from "./library.ts";
 import { type PhotoFile, concatPhotos, createTray, decodePhoto, isImage } from "./photos.ts";
 import { exportLibrary, importLibrary, isLibraryExport, linesOf, mergeEntry } from "./transfer.ts";
-import { createPlayer } from "./player.ts";
+import { createPlayer, prettyChord } from "./player.ts";
 import type { DetectResult } from "./preview.ts";
 import { type ReadLayer, type Sample, readPages } from "./reader.ts";
 import { type Route, parentRoute, parseRoute, routeHash } from "./router.ts";
@@ -98,7 +99,7 @@ const ui = {
   json: $<HTMLTextAreaElement>("json"),
   playOpen: $<HTMLButtonElement>("play-open"),
   playGts: $<HTMLInputElement>("play-gts"),
-  playSamples: $<HTMLElement>("play-samples"),
+  sampleList: $<HTMLUListElement>("sample-list"),
   pages: $<HTMLOListElement>("pages"),
 };
 
@@ -420,13 +421,16 @@ async function analyze(source: Source) {
   let total = 0;
   let done = 0;
   let sha256: string;
+  let cover: string | undefined;
   try {
     total = await pageCount(source);
     for await (const [index, image, photo] of pagesOf(source)) {
       if (mine !== run) return;
       setStatus(`${name}: ${index + 1} / ${total} ${photo ? "枚目の写真を補正・解析中…" : "ページ目を解析中…"}`, done / total);
+      const firstPage = index === 0 ? coverPixels(image) : null;
       const result = await detectInWorker(index, image, photo);
       if (mine !== run) return;
+      if (firstPage) cover = coverUrl(result.preview ? coverPixels(result.preview) : firstPage);
       let preview = null;
       if (result.preview) {
         const blob = await toJpeg(result.preview);
@@ -474,6 +478,7 @@ async function analyze(source: Source) {
   const stored: LibraryEntry = entry
     ? { ...entry, updated: now, files: entry.files.length ? entry.files : filesOf(source) }
     : { id: sha256, name, kind: source.kind, files: filesOf(source), doc: null, added: now, updated: now };
+  if (cover) stored.cover = cover;
   // The detected layout is already work worth keeping (and moving to another device).
   stored.doc = draft ?? state.detected;
   const kept = await library.put(stored);
@@ -670,16 +675,6 @@ async function playFile(file: File) {
 }
 
 const scores: { label: string; note: string; gts: GtsDocument }[] = JSON.parse($("scores-data").textContent!);
-for (const s of scores) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "sample";
-  button.innerHTML = "<span></span><small></small>";
-  button.querySelector("span")!.textContent = s.label;
-  button.querySelector("small")!.textContent = s.note;
-  button.addEventListener("click", () => player.open(structuredClone(s.gts)));
-  ui.playSamples.append(button);
-}
 ui.playOpen.addEventListener("click", () => state.doc && player.open(state.doc));
 ui.playGts.addEventListener("change", () => {
   const file = ui.playGts.files?.[0];
@@ -691,11 +686,24 @@ const decode = (b64: string): Uint8Array => Uint8Array.from(atob(b64), (c) => c.
 
 const samples: SampleFile[] = JSON.parse($("samples-data").textContent!);
 let sampleIds: Promise<Map<string, SampleFile>> | null = null;
-/** The built-in sample whose PDF has the SHA-256 `id`, if any (hashed once, on first use). */
-async function sampleById(id: string): Promise<SampleFile | undefined> {
-  sampleIds ??= Promise.all(samples.map(async (s) => [await sha256Hex(decode(s.pdf)), s] as const)).then((pairs) => new Map(pairs));
-  return (await sampleIds).get(id);
+/** The built-in samples by the SHA-256 of their PDFs (hashed once, on first use). */
+const samplesById = (): Promise<Map<string, SampleFile>> =>
+  (sampleIds ??= Promise.all(samples.map(async (s) => [await sha256Hex(decode(s.pdf)), s] as const)).then((pairs) => new Map(pairs)));
+/** The built-in sample whose PDF has the SHA-256 `id`, if any. */
+const sampleById = async (id: string): Promise<SampleFile | undefined> => (await samplesById()).get(id);
+
+/** A sample song of the score list: its scan-like PDF, its finished gts file, or both. */
+interface SampleSong {
+  label: string;
+  notes: string[];
+  pdf?: SampleFile;
+  gts?: GtsDocument;
 }
+const sampleSongs: SampleSong[] = [...new Set([...samples.map((s) => s.label), ...scores.map((s) => s.label)])].map((label) => {
+  const pdf = samples.find((s) => s.label === label);
+  const gts = scores.find((s) => s.label === label);
+  return { label, notes: [pdf?.note, gts?.note].filter((n): n is string => !!n), ...(pdf ? { pdf } : {}), ...(gts ? { gts: gts.gts } : {}) };
+});
 for (const s of samples) {
   const button = document.createElement("button");
   button.type = "button";
@@ -761,6 +769,93 @@ async function openFiles(files: File[]) {
 // The library: scores opened on this device, to open again without picking the files.
 const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
+/** The files kept for a library entry, as a source to analyze; null when none were kept. */
+function entrySource(entry: LibraryEntry): Source | null {
+  const bytes = (f: StoredFile) => new Uint8Array(f.data);
+  if (!entry.files.length) return null;
+  return entry.kind === "photos"
+    ? { kind: "photos", name: entry.name, photos: entry.files.map((f) => ({ name: f.name, type: f.type, bytes: bytes(f) })) }
+    : { kind: "pdf", name: entry.name, bytes: bytes(entry.files[0]!) };
+}
+
+let coverJob = 0;
+/** Covers being made, per score (each is tried once while the page is open). */
+const coverJobs = new Map<string, Promise<string | null>>();
+
+/** The cover of `source`: its first page upright, or as it is when it has no staves (a title page). */
+async function makeCover(source: Source): Promise<string | null> {
+  try {
+    for await (const [, image, photo] of pagesOf(source)) {
+      const page = coverPixels(image);
+      // Negative indexes keep these apart from the pages of a running analysis.
+      const result = await detectInWorker(-++coverJob, image, photo);
+      return coverUrl(result.preview ? coverPixels(result.preview) : page);
+    }
+  } catch {
+    // no cover: the drawn one stands in
+  }
+  return null;
+}
+
+/** Make the cover `key` once, then run `done` with it. */
+function whenCovered(key: string, source: Source, done: (cover: string) => void) {
+  if (coverJobs.has(key)) return;
+  const job = makeCover(source);
+  coverJobs.set(key, job);
+  void job.then((cover) => cover && done(cover));
+}
+
+/** Chord names of a score in order, each change once, for the drawn cover. */
+function chordNames(doc: GtsDocument | null | undefined): string[] {
+  const names = (doc ? measures(doc) : []).flatMap((m) => (m.chords ?? []).map((c) => prettyChord(c.symbol)));
+  return names.filter((name, i) => name !== names[i - 1]);
+}
+
+function actionButton(label: string, onClick: () => void, className = ""): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+  if (className) button.className = className;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+/** One score of the list: cover (tapping it does `primary`), title, facts, tags and buttons. */
+function scoreCard(card: {
+  title: string;
+  facts: string;
+  tags: string[];
+  cover: HTMLElement;
+  primary: () => void;
+  actions: HTMLButtonElement[];
+}): HTMLLIElement {
+  const li = document.createElement("li");
+  card.cover.addEventListener("click", card.primary);
+  const text = document.createElement("div");
+  text.className = "entry-text";
+  const title = document.createElement("strong");
+  title.textContent = card.title;
+  const facts = document.createElement("small");
+  facts.textContent = card.facts;
+  if (card.tags.length) {
+    const tags = document.createElement("div");
+    tags.className = "tags";
+    for (const label of card.tags) {
+      const tag = document.createElement("span");
+      tag.className = "tag";
+      tag.textContent = label;
+      tags.append(tag);
+    }
+    text.append(tags);
+  }
+  text.append(title, facts);
+  const actions = document.createElement("div");
+  actions.className = "entry-actions";
+  actions.append(...card.actions);
+  li.append(card.cover, text, actions);
+  return li;
+}
+
 async function renderLibrary() {
   const [available, entries, usage] = await Promise.all([library.available(), library.list(), library.usage()]);
   ui.library.hidden = !available;
@@ -769,15 +864,10 @@ async function renderLibrary() {
   ui.libraryExport.disabled = entries.length === 0;
   ui.libraryList.replaceChildren(
     ...entries.map((entry) => {
-      const li = document.createElement("li");
-      if (entry.id === state.sha256) li.className = "current";
-      const text = document.createElement("div");
-      const title = document.createElement("strong");
-      title.textContent = entry.doc?.meta.title && entry.doc.meta.title !== entry.name.replace(/\.[^.]*$/, "") ? `${entry.doc.meta.title}（${entry.name}）` : entry.name;
-      const facts = document.createElement("small");
       const summary = entry.doc ? reviewSummary(entry.doc) : null;
       const pages = entry.doc?.source.pages.length;
-      facts.textContent = [
+      const title = entry.doc?.meta.title && entry.doc.meta.title !== entry.name.replace(/\.[^.]*$/, "") ? `${entry.doc.meta.title}（${entry.name}）` : entry.name;
+      const facts = [
         entry.files.length === 0
           ? "ファイルなし（同じ PDF・写真を開くと戻ります）"
           : entry.kind === "photos"
@@ -787,43 +877,87 @@ async function renderLibrary() {
         ...(summary?.attention ? [`要確認 ${summary.attention}`] : []),
         dateFormat.format(entry.updated),
       ].join(" · ");
-      text.append(title, facts);
-      const actions = document.createElement("div");
-      actions.className = "entry-actions";
+      const open = () => navigate({ view: "score", id: entry.id });
+      const play = () => entry.doc && player.open(entry.doc);
+      const actions: HTMLButtonElement[] = [];
       if (entry.files.length) {
-        const open = document.createElement("button");
-        open.type = "button";
-        open.className = "primary";
-        open.textContent = "開く";
-        open.title = pages ? `${pages} ページ` : "";
-        open.addEventListener("click", () => navigate({ view: "score", id: entry.id }));
-        actions.append(open);
+        const button = actionButton("開く", open, "primary");
+        button.title = pages ? `${pages} ページ` : "";
+        actions.push(button);
       }
       // Something read can be played; work without its files (imported without them) still plays.
-      if (entry.doc && (!entry.files.length || (summary && summary.unread < summary.total))) {
-        const play = document.createElement("button");
-        play.type = "button";
-        play.textContent = "演奏ビュー";
-        play.addEventListener("click", () => entry.doc && player.open(entry.doc));
-        actions.append(play);
-      }
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "danger";
-      remove.textContent = "削除";
+      if (entry.doc && (!entry.files.length || (summary && summary.unread < summary.total))) actions.push(actionButton("演奏ビュー", play));
+      const remove = actionButton(
+        "削除",
+        async () => {
+          if (!confirm(`${entry.name} と作業内容をこの端末から削除しますか？（保存した gts.json は消えません）`)) return;
+          await library.remove(entry.id);
+          void renderLibrary();
+        },
+        "danger",
+      );
       remove.setAttribute("aria-label", `${entry.name} を端末から削除`);
-      remove.addEventListener("click", async () => {
-        if (!confirm(`${entry.name} と作業内容をこの端末から削除しますか？（保存した gts.json は消えません）`)) return;
-        await library.remove(entry.id);
-        void renderLibrary();
+      actions.push(remove);
+      const source = entry.cover ? null : entrySource(entry);
+      if (source) {
+        whenCovered(entry.id, source, async (cover) => {
+          const latest = await library.get(entry.id);
+          if (latest && !latest.cover && (await library.put({ ...latest, cover }))) void renderLibrary();
+        });
+      }
+      const li = scoreCard({
+        title,
+        facts,
+        tags: [],
+        cover: coverArt(entry.cover, entry.doc?.meta.title ?? entry.name, chordNames(entry.doc)),
+        primary: entry.files.length ? open : play,
+        actions,
       });
-      actions.append(remove);
-      li.append(text, actions);
+      if (entry.id === state.sha256) li.classList.add("current");
       return li;
     }),
   );
   ui.libraryNote.textContent =
     usage === null ? "" : `この端末で使っている容量: ${(usage / 1024 / 1024).toFixed(1)} MB`;
+  void renderSamples();
+}
+
+/** Covers of the sample PDFs, made on this visit (the samples are part of the page, not the library). */
+const sampleCovers = new Map<string, string>();
+
+/** The sample songs, tagged as such, with the work done on them here. */
+async function renderSamples() {
+  const [ids, stored] = await Promise.all([samplesById(), library.all()]);
+  const idOf = new Map([...ids].map(([id, s]) => [s, id]));
+  ui.sampleList.replaceChildren(
+    ...sampleSongs.map((song) => {
+      const id = song.pdf && idOf.get(song.pdf);
+      const entry = id ? stored.find((e) => e.id === id) : undefined;
+      const work = entry?.doc;
+      const cover = sampleCovers.get(song.label) ?? entry?.cover;
+      const summary = work ? reviewSummary(work) : null;
+      const open = () => id && navigate({ view: "score", id });
+      const play = () => song.gts && player.open(structuredClone(song.gts));
+      const actions = [
+        ...(id ? [actionButton("開く", open, "primary")] : []),
+        ...(song.gts ? [actionButton("演奏ビュー", play)] : []),
+      ];
+      if (song.pdf && !cover) {
+        whenCovered(`sample:${song.label}`, { kind: "sample", name: song.pdf.file, bytes: decode(song.pdf.pdf) }, (cover) => {
+          sampleCovers.set(song.label, cover);
+          void renderSamples();
+        });
+      }
+      return scoreCard({
+        title: song.label,
+        facts: [...song.notes, ...(summary ? [`確認済み ${summary.reviewed} / ${summary.total} 小節`] : [])].join(" · "),
+        tags: ["サンプル"],
+        cover: coverArt(cover, song.label, chordNames(song.gts ?? work)),
+        primary: id ? open : play,
+        actions,
+      });
+    }),
+  );
 }
 
 /** Write the whole library to one file, to move it to another device. */
@@ -884,14 +1018,10 @@ async function openEntry(id: string) {
   opening = id;
   try {
     const entry = await library.get(id);
-    const bytes = (f: StoredFile) => new Uint8Array(f.data);
-    if (entry?.files.length) {
+    const source = entry && entrySource(entry);
+    if (source) {
       tray.clear();
-      await analyze(
-        entry.kind === "photos"
-          ? { kind: "photos", name: entry.name, photos: entry.files.map((f) => ({ name: f.name, type: f.type, bytes: bytes(f) })) }
-          : { kind: "pdf", name: entry.name, bytes: bytes(entry.files[0]!) },
-      );
+      await analyze(source);
       return;
     }
     const sample = await sampleById(id);

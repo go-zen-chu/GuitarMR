@@ -29,6 +29,8 @@ export interface LibraryEntry {
   files: StoredFile[];
   /** The work in progress; null until something was done (or after starting over). */
   doc: GtsDocument | null;
+  /** A small JPEG of the first page (data URL) for the score list; made again from the files when missing. */
+  cover?: string;
   added: number;
   updated: number;
 }

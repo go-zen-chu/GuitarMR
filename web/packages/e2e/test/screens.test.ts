@@ -17,6 +17,24 @@ describe("screens", { timeout: 180_000 }, () => {
   });
   after(() => browser?.close());
 
+  it("If the score list opens it should show the sample songs tagged as samples, with their covers", async () => {
+    const { page, errors } = await openPage(browser);
+    const cards = page.locator("#sample-list li");
+    assert.deepEqual(await cards.locator(".entry-text strong").allTextContents(), ["さくらさくら", "きらきら星", "練習曲"]);
+    assert.deepEqual(await cards.locator(".tag").allTextContents(), ["サンプル", "サンプル", "サンプル"]);
+    // The scan-like PDFs show their first page; the gts-only song a drawn cover.
+    await page.waitForFunction(() => document.querySelectorAll("#sample-list .cover img").length === 2, null, { timeout: 60_000 });
+    assert.equal(await cards.nth(2).locator(".cover.drawn").count(), 1);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), PHONE.width);
+    await page.screenshot({ path: `${ARTIFACTS}/score-list.png`, fullPage: true });
+
+    // A sample's cover opens it like its button.
+    await cards.nth(1).locator(".cover").click();
+    await page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "twinkle-twinkle.pdf", null, { timeout: 120_000 });
+    assert.equal(await visibleView(page), "view-score");
+    assert.deepEqual(errors, []);
+  });
+
   it("If back is pressed it should close the editor, then the play view, then go to the score list, then leave", async () => {
     const { page, errors } = await openPage(browser);
     await openSample(page);
