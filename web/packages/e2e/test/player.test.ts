@@ -131,6 +131,42 @@ describe("play view", { timeout: 180_000 }, () => {
     assert.deepEqual(errors, []);
   });
 
+  it("If 解説 is turned on it should show the degrees and the song's progressions, and mark where one is played", async () => {
+    const { page, errors } = await openPlayer(browser, "さくらさくら", { viewport: PHONE });
+    assert.equal(await page.locator("#player-notes").isVisible(), false);
+    assert.equal(await page.locator("#player-bars .degrees").first().isVisible(), false);
+    await page.click("#player-explain");
+    assert.equal(await page.getAttribute("#player-explain", "aria-pressed"), "true");
+    assert.deepEqual(await page.locator('#player-bars .bar[data-k="0"] .degree').allTextContents(), ["Ⅰm", "Ⅴsus4"]);
+    assert.match(await page.locator("#player-notes .notes-key").textContent() ?? "", /Key Am（楽譜の表記）.*カポ2で実音は Bm/);
+    const names = await page.locator("#player-notes .note-head strong").allTextContents();
+    assert.equal(names[0], "ツーファイブワン");
+    assert.match(await page.locator("#player-notes .note-degrees").first().textContent() ?? "", /Ⅱm7-5 → Ⅴ7 → Ⅰm/);
+    for (const row of await rowAlignment(page)) assert.ok(row.chord <= 1.5 && row.sizes <= 0.1, JSON.stringify(row));
+
+    // A place of the progression: its measures are marked and the view goes there.
+    const place = page.locator("#player-notes .note-place").first();
+    const measure = Number((await place.textContent())!.replace(/\D/g, ""));
+    await place.click();
+    assert.equal((await currentMarks(page)).k, measure - 1);
+    const picked = await page.$$eval("#player-bars .bar.picked", (bars) => bars.map((b) => Number((b as HTMLElement).dataset.k)));
+    assert.equal(picked[0], measure - 1);
+    assert.ok(picked.length >= 2, `${picked.length} measures marked`);
+    await page.screenshot({ path: `${ARTIFACTS}/player-explain-phone.png` });
+
+    // Off again: nothing extra is left on the view, and the choice is remembered.
+    await page.click("#player-explain");
+    assert.equal(await page.locator("#player-notes").isVisible(), false);
+    assert.equal(await page.locator("#player-bars .bar.picked").count(), 0);
+    await page.click("#player-explain");
+    await page.click("#player-close");
+    await page.reload();
+    await page.locator("#sample-list li", { hasText: "練習曲" }).getByRole("button", { name: "演奏ビュー" }).click();
+    assert.equal(await page.locator("#player-notes").isVisible(), true);
+    assert.equal(await page.locator("#player-notes .note-head strong").first().textContent(), "小室進行");
+    assert.deepEqual(errors, []);
+  });
+
   it("If a song has D.S. al Coda and chord shapes they should be expanded and drawn", async () => {
     const { page, errors } = await openPlayer(browser, "練習曲", { colorScheme: "dark" });
     const heads = await page.locator("#player-bars .bar .bar-head").allTextContents();

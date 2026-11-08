@@ -6,18 +6,26 @@
  * (4, 8 or 16 per 4/4 measure, from the song's feel) fill in, and the
  * view scrolls so the current line stays near the top, on any screen size.
  * The chords and the tab can be heard (synth.ts), each switched on its own.
+ * The explanation (explain.ts) adds each chord's degree in the key and the
+ * song's telling progressions, marking where they are played.
  */
 
 import {
   type GtsDocument,
+  type Key,
   type PlayStep,
+  type Progression,
   type SoundEvent,
   type SoundingChords,
+  degreeName,
   lyricsFor,
   playOrder,
+  progressions,
+  songKey,
   soundEvents,
   soundingChords,
 } from "@guitarmr/gts";
+import { explanation } from "./explain.ts";
 import { type Synth, createSynth } from "./synth.ts";
 
 const SVG = "http://www.w3.org/2000/svg";
@@ -25,6 +33,7 @@ const ZOOM_KEY = "guitarmr.player.zoom";
 const CLICK_KEY = "guitarmr.player.click";
 const CHORD_SOUND_KEY = "guitarmr.player.chordSound";
 const TAB_SOUND_KEY = "guitarmr.player.tabSound";
+const EXPLAIN_KEY = "guitarmr.player.explain";
 /** Seconds of sound scheduled ahead on the audio clock. */
 const LOOKAHEAD = 0.12;
 
@@ -77,6 +86,8 @@ export function createPlayer() {
     count: $<HTMLElement>("player-count"),
     close: $<HTMLButtonElement>("player-close"),
     feel: $<HTMLElement>("player-feel"),
+    explain: $<HTMLButtonElement>("player-explain"),
+    notes: $<HTMLElement>("player-notes"),
   };
 
   let doc: GtsDocument | null = null;
@@ -99,6 +110,8 @@ export function createPlayer() {
   let sounds: SoundEvent[] = [];
   let nextSound = 0;
   let wakeLock: { release(): Promise<void> } | null = null;
+  let key: Key | null = null;
+  let found: Progression[] = [];
 
   const store = {
     get: (k: string) => {
@@ -120,6 +133,7 @@ export function createPlayer() {
   el.click.checked = store.get(CLICK_KEY) === "1";
   el.chordSound.checked = store.get(CHORD_SOUND_KEY) !== "0";
   el.tabSound.checked = store.get(TAB_SOUND_KEY) !== "0";
+  let explaining = store.get(EXPLAIN_KEY) === "1";
   const applyZoom = () => el.root.style.setProperty("--zoom", String(zoom));
   applyZoom();
 
@@ -137,6 +151,10 @@ export function createPlayer() {
     // Each switch only shows when the score has that layer to hear.
     el.chordSound.closest("label")!.hidden = !sounds.some((e) => e.part === "chord");
     el.tabSound.closest("label")!.hidden = !sounds.some((e) => e.part === "tab");
+    key = songKey(doc, steps);
+    found = key ? progressions(steps, key) : [];
+    el.explain.hidden = !key;
+    el.notes.replaceChildren(...(key ? [explanation(key, found, doc.meta.capo ?? 0)] : []));
     const shapes = doc.chordShapes ?? {};
     const hasLyrics = steps.some((s) => s.measure.lyrics?.length);
     el.title.textContent = doc.meta.title;
@@ -204,6 +222,7 @@ export function createPlayer() {
         lane.append(chord);
       });
       cell.append(head, lane);
+      if (key) cell.append(degreeLane(chords, carried, step.beats, key));
       // Lyrics get their line in every measure of a song that has lyrics, so
       // chords and lyrics sit at the same height across a row; diagrams,
       // which only some measures have, come last.
@@ -250,7 +269,7 @@ export function createPlayer() {
         node.classList.remove("fit-1", "fit-2");
         return { node, level, top: node.closest<HTMLElement>(".bar")!.offsetTop };
       });
-    for (const selector of [".chords", ".lyric"]) {
+    for (const selector of [".chords", ".degrees", ".lyric"]) {
       const items = levels(selector);
       const rowLevel = new Map<number, number>();
       for (const { level, top } of items) rowLevel.set(top, Math.max(rowLevel.get(top) ?? 0, level));
@@ -261,6 +280,53 @@ export function createPlayer() {
     }
   }
 
+
+  /** Each chord's degree under its name, taking the same room as the chord line. */
+  function degreeLane(chords: SoundingChords["chords"], carried: boolean, beats: number, inKey: Key): HTMLElement {
+    const lane = document.createElement("div");
+    lane.className = `degrees${carried ? " carried" : ""}`;
+    lane.setAttribute("aria-hidden", "true");
+    const firstBeat = chords[0]?.beat ?? 1;
+    if (firstBeat > 1) {
+      const lead = document.createElement("span");
+      lead.className = "lead";
+      lead.style.flexGrow = String(firstBeat - 1);
+      lane.append(lead);
+    }
+    chords.forEach((c, j) => {
+      const degree = document.createElement("span");
+      degree.className = "degree";
+      const end = chords[j + 1]?.beat ?? beats + 1;
+      degree.style.flexGrow = String(Math.max(end - (c.beat ?? 1), 0.25));
+      degree.textContent = degreeName(c.symbol, inKey) ?? "";
+      lane.append(degree);
+    });
+    return lane;
+  }
+
+  /** Show or hide the degrees and the explanation panel. */
+  function setExplaining(next: boolean) {
+    explaining = next && !!key;
+    el.root.classList.toggle("explaining", explaining);
+    el.notes.hidden = !explaining;
+    el.explain.setAttribute("aria-pressed", String(explaining));
+    if (!explaining) pick(null);
+    fit();
+    rowTop = -1;
+  }
+
+  /** Mark the measures of a progression (one place of it, or all), and go to the first. */
+  function pick(target: { progression: number; place?: number } | null) {
+    for (const cell of el.bars.querySelectorAll(".picked")) cell.classList.remove("picked");
+    for (const b of el.notes.querySelectorAll("[data-pick]")) b.removeAttribute("aria-current");
+    const progression = target && found[target.progression];
+    if (!progression) return;
+    const places = target.place === undefined ? progression.occurrences : [progression.occurrences[target.place]!];
+    for (const o of places) for (const k of o.steps) cells[k]?.classList.add("picked");
+    const selector = `[data-pick="${target.progression}"]${target.place === undefined ? ":not([data-place])" : `[data-place="${target.place}"]`}`;
+    el.notes.querySelector(selector)?.setAttribute("aria-current", "true");
+    seek(places[0]!.steps[0]!);
+  }
 
   /** One mark per counted note of the measure; marks on the beat are taller. */
   function beatMarks(beats: number): HTMLElement {
@@ -477,6 +543,16 @@ export function createPlayer() {
     }
   });
   el.close.addEventListener("click", () => close());
+  el.explain.addEventListener("click", () => {
+    setExplaining(!explaining);
+    store.set(EXPLAIN_KEY, explaining ? "1" : "0");
+  });
+  el.notes.addEventListener("click", (e) => {
+    const button = (e.target as Element).closest<HTMLElement>("[data-pick]");
+    if (!button) return;
+    const place = button.dataset.place;
+    pick({ progression: Number(button.dataset.pick), ...(place === undefined ? {} : { place: Number(place) }) });
+  });
   el.feel.addEventListener("click", (e) => {
     const value = Number((e.target as Element).closest<HTMLElement>("[data-feel]")?.dataset.feel);
     if (value === 4 || value === 8 || value === 16) setFeel(value);
@@ -508,6 +584,7 @@ export function createPlayer() {
     el.root.hidden = false;
     document.body.classList.add("in-player");
     build();
+    setExplaining(explaining);
     setFeel(feel);
     el.root.scrollTo({ top: 0 });
     show(0);

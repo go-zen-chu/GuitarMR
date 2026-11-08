@@ -29,7 +29,8 @@ export interface SoundEvent {
   muted?: boolean;
 }
 
-const PITCH_CLASS: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+/** Semitones of the natural notes above C. */
+export const PITCH_CLASS: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 
 /** "E4", "Bb3", "F#2" → MIDI number (C4 = 60); null when unreadable. */
 export function midiOf(name: string): number | null {
