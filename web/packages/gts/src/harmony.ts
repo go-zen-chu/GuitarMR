@@ -128,7 +128,7 @@ function playedChords(steps: readonly PlayStep[]): Played[] {
     if (carried) return;
     chords.forEach((c, j) => {
       const parsed = parseChord(c.symbol);
-      out.push({ symbol: c.symbol, chord: parsed, step: k, at: `${steps[k]!.index}:${j}` });
+      out.push({ symbol: c.symbol, chord: parsed, step: k, index: j, at: `${steps[k]!.index}:${j}` });
     });
   });
   return out;
@@ -140,6 +140,8 @@ interface Played {
   chord: ParsedChord | null;
   /** Play-order step the chord is in. */
   step: number;
+  /** Which of the step's sounding chords it is. */
+  index: number;
   /** Written place of the chord (measure index and chord index), the same on every pass. */
   at: string;
 }
@@ -160,9 +162,18 @@ export function degreeName(symbol: string, key: Key): string | null {
   return `${degree(chord.root)}${quality}${chord.bass !== chord.root ? `/${degree(chord.bass)}` : ""}`;
 }
 
+/** A chord in the play order: the step, and which of its sounding chords (as soundingChords lists them). */
+export interface ChordPlace {
+  step: number;
+  chord: number;
+}
+
 export interface ProgressionOccurrence {
   /** Play-order steps the progression spans, first to last. */
   steps: number[];
+  /** Its first chord, and the chord it arrives at. */
+  start: ChordPlace;
+  end: ChordPlace;
   /** The chords as written, e.g. ["Bm7-5", "E7", "Am"]. */
   chords: string[];
   /** Their degrees in the key, e.g. ["Ⅱm7-5", "Ⅴ7", "Ⅰm"]. */
@@ -371,6 +382,8 @@ export function progressions(steps: readonly PlayStep[], key: Key): Progression[
       const last = played[m.to]!.step;
       occurrences.push({
         steps: Array.from({ length: last - first + 1 }, (_, n) => first + n),
+        start: { step: first, chord: played[m.from]!.index },
+        end: { step: last, chord: played[m.to]!.index },
         chords: m.chords.map((p) => p.symbol),
         degrees: m.chords.map((p) => degreeName(p.symbol, key)!),
       });

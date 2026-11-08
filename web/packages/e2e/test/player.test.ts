@@ -131,39 +131,78 @@ describe("play view", { timeout: 180_000 }, () => {
     assert.deepEqual(errors, []);
   });
 
-  it("If 解説 is turned on it should show the degrees and the song's progressions, and mark where one is played", async () => {
+  it("If 解説 is turned on it should show the degrees and bracket the progressions, a name opening its details", async () => {
     const { page, errors } = await openPlayer(browser, "さくらさくら", { viewport: PHONE });
     assert.equal(await page.locator("#player-notes").isVisible(), false);
     assert.equal(await page.locator("#player-bars .degrees").first().isVisible(), false);
     await page.click("#player-explain");
     assert.equal(await page.getAttribute("#player-explain", "aria-pressed"), "true");
     assert.deepEqual(await page.locator('#player-bars .bar[data-k="0"] .degree').allTextContents(), ["Ⅰm", "Ⅴsus4"]);
-    assert.match(await page.locator("#player-notes .notes-key").textContent() ?? "", /Key Am（楽譜の表記）.*カポ2で実音は Bm/);
-    const names = await page.locator("#player-notes .note-head strong").allTextContents();
-    assert.equal(names[0], "ツーファイブワン");
-    assert.match(await page.locator("#player-notes .note-degrees").first().textContent() ?? "", /Ⅱm7-5 → Ⅴ7 → Ⅰm/);
-    for (const row of await rowAlignment(page)) assert.ok(row.chord <= 1.5 && row.sizes <= 0.1, JSON.stringify(row));
+    assert.match(await page.locator("#player-notes").textContent() ?? "", /Key Am（A マイナー）.*楽譜の表記.*カポ2で実音は Bm/);
 
-    // A place of the progression: its measures are marked and the view goes there.
-    const place = page.locator("#player-notes .note-place").first();
-    const measure = Number((await place.textContent())!.replace(/\D/g, ""));
-    await place.click();
-    assert.equal((await currentMarks(page)).k, measure - 1);
+    // The scale, near the top; its name opens what it is and where it lies on the neck.
+    const scale = page.locator('#player-notes .scale-name[data-scale="main"]');
+    assert.equal(await scale.textContent(), "A ヨナ抜き短音階（平調子）");
+    assert.equal(await page.locator("#player-notes .scale-notes").textContent(), "A B C E F");
+    await scale.click();
+    assert.equal(await page.locator("#player-detail h3").textContent(), "A ヨナ抜き短音階（平調子）");
+    assert.deepEqual(await page.locator("#player-detail .scale-note small").allTextContents(), ["1", "2", "♭3", "5", "♭6"]);
+    assert.match(await page.locator("#player-detail").textContent() ?? "", /同じ音の並び: E 都節音階/);
+    // 5 notes on 6 strings over 13 frets (open to 12th).
+    assert.ok((await page.locator("#player-detail .fretboard circle").count()) >= 30);
+    await page.screenshot({ path: `${ARTIFACTS}/player-scale-phone.png` });
+    await page.locator("#player-notes .notes-others .scale-name").first().click();
+    assert.equal(await page.locator("#player-detail h3").textContent(), "A ナチュラルマイナースケール（自然短音階）");
+    await page.click("#player-detail-close");
+    for (const row of await rowAlignment(page)) {
+      assert.ok(row.chord <= 1.5 && row.lyric <= 1.5 && row.sizes <= 0.1, JSON.stringify(row));
+    }
+
+    // The Ⅱ→Ⅴ→Ⅰ starts at the Bm7-5 of measure 13 and runs into measure 14 (the 1st ending).
+    const name = page.locator('#player-bars .bar[data-k="12"] .bracket-name', { hasText: "ツーファイブワン" });
+    const bracket = await page.evaluate(() => {
+      const bar = document.querySelector('#player-bars .bar[data-k="12"]')!;
+      const from = bar.querySelector<HTMLElement>(".bracket.from")!.getBoundingClientRect();
+      const chord = bar.querySelectorAll(".chords .chord")[2]!.getBoundingClientRect();
+      return { offset: Math.abs(from.left - chord.left), next: !!document.querySelector('#player-bars .bar[data-k="13"] .bracket') };
+    });
+    assert.ok(bracket.offset <= 1, JSON.stringify(bracket));
+    assert.equal(bracket.next, true);
+    assert.equal(await page.locator("#player-detail").isVisible(), false);
+    const current = (await currentMarks(page)).k;
+    await name.click();
+    assert.equal(await page.locator("#player-detail").isVisible(), true);
+    assert.equal(await page.locator("#player-detail h3").textContent(), "ツーファイブワン");
+    assert.equal(await page.locator("#player-detail .detail-degrees").textContent(), "Ⅱm7-5 → Ⅴ7 → Ⅰm");
+    assert.match(await page.locator("#player-detail .detail-text").textContent() ?? "", /解決/);
+    // Tapping the name explains; it does not move the play position.
+    assert.equal((await currentMarks(page)).k, current);
     const picked = await page.$$eval("#player-bars .bar.picked", (bars) => bars.map((b) => Number((b as HTMLElement).dataset.k)));
-    assert.equal(picked[0], measure - 1);
+    assert.equal(picked[0], 12);
     assert.ok(picked.length >= 2, `${picked.length} measures marked`);
     await page.screenshot({ path: `${ARTIFACTS}/player-explain-phone.png` });
 
-    // Off again: nothing extra is left on the view, and the choice is remembered.
-    await page.click("#player-explain");
-    assert.equal(await page.locator("#player-notes").isVisible(), false);
+    // Another place of a progression, from the details: marked, and the view goes there.
+    await page.locator('#player-bars .bracket-name', { hasText: "カデンツ" }).first().click();
+    const places = page.locator("#player-detail .detail-place");
+    assert.ok((await places.count()) >= 2);
+    const second = Number((await places.nth(1).textContent())!.replace(/\D/g, ""));
+    await places.nth(1).click();
+    assert.equal((await currentMarks(page)).k, second - 1);
+    assert.equal(await page.locator("#player-bars .bar.picked").first().getAttribute("data-k"), String(second - 1));
+
+    // Closing the details, then 解説 off: nothing extra is left; the choice is remembered.
+    await page.click("#player-detail-close");
+    assert.equal(await page.locator("#player-detail").isVisible(), false);
     assert.equal(await page.locator("#player-bars .bar.picked").count(), 0);
+    await page.click("#player-explain");
+    assert.equal(await page.locator("#player-bars .brackets").first().isVisible(), false);
     await page.click("#player-explain");
     await page.click("#player-close");
     await page.reload();
     await page.locator("#sample-list li", { hasText: "練習曲" }).getByRole("button", { name: "演奏ビュー" }).click();
     assert.equal(await page.locator("#player-notes").isVisible(), true);
-    assert.equal(await page.locator("#player-notes .note-head strong").first().textContent(), "小室進行");
+    assert.equal(await page.locator("#player-bars .bracket-name").first().textContent(), "小室進行");
     assert.deepEqual(errors, []);
   });
 

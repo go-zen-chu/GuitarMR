@@ -11,6 +11,7 @@ export * from "./playback.ts";
 export * from "./tabline.ts";
 export * from "./sound.ts";
 export * from "./harmony.ts";
+export * from "./scale.ts";
 export type GtsDocument = GuitarTabScoreGts;
 
 /** Every measure in written order. */

@@ -98,7 +98,15 @@ describe("progressions", () => {
   it("If a song has a Ⅱ→Ⅴ→Ⅰ it should list it, and not its Ⅴ→Ⅰ again", () => {
     const list = found(score(["C", "Dm7 G7", "C"], { key: "C" }));
     assert.deepEqual(list.map((p) => p.id), ["two-five-one"]);
-    assert.deepEqual(list[0]!.occurrences, [{ steps: [1, 2], chords: ["Dm7", "G7", "C"], degrees: ["Ⅱm7", "Ⅴ7", "Ⅰ"] }]);
+    assert.deepEqual(list[0]!.occurrences, [
+      {
+        steps: [1, 2],
+        start: { step: 1, chord: 0 },
+        end: { step: 2, chord: 0 },
+        chords: ["Dm7", "G7", "C"],
+        degrees: ["Ⅱm7", "Ⅴ7", "Ⅰ"],
+      },
+    ]);
   });
 
   it("If the J-pop progressions are played they should be named, in a minor key too", () => {
@@ -141,6 +149,9 @@ describe("progressions", () => {
     // The 2nd ending stops on the Ⅴ: the same Ⅱ→Ⅴ, not resolved this time.
     assert.deepEqual(ofSakura[3]!.occurrences[0]!.chords, ["Bm7-5", "E7"]);
     assert.deepEqual(ofSakura[0]!.occurrences[0]!.degrees, ["Ⅱm7-5", "Ⅴ7", "Ⅰm"]);
+    // From the Bm7-5 on beat 3 of measure 13 to the Am that the repeat comes back to.
+    assert.deepEqual(ofSakura[0]!.occurrences[0]!.start, { step: 12, chord: 2 });
+    assert.equal(sakura.sections.flatMap((x) => x.measures)[playOrder(sakura)[ofSakura[0]!.occurrences[0]!.end.step]!.index]!.chords![0]!.symbol, "Am");
     assert.deepEqual(ids(load("twinkle-twinkle")), ["dominant-motion", "plagal"]);
     assert.deepEqual(ids(load("sample")), ["komuro", "sus4"]);
   });

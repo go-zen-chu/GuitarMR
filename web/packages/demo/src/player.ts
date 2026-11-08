@@ -6,8 +6,9 @@
  * (4, 8 or 16 per 4/4 measure, from the song's feel) fill in, and the
  * view scrolls so the current line stays near the top, on any screen size.
  * The chords and the tab can be heard (synth.ts), each switched on its own.
- * The explanation (explain.ts) adds each chord's degree in the key and the
- * song's telling progressions, marking where they are played.
+ * The explanation (explain.ts) adds each chord's degree in the key and
+ * brackets over the song's telling progressions; a bracket's name opens
+ * what the progression does.
  */
 
 import {
@@ -15,6 +16,7 @@ import {
   type Key,
   type PlayStep,
   type Progression,
+  type SongScale,
   type SoundEvent,
   type SoundingChords,
   degreeName,
@@ -22,13 +24,15 @@ import {
   playOrder,
   progressions,
   songKey,
+  songScale,
   soundEvents,
   soundingChords,
+  tuningOf,
 } from "@guitarmr/gts";
-import { explanation } from "./explain.ts";
+import { type BracketPiece, brackets, keyNote, progressionDetail, scaleDetail } from "./explain.ts";
 import { type Synth, createSynth } from "./synth.ts";
 
-const SVG = "http://www.w3.org/2000/svg";
+export const SVG = "http://www.w3.org/2000/svg";
 const ZOOM_KEY = "guitarmr.player.zoom";
 const CLICK_KEY = "guitarmr.player.click";
 const CHORD_SOUND_KEY = "guitarmr.player.chordSound";
@@ -88,6 +92,9 @@ export function createPlayer() {
     feel: $<HTMLElement>("player-feel"),
     explain: $<HTMLButtonElement>("player-explain"),
     notes: $<HTMLElement>("player-notes"),
+    detail: $<HTMLElement>("player-detail"),
+    detailBody: $<HTMLElement>("player-detail-body"),
+    detailClose: $<HTMLButtonElement>("player-detail-close"),
   };
 
   let doc: GtsDocument | null = null;
@@ -112,6 +119,7 @@ export function createPlayer() {
   let wakeLock: { release(): Promise<void> } | null = null;
   let key: Key | null = null;
   let found: Progression[] = [];
+  let scale: SongScale | null = null;
 
   const store = {
     get: (k: string) => {
@@ -154,7 +162,9 @@ export function createPlayer() {
     key = songKey(doc, steps);
     found = key ? progressions(steps, key) : [];
     el.explain.hidden = !key;
-    el.notes.replaceChildren(...(key ? [explanation(key, found, doc.meta.capo ?? 0)] : []));
+    scale = key ? songScale(doc, steps, key) : null;
+    el.notes.replaceChildren(...(key ? keyNote(key, scale, doc.meta.capo ?? 0, found.length) : []));
+    const lanes = brackets(found, steps, sounding);
     const shapes = doc.chordShapes ?? {};
     const hasLyrics = steps.some((s) => s.measure.lyrics?.length);
     el.title.textContent = doc.meta.title;
@@ -223,6 +233,7 @@ export function createPlayer() {
       });
       cell.append(head, lane);
       if (key) cell.append(degreeLane(chords, carried, step.beats, key));
+      if (lanes.tracks) cell.append(bracketLane(lanes.pieces.get(k) ?? [], lanes.tracks));
       // Lyrics get their line in every measure of a song that has lyrics, so
       // chords and lyrics sit at the same height across a row; diagrams,
       // which only some measures have, come last.
@@ -278,6 +289,51 @@ export function createPlayer() {
         if (level) node.classList.add(`fit-${level}`);
       }
     }
+    placeBrackets();
+  }
+
+  /** The brackets' line under the degrees; every measure gets one, so lyrics stay level across a row. */
+  function bracketLane(pieces: readonly BracketPiece[], tracks: number): HTMLElement {
+    const lane = document.createElement("div");
+    lane.className = "brackets";
+    lane.style.setProperty("--tracks", String(tracks));
+    for (const piece of pieces) {
+      const part = document.createElement("div");
+      part.className = "bracket";
+      part.style.setProperty("--track", String(piece.track));
+      if (piece.fromChord !== null) {
+        part.classList.add("from");
+        part.dataset.fromChord = String(piece.fromChord);
+        const name = document.createElement("button");
+        name.type = "button";
+        name.className = "bracket-name";
+        name.dataset.pick = String(piece.progression);
+        name.dataset.place = String(piece.place);
+        name.textContent = found[piece.progression]!.name;
+        part.append(name);
+      }
+      if (piece.toChord !== null) {
+        part.classList.add("to");
+        part.dataset.toChord = String(piece.toChord);
+      }
+      lane.append(part);
+    }
+    return lane;
+  }
+
+  /** Stretch each bracket piece from its first chord's name to the end of its last chord, as laid out. */
+  function placeBrackets() {
+    if (!explaining) return;
+    for (const part of el.bars.querySelectorAll<HTMLElement>(".bracket")) {
+      const lane = part.parentElement!.getBoundingClientRect();
+      const names = [...part.closest(".bar")!.querySelectorAll(".chords .chord")].map((c) => c.getBoundingClientRect());
+      const from = part.dataset.fromChord === undefined ? undefined : names[Number(part.dataset.fromChord)];
+      const to = part.dataset.toChord === undefined ? undefined : names[Number(part.dataset.toChord) + 1];
+      const left = from ? from.left - lane.left : 0;
+      const right = to ? to.left - lane.left - 4 : lane.width;
+      part.style.left = `${left}px`;
+      part.style.width = `${Math.max(right - left, 8)}px`;
+    }
   }
 
 
@@ -304,7 +360,7 @@ export function createPlayer() {
     return lane;
   }
 
-  /** Show or hide the degrees and the explanation panel. */
+  /** Show or hide the degrees, the brackets and the key note. */
   function setExplaining(next: boolean) {
     explaining = next && !!key;
     el.root.classList.toggle("explaining", explaining);
@@ -315,18 +371,34 @@ export function createPlayer() {
     rowTop = -1;
   }
 
-  /** Mark the measures of a progression (one place of it, or all), and go to the first. */
-  function pick(target: { progression: number; place?: number } | null) {
+  /** Mark the measures of one place of a progression and show its details; null hides them. */
+  function pick(target: { progression: number; place: number } | null) {
     for (const cell of el.bars.querySelectorAll(".picked")) cell.classList.remove("picked");
-    for (const b of el.notes.querySelectorAll("[data-pick]")) b.removeAttribute("aria-current");
-    const progression = target && found[target.progression];
-    if (!progression) return;
-    const places = target.place === undefined ? progression.occurrences : [progression.occurrences[target.place]!];
-    for (const o of places) for (const k of o.steps) cells[k]?.classList.add("picked");
-    const selector = `[data-pick="${target.progression}"]${target.place === undefined ? ":not([data-place])" : `[data-place="${target.place}"]`}`;
-    el.notes.querySelector(selector)?.setAttribute("aria-current", "true");
-    seek(places[0]!.steps[0]!);
+    for (const b of el.root.querySelectorAll(".bracket-name[aria-current], .scale-name[aria-current]")) b.removeAttribute("aria-current");
+    const progression = target ? found[target.progression] : undefined;
+    const occurrence = target && progression?.occurrences[target.place];
+    el.detail.hidden = !occurrence;
+    if (!target || !progression || !occurrence) return;
+    for (const k of occurrence.steps) cells[k]?.classList.add("picked");
+    el.bars
+      .querySelector(`.bracket-name[data-pick="${target.progression}"][data-place="${target.place}"]`)
+      ?.setAttribute("aria-current", "true");
+    el.detailBody.replaceChildren(...progressionDetail(progression, target.progression, target.place));
   }
+
+  /** Show the details of the song's scale ("main") or of another fitting one (its index). */
+  function showScale(which: string) {
+    pick(null);
+    const fit = which === "main" ? scale?.main : scale?.others[Number(which)];
+    if (!doc || !key || !scale || !fit) return;
+    el.notes.querySelector(`.scale-name[data-scale="${which}"]`)?.setAttribute("aria-current", "true");
+    el.detailBody.replaceChildren(...scaleDetail(fit, key, scale, tuningOf(doc)));
+    el.detail.hidden = false;
+    el.detail.scrollTop = 0;
+  }
+
+  /** The progression place a tapped name or button stands for. */
+  const pickOf = (button: HTMLElement) => ({ progression: Number(button.dataset.pick), place: Number(button.dataset.place) });
 
   /** One mark per counted note of the measure; marks on the beat are taller. */
   function beatMarks(beats: number): HTMLElement {
@@ -532,10 +604,16 @@ export function createPlayer() {
     rowTop = -1;
   });
   el.bars.addEventListener("click", (e) => {
+    const name = (e.target as Element).closest<HTMLElement>(".bracket-name");
+    if (name) {
+      pick(pickOf(name));
+      return;
+    }
     const cell = (e.target as Element).closest<HTMLElement>(".bar");
     if (cell) seek(Number(cell.dataset.k));
   });
   el.bars.addEventListener("keydown", (e) => {
+    if ((e.target as Element).closest("button")) return;
     const cell = (e.target as Element).closest<HTMLElement>(".bar");
     if (cell && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
@@ -547,11 +625,17 @@ export function createPlayer() {
     setExplaining(!explaining);
     store.set(EXPLAIN_KEY, explaining ? "1" : "0");
   });
-  el.notes.addEventListener("click", (e) => {
+  el.detail.addEventListener("click", (e) => {
     const button = (e.target as Element).closest<HTMLElement>("[data-pick]");
     if (!button) return;
-    const place = button.dataset.place;
-    pick({ progression: Number(button.dataset.pick), ...(place === undefined ? {} : { place: Number(place) }) });
+    const target = pickOf(button);
+    pick(target);
+    seek(found[target.progression]!.occurrences[target.place]!.steps[0]!);
+  });
+  el.detailClose.addEventListener("click", () => pick(null));
+  el.notes.addEventListener("click", (e) => {
+    const button = (e.target as Element).closest<HTMLElement>("[data-scale]");
+    if (button) showScale(button.dataset.scale!);
   });
   el.feel.addEventListener("click", (e) => {
     const value = Number((e.target as Element).closest<HTMLElement>("[data-feel]")?.dataset.feel);
@@ -559,7 +643,10 @@ export function createPlayer() {
   });
   addEventListener("keydown", (e) => {
     if (el.root.hidden) return;
-    if (e.key === "Escape") close();
+    if (e.key === "Escape") {
+      if (el.detail.hidden) close();
+      else pick(null);
+    }
     if (e.key === " " && !(e.target as Element).closest?.(".bar, input, button")) {
       e.preventDefault();
       if (playing) pause();
@@ -593,6 +680,7 @@ export function createPlayer() {
 
   function close() {
     pause();
+    pick(null);
     el.root.hidden = true;
     document.body.classList.remove("in-player");
   }
