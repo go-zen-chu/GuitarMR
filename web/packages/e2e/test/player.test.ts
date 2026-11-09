@@ -195,7 +195,7 @@ describe("play view", { timeout: 180_000 }, () => {
     assert.equal((await currentMarks(page)).k, second - 1);
     assert.equal(await page.locator("#player-bars .bar.picked").first().getAttribute("data-k"), String(second - 1));
 
-    // Closing the details, then 解説 off: nothing extra is left; the choice is remembered.
+    // Closing the details, then 解説 off: nothing extra is left; the choice is remembered for the next song.
     await page.click("#player-detail-close");
     assert.equal(await page.locator("#player-detail").isVisible(), false);
     assert.equal(await page.locator("#player-bars .bar.picked").count(), 0);
@@ -203,7 +203,7 @@ describe("play view", { timeout: 180_000 }, () => {
     assert.equal(await page.locator("#player-bars .brackets").first().isVisible(), false);
     await page.click("#player-explain");
     await page.click("#player-close");
-    await page.reload();
+    assert.equal(await page.evaluate(() => localStorage.getItem("guitarmr.player.explain")), "1");
     await page.locator("#sample-list li", { hasText: "練習曲" }).getByRole("button", { name: "演奏ビュー" }).click();
     assert.equal(await page.locator("#player-notes").isVisible(), true);
     assert.equal(await page.locator("#player-bars .bracket-name").first().textContent(), "小室進行");
