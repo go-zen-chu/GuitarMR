@@ -210,6 +210,39 @@ describe("play view", { timeout: 180_000 }, () => {
     assert.deepEqual(errors, []);
   });
 
+  it("If the circle of fifths is opened next to the scale it should show the key, the notes to use and the substitutes", async () => {
+    const { page, errors } = await openPlayer(browser, "さくらさくら", { viewport: PHONE });
+    await page.click("#player-explain");
+    const open = page.locator("#player-notes .notes-head .circle-open");
+    assert.equal(await open.textContent(), "五度圏・コード");
+    await open.click();
+    assert.equal(await open.getAttribute("aria-current"), "true");
+    assert.equal(await page.locator("#player-detail h3").textContent(), "A マイナーの五度圏");
+    // Am filled inside, its diatonic chords tinted, the five notes of the scale dotted around.
+    assert.equal(await page.locator("#player-detail .cf-key + .cf-name").textContent(), "Am");
+    assert.equal(await page.locator("#player-detail .cf-diatonic").count(), 6);
+    assert.equal(await page.locator("#player-detail .cf-dot").count(), 5);
+    assert.deepEqual(await page.locator("#player-detail .scale-note b").allTextContents(), ["A", "B", "C", "E", "F"]);
+    assert.match(await page.locator("#player-detail").textContent() ?? "", /キーの音階（A ナチュラルマイナースケール（自然短音階）: A B C D E F G）/);
+    const chords = page.locator("#player-detail .key-chord > .kc-chord b");
+    assert.deepEqual(await chords.allTextContents(), ["Am7", "Bm7-5", "CM7", "Dm7", "Em7", "FM7", "G7"]);
+    // The song plays E7 (the harmonic minor's Ⅴ7), not Em7.
+    const five = page.locator('#player-detail .key-chord[data-step="5"]');
+    assert.equal(await five.locator(".kc-function").textContent(), "D");
+    assert.equal(await five.locator("> .kc-chord.in-song").count(), 0);
+    assert.deepEqual(await five.locator(".kc-sub b").allTextContents(), ["E7", "G♯dim7", "B♭7"]);
+    assert.match(await five.locator(".kc-sub.in-song").textContent() ?? "", /E7.*和声的短音階.*曲中/);
+    assert.match(await page.locator("#player-detail").textContent() ?? "", /近い調: 属調 Em、下属調 Dm、平行調 C、同主調 A/);
+    await page.screenshot({ path: `${ARTIFACTS}/player-circle-phone.png` });
+    await page.locator("#player-detail .key-chords").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `${ARTIFACTS}/player-circle-chords-phone.png` });
+    // A scale name takes over the sheet.
+    await page.locator('#player-notes .scale-name[data-scale="main"]').click();
+    assert.equal(await open.getAttribute("aria-current"), null);
+    assert.equal(await page.locator("#player-detail .key-chords").count(), 0);
+    assert.deepEqual(errors, []);
+  });
+
   it("If the device is in English the page and the play view's explanation should be in English", async () => {
     const { page, errors } = await openPage(browser, { locale: "en-US" });
     assert.equal(await page.getAttribute("html", "lang"), "en");
@@ -225,6 +258,10 @@ describe("play view", { timeout: 180_000 }, () => {
     const scale = page.locator('#player-notes .scale-name[data-scale="main"]');
     assert.equal(await scale.textContent(), "A Hirajoshi scale (yonanuki minor)");
     assert.equal(await scale.locator(".scale-alias").count(), 0);
+    await page.click("#player-notes .circle-open");
+    assert.equal(await page.locator("#player-detail h3").textContent(), "A minor on the circle of fifths");
+    assert.match(await page.locator("#player-detail").textContent() ?? "", /Close keys: dominant Em, subdominant Dm, relative C, parallel A/);
+    await page.click("#player-detail-close");
     await page.locator("#player-bars .bracket-name", { hasText: "Two-five-one" }).first().click();
     assert.match(await page.locator("#player-detail .detail-chords").textContent() ?? "", /\(from measure 13\)/);
     await page.click("#player-play");

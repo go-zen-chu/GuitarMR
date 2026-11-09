@@ -41,6 +41,7 @@ export const CORE = [
   "../../gts/src/sound.ts",
   "../../gts/src/harmony.ts",
   "../../gts/src/scale.ts",
+  "../../gts/src/circle.ts",
   "../../layoutscan/src/image.ts",
   "../../layoutscan/src/detect.ts",
   "../../layoutscan/src/gts.ts",

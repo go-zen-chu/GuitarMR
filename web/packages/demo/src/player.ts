@@ -23,13 +23,14 @@ import {
   lyricsFor,
   playOrder,
   progressions,
+  songChords,
   songKey,
   songScale,
   soundEvents,
   soundingChords,
   tuningOf,
 } from "@guitarmr/gts";
-import { type BracketPiece, brackets, keyNote, progressionDetail, scaleDetail } from "./explain.ts";
+import { type BracketPiece, brackets, circleDetail, keyNote, progressionDetail, scaleDetail } from "./explain.ts";
 import type { Messages } from "./i18n.ts";
 import { type Synth, createSynth } from "./synth.ts";
 
@@ -400,6 +401,16 @@ export function createPlayer(text: Messages) {
     el.detail.scrollTop = 0;
   }
 
+  /** Show the key on the circle of fifths, with its diatonic chords and their substitutes. */
+  function showCircle() {
+    pick(null);
+    if (!key) return;
+    el.notes.querySelector(".circle-open")?.setAttribute("aria-current", "true");
+    el.detailBody.replaceChildren(...circleDetail(key, scale, songChords(steps), text));
+    el.detail.hidden = false;
+    el.detail.scrollTop = 0;
+  }
+
   /** The progression place a tapped name or button stands for. */
   const pickOf = (button: HTMLElement) => ({ progression: Number(button.dataset.pick), place: Number(button.dataset.place) });
 
@@ -637,8 +648,10 @@ export function createPlayer(text: Messages) {
   });
   el.detailClose.addEventListener("click", () => pick(null));
   el.notes.addEventListener("click", (e) => {
-    const button = (e.target as Element).closest<HTMLElement>("[data-scale]");
+    const target = e.target as Element;
+    const button = target.closest<HTMLElement>("[data-scale]");
     if (button) showScale(button.dataset.scale!);
+    else if (target.closest("[data-circle]")) showCircle();
   });
   el.feel.addEventListener("click", (e) => {
     const value = Number((e.target as Element).closest<HTMLElement>("[data-feel]")?.dataset.feel);
