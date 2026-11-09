@@ -133,13 +133,16 @@ describe("play view", { timeout: 180_000 }, () => {
 
   it("If 解説 is turned on it should show the degrees and bracket the progressions, a name opening its details", async () => {
     const { page, errors } = await openPlayer(browser, "さくらさくら", { viewport: PHONE });
-    const loads: string[] = [];
-    page.on("framenavigated", (f) => f === page.mainFrame() && loads.push(f.url()));
+    assert.deepEqual(errors, []);
     // Who changes the sample list while the play view is used (CI saw it empty afterwards).
     await page.evaluate(() => {
       const log: string[] = [];
       (window as unknown as { __listLog: string[] }).__listLog = log;
-      const list = document.querySelector("#sample-list")!;
+      const list = document.querySelector("#sample-list");
+      if (!list) {
+        log.push("no #sample-list");
+        return;
+      }
       log.push(`start ${list.children.length}`);
       new MutationObserver((records) => {
         for (const r of records) log.push(`mutation +${r.addedNodes.length} -${r.removedNodes.length} now ${list.children.length} at ${Math.round(performance.now())}`);
@@ -228,7 +231,7 @@ describe("play view", { timeout: 180_000 }, () => {
       library: document.querySelector<HTMLElement>("#view-library")!.hidden,
       samples: [...document.querySelectorAll("#sample-list li")].map((li) => li.textContent!.replace(/\s+/g, " ").trim()),
     }));
-    Object.assign(back, { loads, listLog: await page.evaluate(() => (window as unknown as { __listLog: string[] }).__listLog) });
+    Object.assign(back, { errors, listLog: await page.evaluate(() => (window as unknown as { __listLog: string[] }).__listLog) });
     assert.ok(back.player && !back.library && back.samples.some((t) => t.includes("練習曲")), JSON.stringify(back));
     await page.screenshot({ path: `${ARTIFACTS}/player-explain-closed.png` });
     await page.locator("#sample-list li", { hasText: "練習曲" }).getByRole("button", { name: "演奏ビュー" }).click();
