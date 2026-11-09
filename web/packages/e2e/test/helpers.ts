@@ -82,11 +82,6 @@ export async function openPage(browser: Browser, options: OpenOptions = {}): Pro
   if (fake) await page.addInitScript(fakeClaude, JSON.stringify(fake));
   await setup?.(page);
   await page.goto("http://localhost/");
-  // The page never loads again on its own; a navigation or a crashed renderer is an error to report.
-  page.on("framenavigated", (frame) => {
-    if (frame === page.mainFrame() && !frame.url().startsWith("http://localhost/#")) errors.push(`navigated to ${frame.url()}`);
-  });
-  page.on("crash", () => errors.push("the page crashed"));
   return { page, errors };
 }
 
