@@ -200,6 +200,15 @@ describe("play view", { timeout: 180_000 }, () => {
     await page.click("#player-explain");
     await page.click("#player-close");
     assert.equal(await page.evaluate(() => localStorage.getItem("guitarmr.player.explain")), "1");
+    // Back on the score list, with the samples listed.
+    const back = await page.evaluate(() => ({
+      player: document.querySelector<HTMLElement>("#player")!.hidden,
+      hash: location.hash,
+      library: document.querySelector<HTMLElement>("#view-library")!.hidden,
+      samples: [...document.querySelectorAll("#sample-list li")].map((li) => li.textContent!.replace(/\s+/g, " ").trim()),
+    }));
+    assert.ok(back.player && !back.library && back.samples.some((t) => t.includes("練習曲")), JSON.stringify(back));
+    await page.screenshot({ path: `${ARTIFACTS}/player-explain-closed.png` });
     await page.locator("#sample-list li", { hasText: "練習曲" }).getByRole("button", { name: "演奏ビュー" }).click();
     assert.equal(await page.locator("#player-notes").isVisible(), true);
     assert.equal(await page.locator("#player-bars .bracket-name").first().textContent(), "小室進行");
