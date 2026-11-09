@@ -7,7 +7,7 @@ import { ARTIFACTS, PHONE, TABLET, launch, openPage } from "./helpers.ts";
 
 async function openPlayer(browser: Browser, sample: string, options = {}) {
   const opened = await openPage(browser, options);
-  await opened.page.locator("#sample-list li", { hasText: sample }).getByRole("button", { name: "演奏ビュー" }).click();
+  await opened.page.locator("#library-list li.sample-song", { hasText: sample }).getByRole("button", { name: "演奏ビュー" }).click();
   await opened.page.waitForSelector("#player:not([hidden])");
   return opened;
 }
@@ -200,7 +200,7 @@ describe("play view", { timeout: 180_000 }, () => {
     await page.click("#player-explain");
     await page.click("#player-close");
     await page.reload();
-    await page.locator("#sample-list li", { hasText: "練習曲" }).getByRole("button", { name: "演奏ビュー" }).click();
+    await page.locator("#library-list li.sample-song", { hasText: "練習曲" }).getByRole("button", { name: "演奏ビュー" }).click();
     assert.equal(await page.locator("#player-notes").isVisible(), true);
     assert.equal(await page.locator("#player-bars .bracket-name").first().textContent(), "小室進行");
     assert.deepEqual(errors, []);

@@ -2,9 +2,9 @@
 
 **tky**: a single HTML file that digitizes a scanned guitar score on a
 phone, as the first step toward the phone/tablet PWA (ADR-009). It opens on
-the score list (楽譜); scanning is the other tab (スキャン), a finished scan
-opens its score, and the settings are behind the gear (ADR-009 amendment
-2026-11-02). The screen is kept in the URL hash (`src/router.ts`).
+the home screen (ホーム) with the score list (楽譜一覧) in it; scanning is
+the other tab (スキャン), a finished scan opens its score, and the settings
+are behind the gear (ADR-009 amendment 2026-11-02). The screen is kept in the URL hash (`src/router.ts`).
 
 1. Pick a scanned PDF, or take photos of the pages ("カメラで撮る", one
    photo per page; several photos can also be picked at once). Photos
@@ -70,8 +70,8 @@ opens its score, and the settings are behind the gear (ADR-009 amendment
    `@guitarmr/gts` do the analysis (the key as written, else estimated
    from the chords). A gts file
    can be opened in it on its own, without the PDF; the committed
-   public-domain samples are built in and listed under the user's scores,
-   tagged サンプル.
+   public-domain samples are built in and always listed after the user's scores,
+   tagged サンプル (they cannot be deleted).
 
 ```sh
 pnpm --filter @guitarmr/demo build              # dist/tky.html
