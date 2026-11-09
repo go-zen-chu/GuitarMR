@@ -58,6 +58,9 @@ export async function openPage(browser: Browser, options: OpenOptions = {}): Pro
   const { claudeFrom, claude, setup, ...contextOptions } = options;
   const context = await browser.newContext({ viewport: PHONE, deviceScaleFactor: 2, ...contextOptions });
   const page = await context.newPage();
+  // E2E_CPU_SLOWDOWN=6 runs the page on a CPU that many times slower, to meet locally what a slow CI machine meets.
+  const slowdown = Number(process.env.E2E_CPU_SLOWDOWN);
+  if (slowdown > 1) await (await context.newCDPSession(page)).send("Emulation.setCPUThrottlingRate", { rate: slowdown });
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.route("https://cdn.jsdelivr.net/**", (route) =>
