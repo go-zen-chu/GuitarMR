@@ -7,7 +7,7 @@ import { ARTIFACTS, PHONE, TABLET, launch, openPage } from "./helpers.ts";
 
 async function openPlayer(browser: Browser, sample: string, options = {}) {
   const opened = await openPage(browser, options);
-  await opened.page.locator("#sample-list li", { hasText: sample }).getByRole("button", { name: "演奏ビュー" }).click();
+  await opened.page.locator("#library-list li.sample-song", { hasText: sample }).getByRole("button", { name: "演奏ビュー" }).click();
   await opened.page.waitForSelector("#player:not([hidden])");
   return opened;
 }
@@ -195,7 +195,7 @@ describe("play view", { timeout: 180_000 }, () => {
     assert.equal((await currentMarks(page)).k, second - 1);
     assert.equal(await page.locator("#player-bars .bar.picked").first().getAttribute("data-k"), String(second - 1));
 
-    // Closing the details, then 解説 off: nothing extra is left; the choice is remembered for the next song.
+    // Closing the details, then 解説 off: nothing extra is left; the choice is remembered.
     await page.click("#player-detail-close");
     assert.equal(await page.locator("#player-detail").isVisible(), false);
     assert.equal(await page.locator("#player-bars .bar.picked").count(), 0);
@@ -203,8 +203,8 @@ describe("play view", { timeout: 180_000 }, () => {
     assert.equal(await page.locator("#player-bars .brackets").first().isVisible(), false);
     await page.click("#player-explain");
     await page.click("#player-close");
-    assert.equal(await page.evaluate(() => localStorage.getItem("guitarmr.player.explain")), "1");
-    await page.locator("#sample-list li", { hasText: "練習曲" }).getByRole("button", { name: "演奏ビュー" }).click();
+    await page.reload();
+    await page.locator("#library-list li.sample-song", { hasText: "練習曲" }).getByRole("button", { name: "演奏ビュー" }).click();
     assert.equal(await page.locator("#player-notes").isVisible(), true);
     assert.equal(await page.locator("#player-bars .bracket-name").first().textContent(), "小室進行");
     assert.deepEqual(errors, []);
@@ -213,9 +213,10 @@ describe("play view", { timeout: 180_000 }, () => {
   it("If the device is in English the page and the play view's explanation should be in English", async () => {
     const { page, errors } = await openPage(browser, { locale: "en-US" });
     assert.equal(await page.getAttribute("html", "lang"), "en");
-    assert.equal(await page.locator("#library-title").textContent(), "Scores");
+    assert.equal(await page.locator("#home-title").textContent(), "Home");
+    assert.equal(await page.locator("#score-list-title").textContent(), "Scores");
     assert.equal(await page.locator('.tabs [data-tab="scan"]').textContent(), "Scan");
-    await page.locator("#sample-list li", { hasText: "さくらさくら" }).getByRole("button", { name: "Play view" }).click();
+    await page.locator("#library-list li.sample-song", { hasText: "さくらさくら" }).getByRole("button", { name: "Play view" }).click();
     await page.waitForSelector("#player:not([hidden])");
     assert.equal(await page.locator("#player-play").textContent(), "Play");
     assert.match(await page.locator("#player-meta").textContent() ?? "", /28 measures/);

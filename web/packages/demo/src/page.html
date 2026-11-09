@@ -200,6 +200,8 @@ body.editing main { padding-bottom: 70dvh; }
 /* The library on this device. */
 .library { display: grid; gap: 10px; }
 .library h2 { font-size: 1.05rem; }
+.score-list { display: grid; gap: 10px; }
+.score-list h2 { font-size: 1.05rem; }
 /* The score list: one card per score, its first page as the cover. */
 .library-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); }
 .library-list li { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); min-width: 0; }
@@ -219,8 +221,6 @@ body.editing main { padding-bottom: 70dvh; }
 .library-list .entry-actions .primary { background: var(--button); border-color: var(--button); color: var(--button-ink); font-weight: 700; }
 .library-list button { flex: 1 1 auto; min-height: 40px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; cursor: pointer; font-size: 0.85rem; white-space: nowrap; }
 .library-list .danger { color: var(--st-unread); }
-.sample-songs { display: grid; gap: 8px; }
-.sample-songs h2 { font-size: 1.05rem; }
 .library-note { font-size: 0.8rem; color: var(--muted); }
 .move { display: grid; gap: 8px; }
 .move[open] { padding-bottom: 4px; }
@@ -363,15 +363,13 @@ body.in-player { overflow: hidden; }
 <main>
   <div class="status" id="status-box" hidden aria-live="polite"><p id="status"></p><progress id="progress" max="1" value="0" hidden></progress></div>
 
-  <section class="view" id="view-library" aria-labelledby="library-title">
-    <h1 id="library-title" data-i18n="scores">楽譜</h1>
-    <p class="library-note" id="library-empty" data-i18n-html="libraryEmpty">まだありません。<a href="#/scan">スキャン</a>で PDF や写真を開くと、読み取った楽譜がここに並びます。</p>
-    <p class="library-note" id="library-unavailable" hidden data-i18n-html="libraryUnavailable">この画面では端末に楽譜を残せません。<a href="#/scan">スキャン</a>で開いた楽譜は、作業が終わったら gts.json に保存してください。</p>
-    <ul class="library-list" id="library-list" aria-label="スキャンした楽譜" data-i18n-aria-label="scannedScores"></ul>
-    <section class="sample-songs" aria-labelledby="sample-title">
-      <h2 id="sample-title" data-i18n="sampleSongs">サンプル曲</h2>
-      <p class="library-note" data-i18n="sampleNote">パブリックドメインの曲です。「開く」でスキャンから読み取りまでを、「演奏ビュー」でコードと TAB をテンポに合わせて音で確かめられます。</p>
-      <ul class="library-list" id="sample-list" aria-label="サンプル曲" data-i18n-aria-label="sampleSongs"></ul>
+  <section class="view" id="view-library" aria-labelledby="home-title">
+    <h1 id="home-title" data-i18n="home">ホーム</h1>
+    <section class="score-list" aria-labelledby="score-list-title">
+      <h2 id="score-list-title" data-i18n="scoreList">楽譜一覧</h2>
+      <p class="library-note" id="library-empty" data-i18n-html="libraryEmpty"><a href="#/scan">スキャン</a>した楽譜は、サンプル曲より前に並びます。</p>
+      <p class="library-note" id="library-unavailable" hidden data-i18n-html="libraryUnavailable">この画面では端末に楽譜を残せません。<a href="#/scan">スキャン</a>で開いた楽譜は、作業が終わったら gts.json に保存してください。</p>
+      <ul class="library-list" id="library-list"></ul>
     </section>
   </section>
 
@@ -401,7 +399,7 @@ body.in-player { overflow: hidden; }
   </section>
 
   <section class="view" id="view-score" hidden aria-label="楽譜の詳細" data-i18n-aria-label="scoreDetail">
-    <a class="back" href="#/" data-i18n="backToScores">← 楽譜</a>
+    <a class="back" href="#/" data-i18n="backToHome">← ホーム</a>
     <div class="legend" aria-label="凡例" data-i18n-aria-label="legend"><span class="sys" data-i18n="legendSystem">段（五線＋TAB）</span><span class="mea" data-i18n="legendMeasure">小節（番号は通し）</span></div>
     <section class="summary" id="summary" hidden aria-label="結果" data-i18n-aria-label="result">
       <div><h2 id="summary-source"></h2><p class="stats" id="summary-stats"></p></div>
@@ -465,7 +463,7 @@ body.in-player { overflow: hidden; }
 </main>
 
 <nav class="tabs" aria-label="画面" data-i18n-aria-label="screens">
-  <a href="#/" data-tab="library" data-i18n="scores">楽譜</a>
+  <a href="#/" data-tab="library" data-i18n="home">ホーム</a>
   <a href="#/scan" data-tab="scan" data-i18n="scan">スキャン</a>
 </nav>
 

@@ -96,10 +96,15 @@ describe("photos and the library", { timeout: 300_000 }, () => {
     await page.setInputFiles("#pdf-file", join(dir, "song.pdf"));
     await page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "song.pdf", null, { timeout: 120_000 });
     await page.waitForSelector("#view-score:not([hidden])");
-    await page.waitForSelector("#library-list li", { state: "attached" });
-    assert.match((await page.locator("#library-list li").textContent())!, /song\.pdf.*PDF · 確認済み 0 \/ 12 小節/);
+    await page.waitForSelector("#library-list li.scanned", { state: "attached" });
+    assert.match((await page.locator("#library-list li.scanned").textContent())!, /song\.pdf.*PDF · 確認済み 0 \/ 12 小節/);
+    // A scan comes before the samples, which stay last.
+    assert.deepEqual(
+      await page.locator("#library-list > li").evaluateAll((items) => items.map((li) => li.className.replace(" current", ""))),
+      ["scanned", "sample-song", "sample-song", "sample-song"],
+    );
     // The card shows the first page as its cover.
-    assert.match((await page.locator("#library-list li .cover img").getAttribute("src"))!, /^data:image\/jpeg;base64,/);
+    assert.match((await page.locator("#library-list li.scanned .cover img").getAttribute("src"))!, /^data:image\/jpeg;base64,/);
 
     // Review one measure, then come back later.
     await page.locator('[data-id="m1"]').click();
@@ -107,15 +112,15 @@ describe("photos and the library", { timeout: 300_000 }, () => {
     await page.fill("#f-chords", "C");
     await page.click("#sheet-ok");
     await page.click("#sheet-close");
-    await page.waitForFunction(() => document.querySelector("#library-list li")?.textContent?.includes("確認済み 1 / 12"));
+    await page.waitForFunction(() => document.querySelector("#library-list li.scanned")?.textContent?.includes("確認済み 1 / 12"));
 
     // Opened again later: the score list comes first.
     await page.goto("http://localhost/");
-    await page.waitForSelector("#library-list li");
+    await page.waitForSelector("#library-list li.scanned");
     assert.equal(await page.locator("#view-library").isVisible(), true);
-    assert.match((await page.locator("#library-list li").textContent())!, /song\.pdf.*確認済み 1 \/ 12/);
+    assert.match((await page.locator("#library-list li.scanned").textContent())!, /song\.pdf.*確認済み 1 \/ 12/);
     await page.screenshot({ path: `${ARTIFACTS}/library.png` });
-    await page.locator("#library-list li", { hasText: "song.pdf" }).getByRole("button", { name: "開く" }).click();
+    await page.locator("#library-list li.scanned", { hasText: "song.pdf" }).getByRole("button", { name: "開く" }).click();
     await page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "song.pdf", null, { timeout: 120_000 });
     assert.equal(await page.locator("#draft-note").isVisible(), true);
     assert.match((await page.locator("#review-summary").textContent())!, /確認済み 1/);
@@ -124,7 +129,7 @@ describe("photos and the library", { timeout: 300_000 }, () => {
     page.once("dialog", (dialog) => void dialog.accept());
     await page.getByRole("button", { name: "song.pdf を端末から削除" }).click();
     await page.waitForSelector("#library-empty:not([hidden])");
-    assert.equal(await page.locator("#library-list li").count(), 0);
+    assert.equal(await page.locator("#library-list li.scanned").count(), 0);
     assert.deepEqual(errors, []);
   });
 
@@ -142,7 +147,7 @@ describe("photos and the library", { timeout: 300_000 }, () => {
     await old.page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "IMG_0001.jpg", null, {
       timeout: 120_000,
     });
-    await old.page.waitForFunction(() => document.querySelectorAll("#library-list li").length === 2);
+    await old.page.waitForFunction(() => document.querySelectorAll("#library-list li.scanned").length === 2);
     await show(old.page, "settings");
     await old.page.locator(".move summary").click();
     const download = old.page.waitForEvent("download");
@@ -169,16 +174,16 @@ describe("photos and the library", { timeout: 300_000 }, () => {
     await fresh.page.setInputFiles("#library-import", join(dir, "damaged.jsonl"));
     await fresh.page.waitForFunction(() => document.querySelector("#library-message")?.textContent?.includes("取り込みました"));
     assert.match((await fresh.page.locator("#library-message").textContent())!, /2 曲を取り込みました。IMG_0001\.jpg は PDF・写真が壊れていた/);
-    const items = await fresh.page.locator("#library-list li").allTextContents();
+    const items = await fresh.page.locator("#library-list li.scanned").allTextContents();
     assert.equal(items.length, 2);
     assert.match(items.find((t) => t.includes("IMG_0001"))!, /ファイルなし/);
     assert.match(items.find((t) => t.includes("song.pdf"))!, /PDF · 確認済み 1 \/ 12/);
     // The photos' work still plays without them; the PDF opens with its work.
     await show(fresh.page, "library");
-    await fresh.page.locator("#library-list li", { hasText: "IMG_0001" }).getByRole("button", { name: "演奏ビュー" }).click();
+    await fresh.page.locator("#library-list li.scanned", { hasText: "IMG_0001" }).getByRole("button", { name: "演奏ビュー" }).click();
     await fresh.page.waitForSelector("#player:not([hidden])");
     await fresh.page.click("#player-close");
-    await fresh.page.locator("#library-list li", { hasText: "song.pdf" }).getByRole("button", { name: "開く" }).click();
+    await fresh.page.locator("#library-list li.scanned", { hasText: "song.pdf" }).getByRole("button", { name: "開く" }).click();
     await fresh.page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "song.pdf", null, { timeout: 120_000 });
     assert.match((await fresh.page.locator("#review-summary").textContent())!, /確認済み 1/);
     // Opening the same photos again brings their files back under the imported work.
@@ -187,7 +192,7 @@ describe("photos and the library", { timeout: 300_000 }, () => {
     await fresh.page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "IMG_0001.jpg", null, {
       timeout: 120_000,
     });
-    await fresh.page.waitForFunction(() => [...document.querySelectorAll("#library-list li")].some((li) => li.textContent?.includes("写真 2 枚")));
+    await fresh.page.waitForFunction(() => [...document.querySelectorAll("#library-list li.scanned")].some((li) => li.textContent?.includes("写真 2 枚")));
     assert.deepEqual([...old.errors, ...fresh.errors], []);
   });
 
@@ -202,7 +207,7 @@ describe("photos and the library", { timeout: 300_000 }, () => {
     // The photo is shown as it was taken (no sheet found), for checking.
     assert.match((await page.locator(".original summary").textContent())!, /用紙が見つからなかった/);
     // Nothing is kept for a photo without a score.
-    assert.equal(await page.locator("#library-list li").count(), 0);
+    assert.equal(await page.locator("#library-list li.scanned").count(), 0);
     assert.deepEqual(errors, []);
   });
 
@@ -214,7 +219,7 @@ describe("photos and the library", { timeout: 300_000 }, () => {
     await old.page.locator('[data-id="m3"]').click();
     await old.page.click("#sheet-ok");
     await old.page.click("#sheet-close");
-    await old.page.waitForFunction(() => document.querySelector("#library-list li")?.textContent?.includes("確認済み 1"));
+    await old.page.waitForFunction(() => document.querySelector("#library-list li.scanned")?.textContent?.includes("確認済み 1"));
     await show(old.page, "settings");
     await old.page.locator(".move summary").click();
     await old.page.uncheck("#library-with-files");
@@ -240,12 +245,12 @@ describe("photos and the library", { timeout: 300_000 }, () => {
       await fresh.page.waitForFunction(() => document.querySelector("#library-message")?.textContent === "1 曲を取り込みました。");
       await fresh.page.evaluate(() => (document.querySelector("#library-message")!.textContent = ""));
     }
-    assert.equal(await fresh.page.locator("#library-list li").count(), 1);
-    assert.match((await fresh.page.locator("#library-list li").textContent())!, /ファイルなし.*確認済み 1 \/ 12/);
+    assert.equal(await fresh.page.locator("#library-list li.scanned").count(), 1);
+    assert.match((await fresh.page.locator("#library-list li.scanned").textContent())!, /ファイルなし.*確認済み 1 \/ 12/);
     await fresh.page.setInputFiles("#pdf-file", join(dir, "song.pdf"));
     await fresh.page.waitForFunction(() => document.querySelector("#summary-source")?.textContent === "song.pdf", null, { timeout: 120_000 });
     assert.match((await fresh.page.locator("#review-summary").textContent())!, /確認済み 1/);
-    await fresh.page.waitForFunction(() => document.querySelector("#library-list li")?.textContent?.includes("PDF · 確認済み 1 / 12"));
+    await fresh.page.waitForFunction(() => document.querySelector("#library-list li.scanned")?.textContent?.includes("PDF · 確認済み 1 / 12"));
     assert.deepEqual([...old.errors, ...fresh.errors], []);
   });
 });
