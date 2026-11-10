@@ -13,31 +13,29 @@ import { chordIntervals, soundEvents } from "./sound.ts";
 import { type Key, parseChord } from "./harmony.ts";
 
 export interface Scale {
+  /** Which scale ("major", "ryukyu", ...); the viewer names and explains it. */
   id: string;
-  name: string;
   /** Semitones above the tonic, ascending from 0. */
   intervals: readonly number[];
-  /** One or two sentences on its sound and where it is heard. */
-  description: string;
 }
 
 /** Scales looked for, most common first (the first of equal fit is taken). */
 export const SCALES: readonly Scale[] = [
-  { id: "major", name: "メジャースケール（長音階）", intervals: [0, 2, 4, 5, 7, 9, 11], description: "ドレミファソラシド。明るく安定した、西洋音楽のいちばん基本の音階。" },
-  { id: "natural-minor", name: "ナチュラルマイナースケール（自然短音階）", intervals: [0, 2, 3, 5, 7, 8, 10], description: "ラシドレミファソラ。暗く落ち着いた響きの、マイナーキーの基本の音階。" },
-  { id: "major-pentatonic", name: "メジャーペンタトニック（ヨナ抜き長音階）", intervals: [0, 2, 4, 7, 9], description: "長音階から 4 番目と 7 番目（ファとシ）を抜いた 5 音。童謡や演歌、J-POP のメロディに多い、素朴で明るい響き。" },
-  { id: "minor-pentatonic", name: "マイナーペンタトニック（民謡音階）", intervals: [0, 3, 5, 7, 10], description: "短音階から 2 番目と 6 番目を抜いた 5 音。ロックのギターソロの定番で、日本の民謡にも同じ並びが現れる。" },
-  { id: "yona-nuki-minor", name: "ヨナ抜き短音階（平調子）", intervals: [0, 2, 3, 7, 8], description: "短音階から 4 番目と 7 番目を抜いた 5 音。箏の平調子と同じ並びで、もの悲しい和の響き。" },
-  { id: "miyako-bushi", name: "都節音階（陰音階）", intervals: [0, 1, 5, 7, 8], description: "半音を 2 か所に含む 5 音。さくらさくらや江戸の俗謡に聞かれる、しっとりと陰りのある日本の音階。" },
-  { id: "ryukyu", name: "沖縄音階（琉球音階）", intervals: [0, 4, 5, 7, 11], description: "ドミファソシ。長音階から 2 番目と 6 番目（レとラ）を抜いた 5 音で、沖縄民謡らしい南国の明るさが出る。" },
-  { id: "ritsu", name: "律音階", intervals: [0, 2, 5, 7, 9], description: "雅楽や民謡に使われる 5 音。3 度の音がなく、長調とも短調ともつかない、おおらかな響き。" },
-  { id: "blues", name: "ブルーノートスケール", intervals: [0, 3, 5, 6, 7, 10], description: "マイナーペンタトニックに ♭5 のブルーノートを加えた音階。ブルースやロックの泥くさい響き。" },
-  { id: "harmonic-minor", name: "ハーモニックマイナースケール（和声短音階）", intervals: [0, 2, 3, 5, 7, 8, 11], description: "自然短音階の 7 番目を半音上げ、Ⅴ7 から Ⅰm へ強く解決できるようにした音階。♭6 と 7 の間の広い音程が異国風。" },
-  { id: "melodic-minor", name: "メロディックマイナースケール（旋律短音階）", intervals: [0, 2, 3, 5, 7, 9, 11], description: "自然短音階の 6 番目と 7 番目を半音上げ、上りのメロディを滑らかにした音階。ジャズでもよく使う。" },
-  { id: "dorian", name: "ドリアンスケール", intervals: [0, 2, 3, 5, 7, 9, 10], description: "自然短音階の 6 番目を半音上げた教会旋法。マイナーなのに暗くなりすぎない、ファンクやジャズで好まれる響き。" },
-  { id: "mixolydian", name: "ミクソリディアンスケール", intervals: [0, 2, 4, 5, 7, 9, 10], description: "長音階の 7 番目を半音下げた教会旋法。ロックやブルースの、ゆるくて明るい響き。" },
-  { id: "lydian", name: "リディアンスケール", intervals: [0, 2, 4, 6, 7, 9, 11], description: "長音階の 4 番目を半音上げた教会旋法。浮遊感のある、映画音楽のような明るさ。" },
-  { id: "phrygian", name: "フリジアンスケール", intervals: [0, 1, 3, 5, 7, 8, 10], description: "自然短音階の 2 番目を半音下げた教会旋法。フラメンコのような、スペイン風の緊張感。" },
+  { id: "major", intervals: [0, 2, 4, 5, 7, 9, 11] },
+  { id: "natural-minor", intervals: [0, 2, 3, 5, 7, 8, 10] },
+  { id: "major-pentatonic", intervals: [0, 2, 4, 7, 9] },
+  { id: "minor-pentatonic", intervals: [0, 3, 5, 7, 10] },
+  { id: "yona-nuki-minor", intervals: [0, 2, 3, 7, 8] },
+  { id: "miyako-bushi", intervals: [0, 1, 5, 7, 8] },
+  { id: "ryukyu", intervals: [0, 4, 5, 7, 11] },
+  { id: "ritsu", intervals: [0, 2, 5, 7, 9] },
+  { id: "blues", intervals: [0, 3, 5, 6, 7, 10] },
+  { id: "harmonic-minor", intervals: [0, 2, 3, 5, 7, 8, 11] },
+  { id: "melodic-minor", intervals: [0, 2, 3, 5, 7, 9, 11] },
+  { id: "dorian", intervals: [0, 2, 3, 5, 7, 9, 10] },
+  { id: "mixolydian", intervals: [0, 2, 4, 5, 7, 9, 10] },
+  { id: "lydian", intervals: [0, 2, 4, 6, 7, 9, 11] },
+  { id: "phrygian", intervals: [0, 1, 3, 5, 7, 8, 10] },
 ];
 
 /** Share of the notes (by length) a scale must hold to fit; the rest are passing notes. */

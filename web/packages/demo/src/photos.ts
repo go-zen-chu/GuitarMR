@@ -7,6 +7,7 @@
  */
 
 import type { RgbaImage } from "@guitarmr/layoutscan";
+import type { Messages } from "./i18n.ts";
 
 /** Photos are decoded at most this large on the long side (12 MP phone photos fit). */
 export const PHOTO_MAX_SIDE = 4032;
@@ -63,6 +64,8 @@ export function concatPhotos(photos: PhotoFile[]): Uint8Array {
 export interface TrayHost {
   /** Analyze these photos as the pages of one score. */
   analyze(photos: PhotoFile[]): void;
+  /** The words of the tray, in the page's language. */
+  text: Messages;
 }
 
 export function createTray(host: TrayHost) {
@@ -77,7 +80,7 @@ export function createTray(host: TrayHost) {
 
   function render() {
     t.tray.hidden = photos.length === 0;
-    t.go.textContent = `この ${photos.length} 枚で解析する`;
+    t.go.textContent = host.text.analysePhotos(photos.length);
     t.list.replaceChildren(
       ...photos.map(({ photo, url }, i) => {
         const li = document.createElement("li");
@@ -90,7 +93,7 @@ export function createTray(host: TrayHost) {
         const earlier = document.createElement("button");
         earlier.type = "button";
         earlier.textContent = "←";
-        earlier.setAttribute("aria-label", `p${i + 1} を前へ`);
+        earlier.setAttribute("aria-label", host.text.movePhotoEarlier(i + 1));
         earlier.disabled = i === 0;
         earlier.addEventListener("click", () => {
           [photos[i - 1], photos[i]] = [photos[i]!, photos[i - 1]!];
@@ -99,7 +102,7 @@ export function createTray(host: TrayHost) {
         const remove = document.createElement("button");
         remove.type = "button";
         remove.textContent = "×";
-        remove.setAttribute("aria-label", `p${i + 1} を外す`);
+        remove.setAttribute("aria-label", host.text.removePhoto(i + 1));
         remove.addEventListener("click", () => {
           URL.revokeObjectURL(photos[i]!.url);
           photos.splice(i, 1);
