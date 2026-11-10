@@ -23,6 +23,7 @@ export interface SystemSpec {
   tabSpacing?: number; // TAB line spacing, when wider than the staff's
   staffTopFrom?: number; // the top staff line is hidden left of this x (chord names written on it)
   tabTopFrom?: number; // the same for the top TAB line
+  overshoot?: number; // line spacings the inner bar lines run past the system, above and below (hand-drawn)
 }
 
 export const tabTop = (spec: SystemSpec): number =>
@@ -61,7 +62,10 @@ export function drawPage(systems: SystemSpec[]): RgbaImage {
     ctx.font = "bold 30px sans-serif";
     [..."TAB"].forEach((letter, i) => ctx.fillText(letter, LEFT + 8, tTop + 24 + i * 30));
     const top = withStaff ? spec.top : tTop;
-    for (const x of [LEFT, ...spec.barlines, RIGHT]) line(x, top, x, tBottom, INK, 2);
+    line(LEFT, top, LEFT, tBottom, INK, 2);
+    line(RIGHT, top, RIGHT, tBottom, INK, 2);
+    const over = (spec.overshoot ?? 0) * SPACING;
+    for (const x of spec.barlines) line(x, top - over, x, tBottom + over, INK, 2);
     for (const x of spec.stems ?? []) {
       // A stem from a note on the top string down to a beam under the TAB.
       line(x, tTop - 2, x, tBottom + 3 * SPACING, INK, 2);
@@ -97,6 +101,39 @@ export function standardPage(withStaff = true, gap = 16): { page: RgbaImage; spe
   const step = height + gap * SPACING;
   const specs = Array.from({ length: 5 }, (_, i) => ({ top: 300 + i * step, barlines: [575, 1060, 1545], withStaff }));
   return { page: drawPage(specs), specs };
+}
+
+/**
+ * A chord chart: rows of chord diagrams drawn sideways (six strings as
+ * horizontal lines, frets as vertical ones), with blank space between the
+ * diagrams. The strings of a row line up like a TAB's lines.
+ */
+export function chordChartPage(): RgbaImage {
+  const canvas = createCanvas(WIDTH, HEIGHT);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = `rgb(${PAPER}, ${PAPER}, ${PAPER})`;
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  const diagramWidth = 4 * 4 * SPACING;
+  const pitch = diagramWidth + 6 * SPACING;
+  for (let row = 0; row < 4; row++) {
+    const top = 500 + row * 600;
+    for (let x0 = 300; x0 + diagramWidth <= 1800; x0 += pitch) {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        ctx.moveTo(x0, top + i * SPACING);
+        ctx.lineTo(x0 + diagramWidth, top + i * SPACING);
+      }
+      for (let f = 0; f <= 4; f++) {
+        ctx.moveTo(x0 + f * 4 * SPACING, top);
+        ctx.lineTo(x0 + f * 4 * SPACING, top + 5 * SPACING);
+      }
+      ctx.stroke();
+    }
+  }
+  const data = ctx.getImageData(0, 0, WIDTH, HEIGHT);
+  return { width: WIDTH, height: HEIGHT, data: data.data };
 }
 
 /** The page turned clockwise by a multiple of 90 degrees, as a scan might come in. */

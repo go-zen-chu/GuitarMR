@@ -14,7 +14,7 @@
  */
 
 import { type GtsDocument, measures } from "@guitarmr/gts";
-import { checkDocument, reviewSummary, tabUnread } from "@guitarmr/extract";
+import { checkDocument, removePage, restorePage, reviewSummary, tabUnread } from "@guitarmr/extract";
 import { type RgbaImage, type ScannedPage, buildDocument, renderPages, sha256Hex } from "@guitarmr/layoutscan";
 import * as pdfjs from "pdfjs-dist";
 import { coverArt, coverPixels, coverUrl } from "./cover.ts";
@@ -100,6 +100,9 @@ const ui = {
   playOpen: $<HTMLButtonElement>("play-open"),
   playGts: $<HTMLInputElement>("play-gts"),
   pages: $<HTMLOListElement>("pages"),
+  undoBar: $<HTMLElement>("undo-bar"),
+  undoMessage: $<HTMLElement>("undo-message"),
+  undo: $<HTMLButtonElement>("undo"),
 };
 
 pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
@@ -140,6 +143,8 @@ const state = {
   doc: null as GtsDocument | null,
   pages: new Map<number, PageView>(),
   selected: null as string | null,
+  /** Documents before each change to the measures themselves, newest last. */
+  undo: [] as GtsDocument[],
 };
 
 let run = 0; // a newer analysis cancels the running one
@@ -184,7 +189,10 @@ function dropDraft() {
 /** Make `doc` the current document and bring every view up to date. */
 function commit(doc: GtsDocument, persist = true) {
   state.doc = doc;
-  for (const view of state.pages.values()) drawPage(view, doc, state.selected);
+  for (const view of state.pages.values()) {
+    drawPage(view, doc, state.selected);
+    showPageIncluded(view.index, measures(doc).some((m) => m.region?.page === view.index));
+  }
   const s = reviewSummary(doc);
   const parts = [
     ["確認済み", s.reviewed, "reviewed"],
@@ -220,6 +228,57 @@ function commit(doc: GtsDocument, persist = true) {
   ui.save.textContent = `${outputName()} を保存`;
   editor.refresh();
   if (persist) saveDraft();
+}
+
+const UNDO_LIMIT = 30;
+let undoTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Commit a change to the measures (split, joined, deleted, a page left out), keeping the way back. */
+function restructure(doc: GtsDocument, done: string) {
+  if (state.doc) state.undo = [...state.undo.slice(1 - UNDO_LIMIT), state.doc];
+  commit(doc);
+  showUndo(done);
+}
+
+function showUndo(message: string) {
+  clearTimeout(undoTimer);
+  ui.undoMessage.textContent = message;
+  ui.undo.hidden = state.undo.length === 0;
+  ui.undoBar.hidden = false;
+  undoTimer = setTimeout(() => {
+    ui.undoBar.hidden = true;
+  }, 8000);
+}
+
+function undo() {
+  const previous = state.undo.pop();
+  if (!previous) return;
+  commit(previous);
+  showUndo(state.undo.length ? "元に戻しました（さらに戻せます）" : "元に戻しました");
+}
+
+/** A page's card as part of the score, or as left out (its overlay faded, a button to bring it back). */
+function showPageIncluded(page: number, included: boolean) {
+  const li = ui.pages.querySelector<HTMLLIElement>(`[data-page="${page}"]`);
+  const button = li?.querySelector<HTMLButtonElement>(".page-remove");
+  if (!li || !button) return;
+  li.classList.toggle("excluded", !included);
+  button.textContent = included ? "このページを外す" : "このページを戻す";
+  button.title = included ? "楽譜ではないページ（コード表・表紙など）を小節から外します" : "検出した小節を元に戻します";
+  button.classList.toggle("danger", included);
+  button.disabled = included && measures(state.doc!).every((m) => m.region?.page === page);
+  const reread = li.querySelector<HTMLButtonElement>(".reread");
+  if (reread) reread.disabled = !included;
+}
+
+function togglePage(page: number) {
+  const doc = state.doc;
+  if (!doc) return;
+  if (measures(doc).some((m) => m.region?.page === page)) {
+    restructure(removePage(doc, page), `p${page + 1} を外しました`);
+  } else if (state.detected) {
+    restructure(restorePage(doc, state.detected, page), `p${page + 1} を戻しました`);
+  }
 }
 
 /** Every check that fails, each one a button to its measure. */
@@ -261,6 +320,7 @@ const editor = createEditor({
     return view && { url: view.url, width: view.width, height: view.height };
   },
   commit,
+  restructure,
   select,
 });
 
@@ -268,6 +328,7 @@ function pageCard(result: DetectResult, preview: { blob: Blob; url: string } | n
   const { layout } = result;
   const li = document.createElement("li");
   li.className = "page";
+  li.dataset.page = String(result.index);
   const head = document.createElement("div");
   head.className = "page-head";
   const title = document.createElement("h3");
@@ -309,7 +370,15 @@ function pageCard(result: DetectResult, preview: { blob: Blob; url: string } | n
   reread.title = "このページの修正は上書きされます";
   reread.hidden = ui.ai.hidden;
   reread.addEventListener("click", () => void read([result.index]));
-  head.append(reread);
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "page-remove danger";
+  remove.textContent = "このページを外す";
+  remove.addEventListener("click", () => togglePage(result.index));
+  const tools = document.createElement("div");
+  tools.className = "page-tools";
+  tools.append(remove, reread);
+  head.append(tools);
   const figure = document.createElement("div");
   figure.className = "figure";
   const img = document.createElement("img");
@@ -380,6 +449,8 @@ function reset() {
   state.photoUrls = [];
   state.pages.clear();
   state.doc = state.detected = null;
+  state.undo = [];
+  ui.undoBar.hidden = true;
   state.sha256 = "";
   ui.summary.hidden = true;
   ui.pages.replaceChildren();
@@ -1140,8 +1211,11 @@ ui.discardDraft.addEventListener("click", () => {
   dropDraft();
   ui.draftNote.hidden = true;
   editor.close();
+  state.undo = [];
+  ui.undoBar.hidden = true;
   if (state.detected) commit(state.detected, false);
 });
+ui.undo.addEventListener("click", undo);
 ui.read.addEventListener("click", () => void read());
 ui.readTab.addEventListener("click", () => void read(undefined, "tab"));
 ui.stop.addEventListener("click", () => readAbort?.abort());

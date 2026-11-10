@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { type PageLayout, analyzePage, measureSpans, systemLeft, systemRight } from "../src/detect.ts";
-import { LEFT, RIGHT, drawPage, skew, standardPage, turn } from "./synthetic.ts";
+import { LEFT, RIGHT, chordChartPage, drawPage, skew, standardPage, turn } from "./synthetic.ts";
 
 const measureCounts = (layout: PageLayout): number[] => layout.systems.map((s) => measureSpans(s).length);
 const near = (actual: number, expected: number, tolerance: number) =>
@@ -114,5 +114,19 @@ describe("analyzePage", () => {
   it("If a start repeat follows the clef it should not create a tiny measure", () => {
     const layout = analyzePage(drawPage([{ top: 400, barlines: [LEFT + 45, LEFT + 52, 1060] }]));
     assert.deepEqual(measureCounts(layout), [2]);
+  });
+
+  it("If hand-drawn bar lines run past the staff and the TAB it should still split the measures", () => {
+    const layout = analyzePage(drawPage([{ top: 400, barlines: [575, 1060, 1545], overshoot: 1.5 }]));
+    assert.deepEqual(measureCounts(layout), [4]);
+  });
+
+  it("If hand-drawn bar lines run past a TAB-only system on both sides it should still split the measures", () => {
+    const layout = analyzePage(drawPage([{ top: 400, barlines: [575, 1060, 1545], withStaff: false, overshoot: 1.5 }]));
+    assert.deepEqual(measureCounts(layout), [4]);
+  });
+
+  it("If the page is a chart of chord diagrams it should report no systems", () => {
+    assert.deepEqual(analyzePage(chordChartPage()).systems, []);
   });
 });

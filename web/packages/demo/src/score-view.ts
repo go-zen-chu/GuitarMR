@@ -91,7 +91,9 @@ export function drawPage(view: PageView, doc: GtsDocument, selected: string | nu
   const { svg, width: W, height: H, scale } = view;
   svg.replaceChildren();
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  for (const s of view.layout.systems) {
+  // A page left out of the score shows no systems either.
+  const included = measures(doc).some((m) => m.region?.page === view.index);
+  for (const s of included ? view.layout.systems : []) {
     const top = systemTop(s) * scale;
     svg.append(
       el("rect", {

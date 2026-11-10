@@ -128,7 +128,7 @@ textarea { width: 100%; box-sizing: border-box; min-height: 12em; margin-top: 8p
 .overlay .s-reviewed .box { stroke: var(--ov-reviewed); }
 .overlay .s-reviewed .num { fill: var(--ov-reviewed); }
 .overlay .selected .box, .overlay .measure:focus-visible .box { stroke: var(--ov-selected); stroke-width: 4px; fill: rgba(208, 22, 122, 0.08); }
-.reread { margin-left: auto; min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; font-size: 0.85rem; cursor: pointer; }
+.reread, .page-remove { margin-left: auto; min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; font-size: 0.85rem; cursor: pointer; }
 .chip { display: inline-flex; align-items: center; padding: 1px 10px; border-radius: 999px; border: 1px solid currentColor; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
 .chip.s-unread { color: var(--st-unread); }
 .chip.s-auto { color: var(--st-auto); }
@@ -156,6 +156,21 @@ body.editing main { padding-bottom: 70dvh; }
 .crop { position: relative; overflow: hidden; aspect-ratio: var(--aspect, 3); width: min(100%, calc(28dvh * var(--aspect, 3))); max-width: 100%; margin-inline: auto; background-repeat: no-repeat; border: 1px solid var(--rule); border-radius: 6px; background-color: var(--ov-halo); }
 /* The measure itself; its surroundings are faded by the frame's shadow. */
 .crop-frame { position: absolute; border: 2px solid var(--ov-selected); border-radius: 2px; box-shadow: 0 0 0 100vmax rgba(255, 255, 255, 0.5); pointer-events: none; }
+/* Splitting: the line follows the finger over the measure image. */
+.crop.splitting { cursor: crosshair; outline: 3px solid var(--ov-selected); outline-offset: 2px; }
+.crop-cut { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed var(--ov-selected); pointer-events: none; }
+.region-tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.region-tools button { min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; color: var(--ink); cursor: pointer; font-size: 0.85rem; }
+.region-tools button[aria-pressed="true"] { border-color: var(--ov-selected); color: var(--ov-selected); font-weight: 700; }
+.region-tools button:disabled { opacity: 0.4; cursor: default; }
+.region-tools .danger, .page-head .danger { color: var(--st-unread); border-color: var(--st-unread); }
+.undo-bar { position: fixed; z-index: 20; top: calc(8px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 14px; border-radius: 10px; background: var(--button); color: var(--button-ink); box-shadow: 0 4px 16px var(--scrim); font-size: 0.9rem; }
+.undo-bar[hidden] { display: none; }
+.undo-bar button { min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--button-ink); background: transparent; color: var(--button-ink); font-weight: 700; cursor: pointer; }
+.page.excluded .figure { opacity: 0.45; }
+.page-tools { display: flex; gap: 8px; margin-left: auto; }
+.page-tools .reread, .page-tools .page-remove { margin-left: 0; }
+.page-tools button:disabled { opacity: 0.4; cursor: default; }
 .ai-note { font-size: 0.85rem; color: var(--st-attention); }
 .field { display: grid; gap: 4px; font-size: 0.85rem; color: var(--muted); }
 .field input[type="text"], .field input[type="number"], .field select { font: inherit; font-size: 16px; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; min-height: 44px; padding: 0 10px; box-sizing: border-box; width: 100%; }
@@ -467,7 +482,13 @@ body.in-player { overflow: hidden; }
 <aside class="sheet" id="sheet" hidden aria-label="小節の編集">
   <div class="sheet-inner">
     <div class="sheet-head"><h2 id="sheet-title"></h2><span class="chip" id="sheet-status"></span><button type="button" class="close" id="sheet-close" aria-label="閉じる">×</button></div>
-    <div class="crop" id="sheet-crop" role="img" aria-label="この小節の画像（前後の小節を薄く表示）"><div class="crop-frame" id="sheet-frame"></div></div>
+    <div class="crop" id="sheet-crop" role="img" aria-label="この小節の画像（前後の小節を薄く表示）"><div class="crop-frame" id="sheet-frame"></div><div class="crop-cut" id="sheet-cut" hidden></div></div>
+    <div class="region-tools" role="group" aria-label="小節の区切りを直す">
+      <button type="button" id="f-split" aria-pressed="false">2つに分ける</button>
+      <button type="button" id="f-merge">次の小節とつなげる</button>
+      <button type="button" class="danger" id="f-delete">この小節を消す</button>
+    </div>
+    <p class="hint" id="f-split-hint" hidden aria-live="polite"></p>
     <p class="ai-note" id="sheet-note" hidden></p>
     <label class="field">コード<input type="text" id="f-chords" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done"></label>
     <p class="hint">スペース区切り。拍の位置を指定するときは @ を付けます: <code>C G/B@2.5</code></p>
@@ -499,6 +520,8 @@ body.in-player { overflow: hidden; }
     <div class="sheet-actions"><button type="button" id="sheet-prev">← 前</button><button type="button" class="primary" id="sheet-ok">確認済みにして次へ</button><button type="button" id="sheet-next">次 →</button></div>
   </div>
 </aside>
+
+<div class="undo-bar" id="undo-bar" hidden role="status"><span id="undo-message"></span><button type="button" id="undo">元に戻す</button></div>
 
 <section class="player" id="player" hidden aria-label="演奏ビュー">
   <div class="player-bar">
