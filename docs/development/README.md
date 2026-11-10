@@ -118,7 +118,7 @@ also surfaced on the score panel itself.
 
 ## Project conventions
 
-- Follow the layered structure described in docs/design (ADR-004): pure logic
+- Follow the layered structure described in docs/design/mr.md (ADR-004): pure logic
   in `Domain`, orchestration in `Usecase`, I/O in `Infra`, composition in
   `App`.
 - New interfaces belong to the layer that consumes them (ports live in

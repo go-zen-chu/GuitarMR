@@ -116,7 +116,7 @@ Get a PDF into the headset's shared storage — no PC tooling required:
 Then press the left controller **Menu** button in the app and pick it from
 the list. On first use the picker sends you to the system settings to grant
 **"Allow management of all files"** (required to read PDFs from shared
-storage under Android scoped storage; see docs/design ADR-007). The last
+storage under Android scoped storage; see docs/design/mr.md ADR-007). The last
 selected score is remembered across sessions.
 
 PDF rendering only works on the device because it uses the Android
