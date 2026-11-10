@@ -10,6 +10,7 @@ import {
   parseTabLine,
   playOrder,
   soundEvents,
+  tabBeats,
   tuningOf,
 } from "../src/index.ts";
 
@@ -143,5 +144,47 @@ describe("soundEvents", () => {
       // E-high: frets [0,0,1,2,2,0] from string 1, with capo 2.
       assert.ok(events.some((e) => e.part === "chord" && e.notes.join() === [42, 49, 54, 58, 61, 66].join()));
     }
+  });
+});
+
+describe("tabBeats", () => {
+  const placed = (doc: GtsDocument) => tabBeats(doc, playOrder(doc)).map((beats) => beats.map((b) => [b.at, b.length]));
+
+  it("If a measure has tab it should place each beat at its offset in the measure's beats", () => {
+    assert.deepEqual(placed(score([{ beats: tab("8:6-0 8:r 4:/ 8t:1-0 8t:1-2 8t:1-3 4.:2-1 8:r") }])), [
+      [
+        [0, 0.5],
+        [0.5, 0.5],
+        [1, 1],
+        [2, 1 / 3],
+        [2 + 1 / 3, 1 / 3],
+        [2 + 2 / 3, 1 / 3],
+        [3, 1.5],
+        [4.5, 0.5],
+      ],
+    ]);
+  });
+
+  it("If the time signature counts eighths it should count the tab in eighths", () => {
+    assert.deepEqual(placed(score([{ beats: tab("8:1-0 4:1-2") }], { timeSignature: "6/8" })), [
+      [
+        [0, 1],
+        [1, 2],
+      ],
+    ]);
+  });
+
+  it("If a measure is a measure-repeat sign or has no tab it should repeat the previous beats or give none", () => {
+    assert.deepEqual(placed(score([{ beats: tab("2:1-3 2:1-5") }, { simile: 1 }, {}])), [
+      [
+        [0, 2],
+        [2, 2],
+      ],
+      [
+        [0, 2],
+        [2, 2],
+      ],
+      [],
+    ]);
   });
 });

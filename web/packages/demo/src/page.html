@@ -351,6 +351,21 @@ body.in-player { overflow: hidden; }
 .feel span { margin-right: 4px; }
 .player-controls .feel button { min-width: 34px; font-family: var(--font-mono); }
 .feel button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.view { display: flex; align-items: center; gap: 2px; font-size: 0.8rem; color: var(--muted); }
+.view span { margin-right: 4px; }
+.player-controls .view button { padding: 0 8px; color: var(--ink); }
+.view button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+/* Tab: six lines, string 1 at the top; each fret sits on its line, placed by its time in the measure. */
+.tab { --tab: calc(clamp(0.7rem, 8cqi, 1rem) * var(--zoom)); --gap: calc(var(--tab) * 0.95); position: relative; height: calc(var(--gap) * 5 + 1px); margin-block: calc(var(--gap) * 0.6); overflow-x: clip; background: repeating-linear-gradient(color-mix(in srgb, var(--muted) 55%, transparent) 0 1px, transparent 1px var(--gap)); font-family: var(--font-mono); font-size: var(--tab); font-weight: 600; line-height: 1; }
+.tab-note { position: absolute; top: calc((var(--string) - 1) * var(--gap)); transform: translateY(-50%); padding: 0 1px; white-space: nowrap; color: var(--ink); background: var(--paper); }
+.tab-note.tie { color: var(--muted); }
+.tab-note small { font-size: 0.62em; font-weight: 500; color: var(--muted); }
+.bar.picked .tab-note { background: color-mix(in srgb, var(--system) 10%, var(--paper)); }
+.bar.current .tab-note { background: var(--now-bg); }
+.tab-slash { position: absolute; top: calc(var(--gap) * 1.5); height: calc(var(--gap) * 2); width: 2px; margin-left: 0.4em; background: var(--ink); transform: rotate(25deg); }
+/* Playing from the chords or from the tab alone. */
+.player.only-tab .chords, .player.only-tab .degrees, .player.only-tab .brackets, .player.only-tab .diagrams { display: none; }
+.player.only-chords .tab { display: none; }
 .player-count { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; font-family: var(--font-mono); font-weight: 600; font-size: min(40vw, 14rem); color: var(--now); opacity: 0.85; }
 @media (prefers-reduced-motion: reduce) { .player * { scroll-behavior: auto; } }
 </style>
@@ -516,6 +531,7 @@ body.in-player { overflow: hidden; }
         <button type="button" id="player-faster" aria-label="テンポを速く" data-i18n-aria-label="faster">＋</button>
       </div>
       <div class="feel" id="player-feel" role="group" aria-label="ビートの数（1小節あたり）" data-i18n-aria-label="beatsPerBar"><span data-i18n="beat">ビート</span><button type="button" data-feel="4" aria-pressed="true">4</button><button type="button" data-feel="8" aria-pressed="false">8</button><button type="button" data-feel="16" aria-pressed="false">16</button></div>
+      <div class="view" id="player-view" role="group" aria-label="表示する譜面" data-i18n-aria-label="shownParts" hidden><span data-i18n="show">表示</span><button type="button" data-view="both" aria-pressed="true" data-i18n="showBoth">コード＋TAB</button><button type="button" data-view="chords" aria-pressed="false" data-i18n="showChords">コード</button><button type="button" data-view="tab" aria-pressed="false" data-i18n="showTab">TAB</button></div>
       <label class="toggle" data-i18n="click"><input type="checkbox" id="player-click">クリック音</label>
       <label class="toggle" data-i18n="chordSound"><input type="checkbox" id="player-chord-sound">コード音</label>
       <label class="toggle" data-i18n="tabSound"><input type="checkbox" id="player-tab-sound">TAB音</label>
