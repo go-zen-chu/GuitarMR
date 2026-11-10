@@ -61,7 +61,14 @@ are behind the gear (ADR-009 amendment 2026-11-02). The screen is kept in the UR
    measure's width (container query units), with A−/A＋ on top. Inside a
    measure the marks, chord and lyric lines have fixed heights, and a row
    shrinks long names as a whole, so chords and lyrics stay level across
-   a row for the eye to follow. A gts file
+   a row for the eye to follow. 解説 (remembered per device) adds each
+   chord's degree in the key under its name and a foldable panel
+   (`src/explain.ts`) with the song's most telling progressions (ツーファイブ
+   ワン, カデンツ, 王道・小室・カノン進行, secondary dominants, sus4
+   resolutions…), what each does and where it is played; tapping one marks
+   its measures and goes there. `songKey` and `progressions` in
+   `@guitarmr/gts` do the analysis (the key as written, else estimated
+   from the chords). A gts file
    can be opened in it on its own, without the PDF; the committed
    public-domain samples are built in and always listed after the user's scores,
    tagged サンプル (they cannot be deleted).
