@@ -494,7 +494,6 @@ export function findBarlines(strokes: Plane, system: System, content: Plane | nu
     // Search a little sideways: printed bar lines are often slightly
     // slanted, so the staff part is offset from the TAB part.
     const reach = Math.max(Math.trunc(0.5 * s), 2);
-    const near = columnOf(widened, x - reach, x + reach);
     if (staff) {
       let crosses = false;
       for (let xx = Math.max(x - reach, 0); xx <= Math.min(x + reach, width - 1) && !crosses; xx++) {
@@ -504,7 +503,7 @@ export function findBarlines(strokes: Plane, system: System, content: Plane | nu
       // A hand-drawn bar line often runs past the TAB; it is still one
       // stroke from the staff down, across the empty gap above the TAB,
       // which a stem hanging below the TAB never crosses.
-      if (below && !covered(near, staffTopAt(staff, x), tabBottom, 0.9)) continue;
+      if (below && !covered(columnOf(widened, x - reach, x + reach), staffTopAt(staff, x), tabBottom, 0.9)) continue;
     } else if (below !== above) {
       // A stem leaves the TAB on one side; a hand-drawn bar line that runs
       // past it does so on both.

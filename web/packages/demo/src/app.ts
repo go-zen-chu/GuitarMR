@@ -160,8 +160,6 @@ const outputName = () => state.name.replace(/\.(pdf|jpe?g|png|heic|heif|webp)$/i
 const json = () => `${JSON.stringify(state.doc, null, 2)}\n`;
 
 // The work in progress is kept in the library on this device, per source.
-// Drafts of earlier versions were kept in localStorage; they are moved over.
-const DRAFT_PREFIX = "guitarmr.draft.";
 function saveDraft() {
   const doc = state.doc;
   if (!doc) return;
@@ -169,20 +167,7 @@ function saveDraft() {
     .saveDoc(state.sha256, doc, { id: state.sha256, name: state.name, kind: state.kind, files: [], added: Date.now() })
     .then(() => renderLibrary());
 }
-function legacyDraft(sha256: string): GtsDocument | null {
-  try {
-    const doc = JSON.parse(localStorage.getItem(DRAFT_PREFIX + sha256) ?? "null") as GtsDocument | null;
-    return doc?.format === "gts" && doc.source?.sha256 === sha256 ? doc : null;
-  } catch {
-    return null;
-  }
-}
 function dropDraft() {
-  try {
-    localStorage.removeItem(DRAFT_PREFIX + state.sha256);
-  } catch {
-    // ignore
-  }
   void library.get(state.sha256).then((entry) => entry && library.put({ ...entry, doc: state.detected, updated: Date.now() }));
 }
 
@@ -542,8 +527,7 @@ async function analyze(source: Source) {
   // The library keeps the files (so the score can be opened again) and the work on them.
   const entry = await library.get(sha256);
   if (mine !== run) return;
-  const legacy = entry?.doc ? null : legacyDraft(sha256);
-  const draft = entry?.doc ?? legacy;
+  const draft = entry?.doc ?? null;
   const now = Date.now();
   const stored: LibraryEntry = entry
     ? { ...entry, updated: now, files: entry.files.length ? entry.files : filesOf(source) }
@@ -552,7 +536,6 @@ async function analyze(source: Source) {
   // The detected layout is already work worth keeping (and moving to another device).
   stored.doc = draft ?? state.detected;
   const kept = await library.put(stored);
-  if (kept && legacy) dropLegacy(sha256);
   if (mine !== run) return;
   // Only work beyond the detection counts as a draft to tell about.
   ui.draftNote.hidden = !draft || JSON.stringify(draft) === JSON.stringify(state.detected);
@@ -566,14 +549,6 @@ async function analyze(source: Source) {
   void renderLibrary();
   // A finished scan opens its score; one finished while the viewer went elsewhere waits in the list.
   if (route.view === "scan" || route.view === "score") navigate({ view: "score", id: sha256 }, route.view === "score");
-}
-
-function dropLegacy(sha256: string) {
-  try {
-    localStorage.removeItem(DRAFT_PREFIX + sha256);
-  } catch {
-    // ignore
-  }
 }
 
 // Reading with Claude (claude.ai "sample" capability).

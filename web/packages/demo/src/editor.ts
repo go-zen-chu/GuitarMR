@@ -184,6 +184,9 @@ export function createEditor(host: EditorHost) {
     return shown[0] + share * (shown[1] - shown[0]);
   }
 
+  /** The measure's place in the score, 1-based, as the viewer counts it. */
+  const ordinal = (id: string): number => measures(host.doc()).findIndex((n) => n.id === id) + 1;
+
   /** Whether page x leaves both parts of the measure wide enough. */
   function splittable(x: number): boolean {
     const [x0, , x1] = (measure()?.region?.bbox ?? []) as number[];
@@ -233,21 +236,19 @@ export function createEditor(host: EditorHost) {
       f.splitHint.textContent = "小節の枠の内側（端から少し離れたところ）をタップしてください。";
       return;
     }
-    const index = measures(host.doc()).findIndex((n) => n.id === m.id);
-    host.restructure(splitMeasure(host.doc(), m.id, x), `${index + 1} 小節目を2つに分けました`);
+    host.restructure(splitMeasure(host.doc(), m.id, x), `${ordinal(m.id)} 小節目を2つに分けました`);
   });
   f.merge.addEventListener("click", () => {
     const m = measure();
     if (!m?.id || !nextInSystem(host.doc(), m.id)) return;
-    const index = measures(host.doc()).findIndex((n) => n.id === m.id);
-    host.restructure(mergeWithNext(host.doc(), m.id), `${index + 1} 小節目と ${index + 2} 小節目をつなげました`);
+    const n = ordinal(m.id);
+    host.restructure(mergeWithNext(host.doc(), m.id), `${n} 小節目と ${n + 1} 小節目をつなげました`);
   });
   f.remove.addEventListener("click", () => {
     const m = measure();
     if (!m?.id || measures(host.doc()).length <= 1) return;
-    const index = measures(host.doc()).findIndex((n) => n.id === m.id);
     // The id now names the measure that followed, which the sheet shows next.
-    host.restructure(deleteMeasures(host.doc(), [m.id]), `${index + 1} 小節目を消しました`);
+    host.restructure(deleteMeasures(host.doc(), [m.id]), `${ordinal(m.id)} 小節目を消しました`);
   });
   f.chords.addEventListener("change", () => {
     const m = measure();

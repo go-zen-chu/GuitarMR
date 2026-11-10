@@ -177,15 +177,15 @@ export function mergeWithNext(document: GtsDocument, id: string): GtsDocument {
   const first = measures(document).find((m) => m.id === id)!;
   const [x0, y0] = first.region!.bbox as [number, number, number, number];
   const [, , x1, y1] = next.region!.bbox as [number, number, number, number];
+  const joined = withoutContent(first);
+  joined.region = { page: first.region!.page, bbox: [x0, y0, x1, y1] };
+  delete joined.barEnd;
+  delete joined.repeatTimes;
+  delete joined.navigation;
+  if (next.barEnd) joined.barEnd = next.barEnd;
+  if (next.repeatTimes) joined.repeatTimes = next.repeatTimes;
   const navigation = [...new Set([...(first.navigation ?? []), ...(next.navigation ?? [])])];
-  const { barEnd: _barEnd, repeatTimes: _repeatTimes, navigation: _navigation, ...start } = withoutContent(first);
-  const joined: Measure = {
-    ...start,
-    region: { page: first.region!.page, bbox: [x0, y0, x1, y1] },
-    ...(next.barEnd ? { barEnd: next.barEnd } : {}),
-    ...(next.repeatTimes ? { repeatTimes: next.repeatTimes } : {}),
-    ...(navigation.length ? { navigation: navigation as NonNullable<Measure["navigation"]> } : {}),
-  };
+  if (navigation.length) joined.navigation = navigation as NonNullable<Measure["navigation"]>;
   return rewrite(document, (m) => (m.id === id ? [joined] : m.id === next.id ? [] : [m]));
 }
 
@@ -206,14 +206,10 @@ export function restorePage(document: GtsDocument, detected: GtsDocument, page: 
   if (measures(document).some((m) => m.region?.page === page)) return document;
   const sections = structuredClone(document.sections);
   // Before the first measure of a later page, else at the end.
-  let at: { section: number; index: number } | null = null;
-  sections.forEach((s, si) =>
-    s.measures.forEach((m, mi) => {
-      if (!at && (m.region?.page ?? -1) > page) at = { section: si, index: mi };
-    }),
-  );
-  const target = at ?? { section: sections.length - 1, index: sections[sections.length - 1]!.measures.length };
-  sections[target.section]!.measures.splice(target.index, 0, ...back);
+  const later = (m: Measure) => (m.region?.page ?? -1) > page;
+  const found = sections.findIndex((s) => s.measures.some(later));
+  const target = sections[found < 0 ? sections.length - 1 : found]!.measures;
+  target.splice(found < 0 ? target.length : target.findIndex(later), 0, ...back);
   const pages = [...document.source.pages.filter((p) => p.index !== page), source].sort((a, b) => a.index - b.index);
   return renumber({
     ...document,
