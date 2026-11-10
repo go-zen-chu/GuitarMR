@@ -20,6 +20,7 @@ import {
   type SoundEvent,
   type SoundingChords,
   degreeName,
+  keyScaleFit,
   lyricsFor,
   playOrder,
   progressions,
@@ -27,10 +28,11 @@ import {
   songKey,
   songScale,
   soundEvents,
+  soundingChordAt,
   soundingChords,
   tuningOf,
 } from "@guitarmr/gts";
-import { type BracketPiece, brackets, circleDetail, keyNote, progressionDetail, scaleDetail } from "./explain.ts";
+import { type BracketPiece, arrangeBoard, brackets, circleDetail, keyNote, progressionDetail, scaleDetail } from "./explain.ts";
 import type { Messages } from "./i18n.ts";
 import { type Synth, createSynth } from "./synth.ts";
 
@@ -40,6 +42,7 @@ const CLICK_KEY = "guitarmr.player.click";
 const CHORD_SOUND_KEY = "guitarmr.player.chordSound";
 const TAB_SOUND_KEY = "guitarmr.player.tabSound";
 const EXPLAIN_KEY = "guitarmr.player.explain";
+const ARRANGE_KEY = "guitarmr.player.arrange";
 /** Seconds of sound scheduled ahead on the audio clock. */
 const LOOKAHEAD = 0.12;
 
@@ -98,6 +101,7 @@ export function createPlayer(text: Messages) {
     detail: $<HTMLElement>("player-detail"),
     detailBody: $<HTMLElement>("player-detail-body"),
     detailClose: $<HTMLButtonElement>("player-detail-close"),
+    arrange: $<HTMLElement>("player-arrange"),
   };
 
   let doc: GtsDocument | null = null;
@@ -123,6 +127,7 @@ export function createPlayer(text: Messages) {
   let key: Key | null = null;
   let found: Progression[] = [];
   let scale: SongScale | null = null;
+  let sounding: SoundingChords[] = [];
 
   const store = {
     get: (k: string) => {
@@ -145,6 +150,9 @@ export function createPlayer(text: Messages) {
   el.chordSound.checked = store.get(CHORD_SOUND_KEY) !== "0";
   el.tabSound.checked = store.get(TAB_SOUND_KEY) !== "0";
   let explaining = store.get(EXPLAIN_KEY) === "1";
+  let arranging = store.get(ARRANGE_KEY) === "1";
+  /** The chord the arrange board was last drawn for, so it is redrawn only when it changes. */
+  let arrangedFor = "";
   const applyZoom = () => el.root.style.setProperty("--zoom", String(zoom));
   applyZoom();
 
@@ -156,7 +164,7 @@ export function createPlayer(text: Messages) {
   function build() {
     if (!doc) return;
     steps = playOrder(doc);
-    const sounding: SoundingChords[] = soundingChords(steps);
+    sounding = soundingChords(steps);
     totalBeats = steps.length ? steps[steps.length - 1]!.start + steps[steps.length - 1]!.beats : 0;
     sounds = soundEvents(doc, steps);
     // Each switch only shows when the score has that layer to hear.
@@ -371,8 +379,30 @@ export function createPlayer(text: Messages) {
     el.notes.hidden = !explaining;
     el.explain.setAttribute("aria-pressed", String(explaining));
     if (!explaining) pick(null);
+    setArranging(arranging);
     fit();
     rowTop = -1;
+  }
+
+  /** Show or hide the arrange board: the safe notes on the neck over the chord sounding now. */
+  function setArranging(next: boolean) {
+    arranging = next;
+    el.notes.querySelector(".arrange-toggle")?.setAttribute("aria-pressed", String(arranging));
+    el.arrange.hidden = !(arranging && explaining && key);
+    arrangedFor = "";
+    if (!el.arrange.hidden) drawArrange(position());
+  }
+
+  /** Draw the arrange board for the chord sounding at `beat`, when it differs from the one drawn. */
+  function drawArrange(beat: number) {
+    if (el.arrange.hidden || !doc || !key || !steps.length) return;
+    const k = stepAt(Math.max(beat, 0));
+    const place = soundingChordAt(sounding, k, Math.max(beat, 0) - steps[k]!.start + 1);
+    const symbol = place ? sounding[place.step]!.chords[place.chord]!.symbol : null;
+    const drawFor = `${k}:${symbol}`;
+    if (drawFor === arrangedFor) return;
+    arrangedFor = drawFor;
+    el.arrange.replaceChildren(...arrangeBoard(scale?.main ?? keyScaleFit(key), symbol, key, k, tuningOf(doc), text));
   }
 
   /** Mark the measures of one place of a progression and show its details; null hides them. */
@@ -482,6 +512,7 @@ export function createPlayer(text: Messages) {
       }
     }
     markBeat(Math.max(beat, 0));
+    drawArrange(beat);
   }
 
   function click(at: number, accent: boolean) {
@@ -652,6 +683,10 @@ export function createPlayer(text: Messages) {
     const button = target.closest<HTMLElement>("[data-scale]");
     if (button) showScale(button.dataset.scale!);
     else if (target.closest("[data-circle]")) showCircle();
+    else if (target.closest("[data-arrange]")) {
+      setArranging(!arranging);
+      store.set(ARRANGE_KEY, arranging ? "1" : "0");
+    }
   });
   el.feel.addEventListener("click", (e) => {
     const value = Number((e.target as Element).closest<HTMLElement>("[data-feel]")?.dataset.feel);

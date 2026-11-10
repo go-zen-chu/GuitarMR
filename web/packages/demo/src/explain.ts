@@ -4,9 +4,10 @@
  * played (named at their start), and the details of a progression when
  * its name is tapped; the song's scale, whose details (notes, sound and
  * where they lie on the fretboard) open the same way; and the key on the
- * circle of fifths, with its diatonic chords and their substitutes. player.ts
+ * circle of fifths, with its diatonic chords and their substitutes; and the
+ * arrange board, the safe notes on the neck over the chord sounding now. player.ts
  * places the brackets under the chords and wires the taps through
- * `data-pick` / `data-place`, `data-scale` and `data-circle`.
+ * `data-pick` / `data-place`, `data-scale`, `data-circle` and `data-arrange`.
  */
 
 import {
@@ -19,14 +20,16 @@ import {
   type ScaleFit,
   type SongScale,
   type SoundingChords,
-  SCALES,
   chordName,
   degreeName,
   diatonicChords,
   keyName,
+  keyScaleFit,
   noteNamesIn,
+  parseChord,
   playsChord,
   relatedKeys,
+  safeFrets,
   sameNoteScales,
   scaleStepName,
 } from "@guitarmr/gts";
@@ -143,7 +146,13 @@ export function keyNote(key: Key, scale: SongScale | null, capo: number, found: 
   circle.className = "scale-name circle-open";
   circle.dataset.circle = "key";
   circle.textContent = text.circleButton;
-  head.append(circle);
+  const arrange = document.createElement("button");
+  arrange.type = "button";
+  arrange.className = "scale-name arrange-toggle";
+  arrange.dataset.arrange = "";
+  arrange.setAttribute("aria-pressed", "false");
+  arrange.textContent = text.arrangeButton;
+  head.append(circle, arrange);
   const lines = [head];
   if (scale?.others.length) {
     const others = document.createElement("p");
@@ -288,11 +297,6 @@ export function progressionDetail(progression: Progression, index: number, place
 const CIRCLE_MAJORS = ["C", "G", "D", "A", "E", "B", "F♯", "D♭", "A♭", "E♭", "B♭", "F"];
 const CIRCLE_MINORS = ["Am", "Em", "Bm", "F♯m", "C♯m", "G♯m", "E♭m", "B♭m", "Fm", "Cm", "Gm", "Dm"];
 
-/** The scale of the key itself: the major scale, or the natural minor. */
-function keyScale(key: Key): ScaleFit {
-  return { scale: SCALES.find((s) => s.id === (key.minor ? "natural-minor" : "major"))!, tonic: key.tonic, coverage: 1 };
-}
-
 /** Where a chord of the key sits on the circle: outside for major and dominant chords, inside for minor ones. */
 function circleCell(chord: KeyChord, key: Key): { ring: "major" | "minor"; index: number } {
   const root = (key.tonic + chord.interval) % 12;
@@ -383,7 +387,7 @@ function keyChordLabel(chord: KeyChord, key: Key, played: readonly ParsedChord[]
 export function circleDetail(key: Key, scale: SongScale | null, played: readonly ParsedChord[], text: Messages): Element[] {
   const heading = document.createElement("h3");
   heading.textContent = text.circleTitle(keyLabel(key, text));
-  const own = keyScale(key);
+  const own = keyScaleFit(key);
   const fit = scale?.main ?? own;
   const legend = document.createElement("p");
   legend.className = "detail-chords";
@@ -450,4 +454,57 @@ export function circleDetail(key: Key, scale: SongScale | null, played: readonly
   if (fit.scale.id !== own.scale.id) out.push(basis);
   out.push(chordsHeading, list, about, near);
   return out;
+}
+
+/**
+ * The neck drawn like a tab: string 1 at the top, each safe note written as
+ * its fret number on its string, the chord's tones filled (the safest), the
+ * rest of the scale outlined, and the tonic ringed.
+ */
+function safeNotesTab(fit: ScaleFit, chord: ParsedChord | null, tuning: readonly number[], label: string): SVGSVGElement {
+  const svg = document.createElementNS(SVG, "svg");
+  const fretX = (f: number) => 26 + f * 26;
+  const stringY = (s: number) => 12 + (s - 1) * 16;
+  svg.setAttribute("viewBox", `0 0 ${fretX(FRETBOARD_FRETS) + 14} ${stringY(6) + 22}`);
+  svg.setAttribute("class", "arrange-tab");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", label);
+  const add = (name: string, attrs: Record<string, string | number>, content?: string) => {
+    const el = document.createElementNS(SVG, name);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+    if (content !== undefined) el.textContent = content;
+    svg.append(el);
+  };
+  add("text", { x: 4, y: stringY(3) + 4, class: "at-label" }, "T");
+  add("text", { x: 4, y: stringY(4) + 4, class: "at-label" }, "A");
+  add("text", { x: 4, y: stringY(5) + 4, class: "at-label" }, "B");
+  for (let s = 1; s <= 6; s++) add("line", { x1: 14, y1: stringY(s), x2: fretX(FRETBOARD_FRETS) + 10, y2: stringY(s), class: "at-string" });
+  for (const f of [3, 5, 7, 9, 12]) add("text", { x: fretX(f), y: stringY(6) + 19, class: "at-number", "text-anchor": "middle" }, String(f));
+  for (const n of safeFrets(fit, chord, tuning, FRETBOARD_FRETS)) {
+    const [x, y] = [fretX(n.fret), stringY(n.string)];
+    if (n.tonic) add("circle", { cx: x, cy: y, r: 8.5, class: "at-tonic" });
+    add("circle", { cx: x, cy: y, r: 6.5, class: n.role === "chord-tone" ? "at-note at-chord-tone" : "at-note at-scale" });
+    add("text", { x, y: y + 3, class: n.role === "chord-tone" ? "at-fret at-on-chord" : "at-fret", "text-anchor": "middle" }, String(n.fret));
+  }
+  return svg;
+}
+
+/**
+ * The arrange board: over the chord `symbol` (null when none sounds) in
+ * measure `step`, the notes that stay in the song's scale, laid on the neck
+ * like a tab; the chord's own tones are the safe bet.
+ */
+export function arrangeBoard(fit: ScaleFit, symbol: string | null, key: Key, step: number, tuning: readonly number[], text: Messages): Element[] {
+  const chord = symbol ? parseChord(symbol) : null;
+  const head = document.createElement("p");
+  head.className = "arrange-head";
+  const title = document.createElement("b");
+  title.textContent = chord ? text.arrangeOver(text.aside(prettyChord(symbol!), degreeName(symbol!, key)!)) : text.arrangeNoChord;
+  const where = document.createElement("span");
+  where.textContent = `${text.measureLabel(step + 1)} · ${scaleLabel(fit, key, text)}`;
+  head.append(title, where);
+  const legend = document.createElement("p");
+  legend.className = "arrange-legend";
+  legend.textContent = chord ? text.arrangeLegend : text.arrangeLegendScale;
+  return [head, safeNotesTab(fit, chord, tuning, title.textContent), legend];
 }

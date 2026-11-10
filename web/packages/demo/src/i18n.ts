@@ -164,6 +164,7 @@ export const PAGE_EN: Record<string, string> = {
   smaller: "Smaller text",
   larger: "Larger text",
   progressionNotes: "About the chord progression",
+  arrangePanel: "Arrange: notes to play",
   closeExplanation: "Close the explanation",
 };
 
@@ -337,6 +338,11 @@ const JA = {
     "T（トニック）は安定、SD（サブドミナント）は少し動き出す、D（ドミナント）は Ⅰ に戻りたくなる響き。→ の後ろが代わりに弾けるコード（代理コード）: 同じ機能のダイアトニックコード、Ⅴ7 の代わりに半音上から解決する裏コード、同主調から借りたサブドミナント（サブドミナントマイナーなど）。7th を省いた三和音（C、Dm…）でも同じ働き。",
   relatedKeys: (keys: string) => `近い調: ${keys}`,
   relatedNames: { dominant: "属調", subdominant: "下属調", relative: "平行調", parallel: "同主調" } as Record<keyof RelatedKeys, string>,
+  arrangeButton: "アレンジ",
+  arrangeOver: (chord: string) => `${chord}の上で弾ける音`,
+  arrangeNoChord: "スケールの音",
+  arrangeLegend: "塗りの数字がコードの音（安牌）、白抜きがスケールの音。丸で囲んだのが主音。数字はフレット（カポから）。",
+  arrangeLegendScale: "白抜きがスケールの音。丸で囲んだのが主音。数字はフレット（カポから）。",
   progressions: {
     canon: { name: "カノン進行", description: "Ⅰ→Ⅴ→Ⅵm→Ⅲm（→Ⅳ→Ⅰ→Ⅳ→Ⅴ）。ベースが一段ずつ下りていく、パッヘルベルのカノン由来の定番進行。" },
     "royal-road": { name: "王道進行", description: "Ⅳ→Ⅴ→Ⅲm→Ⅵm。盛り上がった Ⅴ から Ⅰ に行かずに Ⅲm→Ⅵm へ、切なく着地する J-POP のサビの定番。" },
@@ -551,6 +557,11 @@ const EN: Messages = {
     "T (tonic) is at rest, SD (subdominant) starts to move, D (dominant) wants to go home to Ⅰ. After → are chords that can stand in (substitutes): diatonic chords of the same function, the tritone substitute that resolves from a half step above instead of Ⅴ7, and subdominants borrowed from the parallel key (such as the subdominant minor). Triads without the 7th (C, Dm, ...) work the same way.",
   relatedKeys: (keys) => `Close keys: ${keys}`,
   relatedNames: { dominant: "dominant", subdominant: "subdominant", relative: "relative", parallel: "parallel" },
+  arrangeButton: "Arrange",
+  arrangeOver: (chord) => `Notes to play over ${chord}`,
+  arrangeNoChord: "Notes of the scale",
+  arrangeLegend: "Filled numbers are the chord's notes (the safe bet), outlined ones the rest of the scale; the ringed one is the tonic. Numbers are frets (from the capo).",
+  arrangeLegendScale: "Outlined numbers are the scale's notes; the ringed one is the tonic. Numbers are frets (from the capo).",
   progressions: {
     canon: { name: "Canon progression", description: "Ⅰ→Ⅴ→Ⅵm→Ⅲm (→Ⅳ→Ⅰ→Ⅳ→Ⅴ). The bass steps down one degree at a time; the classic from Pachelbel's Canon." },
     "royal-road": {
