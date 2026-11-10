@@ -19,9 +19,10 @@ on:
   push:
     branches: [main]
     paths: ["android/**", "web/**", "schemas/**", ".github/workflows/android.yml", ".github/actions/prepare-android/**"]
+  # Not filtered by path: the ruleset on main requires build, which would never
+  # report on a PR left out by a filter. The changes job decides instead.
   pull_request:
     types: [opened, synchronize, reopened, closed]
-    paths: ["android/**", "web/**", "schemas/**", ".github/workflows/android.yml", ".github/actions/prepare-android/**"]
   workflow_dispatch:
 
 permissions:
@@ -40,9 +41,36 @@ env:
   TKY_PREVIEW_CERT_SHA256: f2df2f0ebd9388502505b473f8161b150be8bae9dd1dabb506901b9f450026b3
 
 jobs:
+  # Whether a PR touches what build covers (the paths of the push filter).
+  # A build skipped by its condition counts as passing for the required check.
+  changes:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      app: ${{ steps.diff.outputs.app }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      # A PR is checked out as its merge commit, whose first parent is the base branch.
+      - name: Look for changes to the app
+        id: diff
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" != "pull_request" ]] ||
+            git diff --name-only HEAD^1 HEAD |
+            grep -qE '^(android|web|schemas)/|^\.github/(workflows/android\.yml|actions/prepare-android/)'; then
+            echo "app=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "app=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # Tests, lint and the preview APK.
   build:
-    if: github.event.action != 'closed'
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     outputs:
