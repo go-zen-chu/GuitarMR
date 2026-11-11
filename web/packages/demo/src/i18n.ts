@@ -6,6 +6,8 @@
  * made at run time comes from MESSAGES, handed to each module that shows it.
  */
 
+import type { ChordFunction, RelatedKeys, SubstituteKind } from "@guitarmr/gts";
+
 export type Lang = "ja" | "en";
 
 /** Japanese when the device prefers it, English for every other language. */
@@ -313,6 +315,25 @@ const JA = {
   outside: (notes: string) => `（外れる音: ${notes}）`,
   sentenceEnd: "。",
   onFretboard: (scale: string) => `${scale}の指板上の位置`,
+  circleButton: "五度圏・コード",
+  circleTitle: (key: string) => `${key}の五度圏`,
+  circleLegend: "濃い色のマスがキー、薄い色のマスがダイアトニックコード。外側の ● がスケールの音（大きい ● は主音）。",
+  usableNotes: (scale: string) => `使える音: ${scale}`,
+  keyScaleNotes: (scale: string, notes: string) => `ダイアトニックコードはキーの音階（${scale}: ${notes}）で作るコード。`,
+  diatonicHeading: "ダイアトニックコードと代理コード",
+  inSong: "曲中",
+  functions: { tonic: "T", subdominant: "SD", dominant: "D" } as Record<ChordFunction, string>,
+  functionNames: { tonic: "トニック", subdominant: "サブドミナント", dominant: "ドミナント" } as Record<ChordFunction, string>,
+  substituteKinds: {
+    "same-function": "同じ機能",
+    tritone: "裏コード",
+    borrowed: "同主調から借用",
+    "harmonic-minor": "和声的短音階",
+  } as Record<SubstituteKind, string>,
+  substituteNote:
+    "T（トニック）は安定、SD（サブドミナント）は少し動き出す、D（ドミナント）は Ⅰ に戻りたくなる響き。→ の後ろが代わりに弾けるコード（代理コード）: 同じ機能のダイアトニックコード、Ⅴ7 の代わりに半音上から解決する裏コード、同主調から借りたサブドミナント（サブドミナントマイナーなど）。7th を省いた三和音（C、Dm…）でも同じ働き。",
+  relatedKeys: (keys: string) => `近い調: ${keys}`,
+  relatedNames: { dominant: "属調", subdominant: "下属調", relative: "平行調", parallel: "同主調" } as Record<keyof RelatedKeys, string>,
   progressions: {
     canon: { name: "カノン進行", description: "Ⅰ→Ⅴ→Ⅵm→Ⅲm（→Ⅳ→Ⅰ→Ⅳ→Ⅴ）。ベースが一段ずつ下りていく、パッヘルベルのカノン由来の定番進行。" },
     "royal-road": { name: "王道進行", description: "Ⅳ→Ⅴ→Ⅲm→Ⅵm。盛り上がった Ⅴ から Ⅰ に行かずに Ⅲm→Ⅵm へ、切なく着地する J-POP のサビの定番。" },
@@ -508,6 +529,25 @@ const EN: Messages = {
   outside: (notes) => ` (outside: ${notes})`,
   sentenceEnd: ".",
   onFretboard: (scale) => `${scale} on the fretboard`,
+  circleButton: "Circle of fifths",
+  circleTitle: (key) => `${key} on the circle of fifths`,
+  circleLegend: "The dark cell is the key, the light cells its diatonic chords. Dots outside mark the scale's notes (the big dot is the tonic).",
+  usableNotes: (scale) => `Notes to use: ${scale}`,
+  keyScaleNotes: (scale, notes) => `The diatonic chords are made of the key's scale (${scale}: ${notes}).`,
+  diatonicHeading: "Diatonic chords and substitutes",
+  inSong: "in song",
+  functions: { tonic: "T", subdominant: "SD", dominant: "D" },
+  functionNames: { tonic: "tonic", subdominant: "subdominant", dominant: "dominant" },
+  substituteKinds: {
+    "same-function": "same function",
+    tritone: "tritone sub",
+    borrowed: "borrowed",
+    "harmonic-minor": "harmonic minor",
+  },
+  substituteNote:
+    "T (tonic) is at rest, SD (subdominant) starts to move, D (dominant) wants to go home to Ⅰ. After → are chords that can stand in (substitutes): diatonic chords of the same function, the tritone substitute that resolves from a half step above instead of Ⅴ7, and subdominants borrowed from the parallel key (such as the subdominant minor). Triads without the 7th (C, Dm, ...) work the same way.",
+  relatedKeys: (keys) => `Close keys: ${keys}`,
+  relatedNames: { dominant: "dominant", subdominant: "subdominant", relative: "relative", parallel: "parallel" },
   progressions: {
     canon: { name: "Canon progression", description: "Ⅰ→Ⅴ→Ⅵm→Ⅲm (→Ⅳ→Ⅰ→Ⅳ→Ⅴ). The bass steps down one degree at a time; the classic from Pachelbel's Canon." },
     "royal-road": {

@@ -3,20 +3,30 @@
  * brackets over the measures where the song's telling progressions are
  * played (named at their start), and the details of a progression when
  * its name is tapped; the song's scale, whose details (notes, sound and
- * where they lie on the fretboard) open the same way. player.ts places the
- * brackets under the chords and wires the taps through `data-pick` /
- * `data-place` and `data-scale`.
+ * where they lie on the fretboard) open the same way; and the key on the
+ * circle of fifths, with its diatonic chords and their substitutes. player.ts
+ * places the brackets under the chords and wires the taps through
+ * `data-pick` / `data-place`, `data-scale` and `data-circle`.
  */
 
 import {
+  CIRCLE_OF_FIFTHS,
   type Key,
+  type KeyChord,
+  type ParsedChord,
   type PlayStep,
   type Progression,
   type ScaleFit,
   type SongScale,
   type SoundingChords,
+  SCALES,
+  chordName,
+  degreeName,
+  diatonicChords,
   keyName,
   noteNamesIn,
+  playsChord,
+  relatedKeys,
   sameNoteScales,
   scaleStepName,
 } from "@guitarmr/gts";
@@ -128,6 +138,12 @@ export function keyNote(key: Key, scale: SongScale | null, capo: number, found: 
     notes.textContent = scaleNotes(scale.main, key).join(" ");
     head.append(notes);
   }
+  const circle = document.createElement("button");
+  circle.type = "button";
+  circle.className = "scale-name circle-open";
+  circle.dataset.circle = "key";
+  circle.textContent = text.circleButton;
+  head.append(circle);
   const lines = [head];
   if (scale?.others.length) {
     const others = document.createElement("p");
@@ -265,5 +281,173 @@ export function progressionDetail(progression: Progression, index: number, place
     });
     out.push(places);
   }
+  return out;
+}
+
+/** Standard names on the circle, clockwise from C: the major keys outside, their relative minors inside. */
+const CIRCLE_MAJORS = ["C", "G", "D", "A", "E", "B", "F♯", "D♭", "A♭", "E♭", "B♭", "F"];
+const CIRCLE_MINORS = ["Am", "Em", "Bm", "F♯m", "C♯m", "G♯m", "E♭m", "B♭m", "Fm", "Cm", "Gm", "Dm"];
+
+/** The scale of the key itself: the major scale, or the natural minor. */
+function keyScale(key: Key): ScaleFit {
+  return { scale: SCALES.find((s) => s.id === (key.minor ? "natural-minor" : "major"))!, tonic: key.tonic, coverage: 1 };
+}
+
+/** Where a chord of the key sits on the circle: outside for major and dominant chords, inside for minor ones. */
+function circleCell(chord: KeyChord, key: Key): { ring: "major" | "minor"; index: number } {
+  const root = (key.tonic + chord.interval) % 12;
+  const minor = chord.quality.startsWith("m") && !chord.quality.startsWith("M");
+  return minor ? { ring: "minor", index: CIRCLE_OF_FIFTHS.indexOf((root + 3) % 12) } : { ring: "major", index: CIRCLE_OF_FIFTHS.indexOf(root) };
+}
+
+/**
+ * The circle of fifths: the major keys outside and their relative minors
+ * inside, the key filled, its diatonic chords tinted with their degrees, and
+ * the scale's notes dotted around the rim.
+ */
+function circleOfFifths(key: Key, fit: ScaleFit, text: Messages): SVGSVGElement {
+  const svg = document.createElementNS(SVG, "svg");
+  const center = 130;
+  svg.setAttribute("viewBox", `0 0 ${center * 2} ${center * 2}`);
+  svg.setAttribute("class", "circle-of-fifths");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", text.circleTitle(keyLabel(key, text)));
+  const add = (name: string, attrs: Record<string, string | number>, label?: string) => {
+    const el = document.createElementNS(SVG, name);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+    if (label) el.textContent = label;
+    svg.append(el);
+    return el;
+  };
+  const point = (index: number, radius: number, turn = 0) => {
+    const angle = ((index * 30 + turn - 90) * Math.PI) / 180;
+    return [center + radius * Math.cos(angle), center + radius * Math.sin(angle)] as const;
+  };
+  const cell = (index: number, inner: number, outer: number) => {
+    const [a, b] = [point(index, outer, -15), point(index, outer, 15)];
+    const [c, d] = [point(index, inner, 15), point(index, inner, -15)];
+    return `M${a} A${outer} ${outer} 0 0 1 ${b} L${c} A${inner} ${inner} 0 0 0 ${d} Z`;
+  };
+  const rings = { major: { inner: 80, outer: 114, names: CIRCLE_MAJORS }, minor: { inner: 44, outer: 80, names: CIRCLE_MINORS } };
+  const degrees = new Map<string, string>();
+  for (const { chord } of diatonicChords(key)) {
+    const { ring, index } = circleCell(chord, key);
+    degrees.set(`${ring}:${index}`, degreeName(chordName(chord, key), key)!);
+  }
+  const own = { ring: key.minor ? "minor" : "major", index: CIRCLE_OF_FIFTHS.indexOf(key.minor ? (key.tonic + 3) % 12 : key.tonic) };
+  for (const [ring, { inner, outer, names }] of Object.entries(rings)) {
+    names.forEach((name, index) => {
+      const degree = degrees.get(`${ring}:${index}`);
+      const isKey = ring === own.ring && index === own.index;
+      add("path", { d: cell(index, inner, outer), class: isKey ? "cf-cell cf-key" : degree ? "cf-cell cf-diatonic" : "cf-cell" });
+      const [x, y] = point(index, (inner + outer) / 2);
+      const label = add("text", { x, y: degree ? y - 2 : y + 4, class: isKey ? "cf-name cf-on-key" : "cf-name", "text-anchor": "middle" }, name);
+      if (ring === "minor") label.classList.add("cf-minor");
+      if (degree) add("text", { x, y: y + 9, class: isKey ? "cf-degree cf-on-key" : "cf-degree", "text-anchor": "middle" }, degree);
+    });
+  }
+  const inScale = new Set(fit.scale.intervals.map((i) => (fit.tonic + i) % 12));
+  CIRCLE_OF_FIFTHS.forEach((pc, index) => {
+    if (!inScale.has(pc)) return;
+    const [x, y] = point(index, 121);
+    add("circle", { cx: x, cy: y, r: pc === fit.tonic ? 5 : 3.5, class: pc === fit.tonic ? "cf-dot cf-tonic" : "cf-dot" });
+  });
+  return svg;
+}
+
+/** One chord of the key: its degree, its name, and whether the song plays it. */
+function keyChordLabel(chord: KeyChord, key: Key, played: readonly ParsedChord[], text: Messages, className: string): HTMLElement {
+  const name = chordName(chord, key);
+  const out = document.createElement("span");
+  out.className = className;
+  const strong = document.createElement("b");
+  strong.textContent = prettyChord(name);
+  const degree = document.createElement("small");
+  degree.textContent = degreeName(name, key)!;
+  out.append(strong, degree);
+  if (playsChord(played, chord, key)) {
+    out.classList.add("in-song");
+    const mark = document.createElement("i");
+    mark.className = "kc-played";
+    mark.textContent = text.inSong;
+    out.append(mark);
+  }
+  return out;
+}
+
+/**
+ * The key on the circle of fifths: the notes to use, the diatonic chords
+ * with their functions and the chords that can stand in for each, and the
+ * keys next to it. `played` are the song's chords, marked where they appear.
+ */
+export function circleDetail(key: Key, scale: SongScale | null, played: readonly ParsedChord[], text: Messages): Element[] {
+  const heading = document.createElement("h3");
+  heading.textContent = text.circleTitle(keyLabel(key, text));
+  const own = keyScale(key);
+  const fit = scale?.main ?? own;
+  const legend = document.createElement("p");
+  legend.className = "detail-chords";
+  legend.textContent = text.circleLegend;
+  const usable = document.createElement("p");
+  usable.className = "detail-chords";
+  usable.textContent = text.usableNotes(scaleLabel(fit, key, text));
+  const notes = document.createElement("p");
+  notes.className = "detail-notes";
+  const names = scaleNotes(fit, key);
+  fit.scale.intervals.forEach((interval, i) => {
+    const note = document.createElement("span");
+    note.className = interval === 0 ? "scale-note root" : "scale-note";
+    const name = document.createElement("b");
+    name.textContent = names[i]!;
+    const step = document.createElement("small");
+    step.textContent = scaleStepName(interval);
+    note.append(name, step);
+    notes.append(note);
+  });
+  const basis = document.createElement("p");
+  basis.className = "detail-chords";
+  basis.textContent = text.keyScaleNotes(scaleLabel(own, key, text), scaleNotes(own, key).join(" "));
+  const chordsHeading = document.createElement("h4");
+  chordsHeading.className = "detail-subhead";
+  chordsHeading.textContent = text.diatonicHeading;
+  const list = document.createElement("ul");
+  list.className = "key-chords";
+  for (const { chord, substitutes } of diatonicChords(key)) {
+    const row = document.createElement("li");
+    row.className = "key-chord";
+    row.dataset.step = String(chord.step);
+    const fn = document.createElement("span");
+    fn.className = `kc-function fn-${chord.function}`;
+    fn.textContent = text.functions[chord.function];
+    fn.title = text.functionNames[chord.function];
+    row.append(fn, keyChordLabel(chord, key, played, text, "kc-chord"));
+    if (substitutes.length) {
+      const subs = document.createElement("span");
+      subs.className = "kc-subs";
+      subs.append("→");
+      for (const s of substitutes) {
+        const sub = keyChordLabel(s.chord, key, played, text, "kc-sub");
+        sub.dataset.kind = s.kind;
+        sub.querySelector("small")!.append(` · ${text.substituteKinds[s.kind]}`);
+        subs.append(sub);
+      }
+      row.append(subs);
+    }
+    list.append(row);
+  }
+  const about = document.createElement("p");
+  about.className = "detail-text";
+  about.textContent = text.substituteNote;
+  const related = relatedKeys(key);
+  const near = document.createElement("p");
+  near.className = "detail-chords";
+  near.textContent = text.relatedKeys(
+    (Object.keys(related) as (keyof typeof related)[])
+      .map((k) => `${text.relatedNames[k]} ${prettyChord(related[k].name)}`)
+      .join(text.listSeparator),
+  );
+  const out: Element[] = [heading, circleOfFifths(key, fit, text), legend, usable, notes];
+  if (fit.scale.id !== own.scale.id) out.push(basis);
+  out.push(chordsHeading, list, about, near);
   return out;
 }
