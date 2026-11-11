@@ -38,12 +38,6 @@ export function statusOf(m: Measure): MeasureStatus {
   }
 }
 
-export const STATUS_LABEL: Record<MeasureStatus, string> = {
-  unread: "未読",
-  auto: "AI",
-  attention: "要確認",
-  reviewed: "確認済み",
-};
 
 const NAV_TEXT: Record<string, string> = {
   segno: "𝄋",
@@ -87,7 +81,12 @@ export function sectionLabels(doc: GtsDocument): Map<string, string> {
 }
 
 /** Redraw the SVG layer of one page. */
-export function drawPage(view: PageView, doc: GtsDocument, selected: string | null): void {
+export function drawPage(
+  view: PageView,
+  doc: GtsDocument,
+  selected: string | null,
+  statusLabels: Record<MeasureStatus, string>,
+): void {
   const { svg, width: W, height: H, scale } = view;
   svg.replaceChildren();
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
@@ -118,7 +117,7 @@ export function drawPage(view: PageView, doc: GtsDocument, selected: string | nu
       role: "button",
     });
     const line = measureLine(m, labels.get(m.id), doc.meta.timeSignature);
-    g.setAttribute("aria-label", `${m.id} ${STATUS_LABEL[status]} ${line}`);
+    g.setAttribute("aria-label", `${m.id} ${statusLabels[status]} ${line}`);
     const inset = W / 400;
     g.append(el("rect", { class: "box", x: x0 * W + inset, y: y0 * H, width: (x1 - x0) * W - 2 * inset, height: (y1 - y0) * H }));
     const num = el("text", { class: "num", x: x0 * W + 2 * inset, y: y0 * H + font * 0.9, "font-size": font * 0.8 });

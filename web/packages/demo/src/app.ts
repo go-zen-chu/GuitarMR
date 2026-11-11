@@ -21,7 +21,8 @@ import { coverArt, coverPixels, coverUrl } from "./cover.ts";
 import { createEditor } from "./editor.ts";
 import { type LibraryEntry, type StoredFile, library } from "./library.ts";
 import { type PhotoFile, concatPhotos, createTray, decodePhoto, isImage } from "./photos.ts";
-import { exportLibrary, importLibrary, isLibraryExport, linesOf, mergeEntry } from "./transfer.ts";
+import { ImportError, exportLibrary, importLibrary, isLibraryExport, linesOf, mergeEntry } from "./transfer.ts";
+import { MESSAGES, localizePage, pickLang } from "./i18n.ts";
 import { createPlayer, prettyChord } from "./player.ts";
 import type { DetectResult } from "./preview.ts";
 import { type ReadLayer, type Sample, readPages } from "./reader.ts";
@@ -46,6 +47,14 @@ interface ApiKeySettings {
   open(): void;
 }
 const claude = (globalThis as { claude?: { use(name: string): Promise<unknown> } }).claude;
+
+// The page's language follows the device's.
+const lang = pickLang(navigator.languages);
+const messages = MESSAGES[lang];
+localizePage(document, lang);
+
+/** What to tell the viewer about a failure. */
+const errorText = (e: unknown): string => (e instanceof ImportError ? messages.importErrors[e.code] : (e as Error).message);
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const ui = {
@@ -175,15 +184,15 @@ function dropDraft() {
 function commit(doc: GtsDocument, persist = true) {
   state.doc = doc;
   for (const view of state.pages.values()) {
-    drawPage(view, doc, state.selected);
+    drawPage(view, doc, state.selected, messages.statuses);
     showPageIncluded(view.index, measures(doc).some((m) => m.region?.page === view.index));
   }
   const s = reviewSummary(doc);
   const parts = [
-    ["確認済み", s.reviewed, "reviewed"],
-    ["要確認", s.attention, "attention"],
-    ["AI", s.auto, "auto"],
-    ["未読", s.unread, "unread"],
+    [messages.statuses.reviewed, s.reviewed, "reviewed"],
+    [messages.statuses.attention, s.attention, "attention"],
+    [messages.statuses.auto, s.auto, "auto"],
+    [messages.statuses.unread, s.unread, "unread"],
   ] as const;
   ui.review.replaceChildren(
     ...parts
@@ -198,19 +207,19 @@ function commit(doc: GtsDocument, persist = true) {
   ui.nextAttention.hidden = s.attention === 0;
   const layers = doc.meta.layers ?? [];
   ui.stats.textContent = [
-    `${state.pages.size} ページ`,
-    `${s.total} 小節`,
-    `レイヤー: ${layers.join(", ")}`,
+    messages.pages(state.pages.size),
+    messages.measures(s.total),
+    messages.layers(layers.join(", ")),
   ].join(" · ");
-  ui.read.textContent = s.unread === s.total ? "読み取る" : `続きを読む（未読 ${s.unread} 小節）`;
+  ui.read.textContent = s.unread === s.total ? messages.read : messages.readMore(s.unread);
   ui.read.hidden = s.unread === 0;
   // The tab is read after structure and chords (repeat-sign measures need none).
   const tabLeft = tabUnread(doc).length;
   ui.readTab.hidden = s.unread > 0 || tabLeft === 0;
-  ui.readTab.textContent = tabLeft === s.total ? "TAB（リズム・フレット）を読む" : `TAB の続きを読む（${tabLeft} 小節）`;
+  ui.readTab.textContent = tabLeft === s.total ? messages.readTab : messages.readTabMore(tabLeft);
   renderChecks(doc);
   ui.json.value = json();
-  ui.save.textContent = `${outputName()} を保存`;
+  ui.save.textContent = messages.saveAs(outputName());
   editor.refresh();
   if (persist) saveDraft();
 }
@@ -239,7 +248,7 @@ function undo() {
   const previous = state.undo.pop();
   if (!previous) return;
   commit(previous);
-  showUndo(state.undo.length ? "元に戻しました（さらに戻せます）" : "元に戻しました");
+  showUndo(messages.undone(state.undo.length > 0));
 }
 
 /** A page's card as part of the score, or as left out (its overlay faded, a button to bring it back). */
@@ -248,8 +257,8 @@ function showPageIncluded(page: number, included: boolean) {
   const button = li?.querySelector<HTMLButtonElement>(".page-remove");
   if (!li || !button) return;
   li.classList.toggle("excluded", !included);
-  button.textContent = included ? "このページを外す" : "このページを戻す";
-  button.title = included ? "楽譜ではないページ（コード表・表紙など）を小節から外します" : "検出した小節を元に戻します";
+  button.textContent = included ? messages.removePage : messages.restorePage;
+  button.title = included ? messages.removePageTitle : messages.restorePageTitle;
   button.classList.toggle("danger", included);
   button.disabled = included && measures(state.doc!).every((m) => m.region?.page === page);
   const reread = li.querySelector<HTMLButtonElement>(".reread");
@@ -260,9 +269,9 @@ function togglePage(page: number) {
   const doc = state.doc;
   if (!doc) return;
   if (measures(doc).some((m) => m.region?.page === page)) {
-    restructure(removePage(doc, page), `p${page + 1} を外しました`);
+    restructure(removePage(doc, page), messages.pageRemoved(page + 1));
   } else if (state.detected) {
-    restructure(restorePage(doc, state.detected, page), `p${page + 1} を戻しました`);
+    restructure(restorePage(doc, state.detected, page), messages.pageRestored(page + 1));
   }
 }
 
@@ -270,7 +279,7 @@ function togglePage(page: number) {
 function renderChecks(doc: GtsDocument) {
   const issues = checkDocument(doc);
   ui.checks.hidden = issues.length === 0;
-  ui.checksTitle.textContent = `チェックで見つかったこと（${issues.length} 件）`;
+  ui.checksTitle.textContent = messages.checksTitle(issues.length);
   ui.checksList.replaceChildren(
     ...issues.map((issue) => {
       const li = document.createElement("li");
@@ -287,7 +296,7 @@ function renderChecks(doc: GtsDocument) {
 
 function select(id: string | null) {
   state.selected = id;
-  if (state.doc) for (const view of state.pages.values()) drawPage(view, state.doc, id);
+  if (state.doc) for (const view of state.pages.values()) drawPage(view, state.doc, id, messages.statuses);
   if (id) {
     // Bring the measure to the top of the screen, above the editor sheet.
     const box = ui.pages.querySelector(`[data-id="${CSS.escape(id)}"] .box`);
@@ -307,6 +316,7 @@ const editor = createEditor({
   commit,
   restructure,
   select,
+  text: messages,
 });
 
 function pageCard(result: DetectResult, preview: { blob: Blob; url: string } | null, photoUrl?: string): HTMLLIElement {
@@ -323,9 +333,7 @@ function pageCard(result: DetectResult, preview: { blob: Blob; url: string } | n
   if (!preview || !result.preview) {
     li.classList.add("skipped");
     const note = document.createElement("p");
-    note.textContent = photoUrl
-      ? "段が見つからないためスキップしました（TAB譜の6本線が写っているか、ぶれていないか確かめてください）"
-      : "段が見つからないためスキップしました（歌詞だけのページなど）";
+    note.textContent = photoUrl ? messages.noSystemsPhoto : messages.noSystemsPage;
     head.append(note);
     li.append(head);
     if (original) li.append(original);
@@ -333,11 +341,11 @@ function pageCard(result: DetectResult, preview: { blob: Blob; url: string } | n
   }
   const facts = document.createElement("dl");
   for (const [term, value] of [
-    ...(photoUrl ? ([["用紙", result.paper ? "切り出して補正" : "見つからず全体を補正"]] as const) : []),
-    ["向き", layout.rotation === 0 ? "そのまま" : `${layout.rotation}° 回転`],
-    ["傾き", `${layout.skew.toFixed(2)}°`],
-    ["段", `${layout.systems.length}`],
-    ["解析", `${(result.ms / 1000).toFixed(1)} 秒`],
+    ...(photoUrl ? ([[messages.paper, result.paper ? messages.paperFound : messages.paperMissing]] as const) : []),
+    [messages.orientation, layout.rotation === 0 ? messages.upright : messages.rotated(layout.rotation)],
+    [messages.skew, `${layout.skew.toFixed(2)}°`],
+    [messages.systems, `${layout.systems.length}`],
+    [messages.analysis, messages.seconds((result.ms / 1000).toFixed(1))],
   ] as const) {
     const div = document.createElement("div");
     const dt = document.createElement("dt");
@@ -351,14 +359,14 @@ function pageCard(result: DetectResult, preview: { blob: Blob; url: string } | n
   const reread = document.createElement("button");
   reread.type = "button";
   reread.className = "reread";
-  reread.textContent = "このページを読み直す";
-  reread.title = "このページの修正は上書きされます";
+  reread.textContent = messages.rereadPage;
+  reread.title = messages.rereadWarning;
   reread.hidden = ui.ai.hidden;
   reread.addEventListener("click", () => void read([result.index]));
   const remove = document.createElement("button");
   remove.type = "button";
   remove.className = "page-remove danger";
-  remove.textContent = "このページを外す";
+  remove.textContent = messages.removePage;
   remove.addEventListener("click", () => togglePage(result.index));
   const tools = document.createElement("div");
   tools.className = "page-tools";
@@ -368,7 +376,7 @@ function pageCard(result: DetectResult, preview: { blob: Blob; url: string } | n
   figure.className = "figure";
   const img = document.createElement("img");
   img.src = preview.url;
-  img.alt = `p${result.index + 1} の譜面`;
+  img.alt = messages.pageImage(result.index + 1);
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("class", "overlay");
   figure.append(img, svg);
@@ -392,12 +400,12 @@ function photoFigure(url: string, paper: [number, number][] | null): HTMLDetails
   const details = document.createElement("details");
   details.className = "original";
   const summary = document.createElement("summary");
-  summary.textContent = paper ? "元の写真と切り出した用紙の範囲" : "元の写真（用紙が見つからなかったので全体を使いました）";
+  summary.textContent = paper ? messages.photoWithPaper : messages.photoWithoutPaper;
   const figure = document.createElement("div");
   figure.className = "figure";
   const img = document.createElement("img");
   img.src = url;
-  img.alt = "元の写真";
+  img.alt = messages.originalPhoto;
   figure.append(img);
   if (paper) {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -471,7 +479,7 @@ async function analyze(source: Source) {
   const { name } = source;
   state.name = name;
   state.kind = source.kind;
-  setStatus(`${name} を読み込み中…`, 0);
+  setStatus(messages.loading(name), 0);
   const scanned: ScannedPage[] = [];
   let total = 0;
   let done = 0;
@@ -481,7 +489,7 @@ async function analyze(source: Source) {
     total = await pageCount(source);
     for await (const [index, image, photo] of pagesOf(source)) {
       if (mine !== run) return;
-      setStatus(`${name}: ${index + 1} / ${total} ${photo ? "枚目の写真を補正・解析中…" : "ページ目を解析中…"}`, done / total);
+      setStatus((photo ? messages.analysingPhoto : messages.analysingPage)(name, index + 1, total), done / total);
       const firstPage = index === 0 ? coverPixels(image) : null;
       const result = await detectInWorker(index, image, photo);
       if (mine !== run) return;
@@ -510,16 +518,12 @@ async function analyze(source: Source) {
     }
     sha256 = await sha256Hex(source.kind === "photos" ? concatPhotos(source.photos) : source.bytes);
   } catch (e) {
-    if (mine === run) setStatus(`${name} を処理できませんでした（${(e as Error).message}）。`);
+    if (mine === run) setStatus(messages.cannotProcess(name, errorText(e)));
     return;
   }
   if (mine !== run) return;
   if (scanned.length === 0) {
-    setStatus(
-      source.kind === "photos"
-        ? `${name}: どの写真にも段（TAB譜の6本線）が見つかりませんでした。紙全体が入るように、明るい場所で撮り直してください。`
-        : `${name}: どのページにも段（TAB譜の6本線）が見つかりませんでした。`,
-    );
+    setStatus(source.kind === "photos" ? messages.noSystemsInPhotos(name) : messages.noSystemsInPages(name));
     return;
   }
   state.sha256 = sha256;
@@ -540,7 +544,7 @@ async function analyze(source: Source) {
   // Only work beyond the detection counts as a draft to tell about.
   ui.draftNote.hidden = !draft || JSON.stringify(draft) === JSON.stringify(state.detected);
   ui.source.textContent = name;
-  ui.saveNote.textContent = kept || source.kind === "sample" ? "" : "この画面では端末に保存できません。作業が終わったら gts.json を保存してください。";
+  ui.saveNote.textContent = kept || source.kind === "sample" ? "" : messages.cannotKeep;
   ui.readStatus.textContent = "";
   ui.readWarnings.hidden = true;
   ui.summary.hidden = false;
@@ -575,7 +579,7 @@ async function read(pages?: number[], layer: ReadLayer = "structure") {
   const started = Date.now();
   let label = "";
   const tick = setInterval(() => {
-    ui.readStatus.textContent = `${label}${Math.round((Date.now() - started) / 1000)} 秒`;
+    ui.readStatus.textContent = `${label}${messages.elapsed(Math.round((Date.now() - started) / 1000))}`;
   }, 1000);
   const result = await readPages(
     sample,
@@ -586,9 +590,10 @@ async function read(pages?: number[], layer: ReadLayer = "structure") {
         const view = state.pages.get(page);
         return view && { blob: view.image, width: view.width, height: view.height };
       },
-      progress: (text) => {
-        label = `${text} `;
+      progress: (line) => {
+        label = `${line} `;
       },
+      text: messages,
     },
     todo,
     readAbort.signal,
@@ -599,22 +604,11 @@ async function read(pages?: number[], layer: ReadLayer = "structure") {
   ui.read.disabled = ui.readTab.disabled = false;
   ui.stop.hidden = true;
   const s = reviewSummary(state.doc);
-  const messages: Record<string, string> = {
-    cancelled: "止めました。「続きを読む」で未読のページから再開できます。",
-    rate_limited: "Claude の利用上限に達しました。時間をおいて「続きを読む」を押してください。",
-    not_granted: "Claude の利用が許可されませんでした。",
-    upstream_error: "Claude に接続できませんでした。少し待ってからもう一度押してください。",
-    invalid_api_key: "Claude API キーが使えませんでした。もう一度押すとキーを入れ直せます。",
-  };
   if (result.error) {
-    ui.readStatus.textContent =
-      messages[result.error.code] ?? `この画面では AI で読み取れません（${result.error.code}）。`;
+    ui.readStatus.textContent = messages.readErrors[result.error.code] ?? messages.cannotReadHere(result.error.code);
     if (["not_granted", "sampling_disabled", "images_unavailable", "unavailable"].includes(result.error.code)) hideAi();
   } else {
-    ui.readStatus.textContent =
-      s.attention > 0
-        ? `読み終わりました。要確認の ${s.attention} 小節から見直してください（枠をタップすると直せます）。`
-        : "読み終わりました。枠をタップすると内容を確認・修正できます。";
+    ui.readStatus.textContent = s.attention > 0 ? messages.readDoneAttention(s.attention) : messages.readDone;
   }
   if (result.warnings.length) {
     ui.readWarnings.hidden = false;
@@ -653,10 +647,10 @@ async function saveText(filename: string, data: string, type: string, done: stri
       return done;
     } catch (e) {
       const code = (e as { code?: string }).code;
-      return code === "declined" ? "保存をキャンセルしました。" : "この画面では保存できません。";
+      return code === "declined" ? messages.saveCancelled : messages.cannotSave;
     }
   }
-  if (claude) return "この画面では保存できません。";
+  if (claude) return messages.cannotSave;
   // Opened as a plain file outside claude.ai: an ordinary download works.
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([data], { type }));
@@ -668,21 +662,21 @@ async function saveText(filename: string, data: string, type: string, done: stri
 
 async function save() {
   if (!state.doc) return;
-  const note = await saveText(outputName(), json(), "application/json", "保存しました。PDFと同じ場所に置くと Quest のアプリが読み込めます。");
-  ui.saveNote.textContent = note === "この画面では保存できません。" ? `${note}「JSONをコピー」を使ってください。` : note;
+  const note = await saveText(outputName(), json(), "application/json", messages.saved);
+  ui.saveNote.textContent = note === messages.cannotSave ? messages.useCopy(note) : note;
 }
 
 async function copy() {
   if (!state.doc) return;
   try {
     await navigator.clipboard.writeText(json());
-    ui.saveNote.textContent = "JSONをコピーしました。";
+    ui.saveNote.textContent = messages.copied;
   } catch {
     const details = ui.json.closest("details");
     if (details) details.open = true;
     ui.json.focus();
     ui.json.select();
-    ui.saveNote.textContent = "コピーできなかったので全体を選択しました。共有メニューからコピーしてください。";
+    ui.saveNote.textContent = messages.copyFailed;
   }
 }
 
@@ -690,32 +684,32 @@ async function copy() {
 async function openGts(file: File) {
   try {
     const doc = JSON.parse(await file.text()) as GtsDocument;
-    if (doc?.format !== "gts" || !Array.isArray(doc.sections)) throw new Error("gts ではありません");
+    if (doc?.format !== "gts" || !Array.isArray(doc.sections)) throw new Error(messages.notGts);
     if (doc.source?.sha256 !== state.sha256) {
-      ui.saveNote.textContent = `${file.name} は、いま開いている PDF の gts ではありません（PDF の内容が違います）。`;
+      ui.saveNote.textContent = messages.gtsOfOther(file.name);
       return;
     }
     editor.close();
     commit(doc);
     ui.draftNote.hidden = true;
-    ui.saveNote.textContent = `${file.name} を開きました。`;
+    ui.saveNote.textContent = messages.opened(file.name);
     navigate({ view: "score", id: state.sha256 });
   } catch (e) {
-    ui.saveNote.textContent = `${file.name} を開けませんでした（${(e as Error).message}）。`;
+    ui.saveNote.textContent = messages.cannotOpen(file.name, errorText(e));
   }
 }
 
 // The play view: from the score being worked on, a gts file alone, or a sample.
-const player = createPlayer();
+const player = createPlayer(messages);
 
 /** A gts file picked for the play view (no PDF needed). */
 async function playFile(file: File) {
   try {
     const doc = JSON.parse(await file.text()) as GtsDocument;
-    if (doc?.format !== "gts" || !Array.isArray(doc.sections) || !doc.meta) throw new Error("gts ではありません");
+    if (doc?.format !== "gts" || !Array.isArray(doc.sections) || !doc.meta) throw new Error(messages.notGts);
     player.open(doc);
   } catch (e) {
-    setStatus(`${file.name} を演奏ビューで開けませんでした（${(e as Error).message}）。`);
+    setStatus(messages.cannotPlay(file.name, errorText(e)));
   }
 }
 
@@ -763,6 +757,7 @@ for (const s of samples) {
 // Photos wait in the tray until they are analyzed together, one per page.
 const tray = createTray({
   analyze: (photos) => void analyze({ kind: "photos", name: photos[0]!.name, photos }),
+  text: messages,
 });
 
 /**
@@ -772,7 +767,7 @@ const tray = createTray({
 async function openFiles(files: File[]) {
   if (!files.length) return;
   run++; // stop a running analysis right away
-  setStatus(`${files.length === 1 ? files[0]!.name : `${files.length} 個のファイル`} を読み込み中…`, 0);
+  setStatus(messages.loading(files.length === 1 ? files[0]!.name : messages.files(files.length)), 0);
   const photos: PhotoFile[] = [];
   const skipped: string[] = [];
   for (const file of files) {
@@ -781,7 +776,7 @@ async function openFiles(files: File[]) {
       bytes = new Uint8Array(await file.arrayBuffer());
     } catch (e) {
       // e.g. an iCloud/Drive file that is not on the device yet
-      setStatus(`${file.name} を読めませんでした（${(e as Error).message}）。端末にダウンロードしてから選んでください。`);
+      setStatus(messages.cannotReadFile(file.name, errorText(e)));
       return;
     }
     const head = new TextDecoder().decode(bytes.subarray(0, 1024));
@@ -805,14 +800,14 @@ async function openFiles(files: File[]) {
   if (photos.length) {
     navigate({ view: "scan" });
     tray.add(photos);
-    setStatus(skipped.length ? `${skipped.join("、")} は PDF でも写真でもないので外しました。` : "");
+    setStatus(skipped.length ? messages.skippedSome(skipped.join(messages.listSeparator)) : "");
     return;
   }
-  setStatus(`${skipped.join("、")} はPDFでも写真でもないようです。スキャンしたPDFか、楽譜の写真を選んでください。`);
+  setStatus(messages.skippedAll(skipped.join(messages.listSeparator)));
 }
 
 // The library: scores opened on this device, to open again without picking the files.
-const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+const dateFormat = new Intl.DateTimeFormat(messages.locale, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
 /** The files kept for a library entry, as a source to analyze; null when none were kept. */
 function entrySource(entry: LibraryEntry): Source | null {
@@ -913,34 +908,34 @@ async function renderLibrary() {
     const title = entry.doc?.meta.title && entry.doc.meta.title !== entry.name.replace(/\.[^.]*$/, "") ? `${entry.doc.meta.title}（${entry.name}）` : entry.name;
     const facts = [
       entry.files.length === 0
-        ? "ファイルなし（同じ PDF・写真を開くと戻ります）"
+        ? messages.noFiles
         : entry.kind === "photos"
-          ? `写真 ${entry.files.length} 枚`
+          ? messages.photos(entry.files.length)
           : "PDF",
-      summary ? `確認済み ${summary.reviewed} / ${summary.total} 小節` : "未読",
-      ...(summary?.attention ? [`要確認 ${summary.attention}`] : []),
+      summary ? messages.reviewedOf(summary.reviewed, summary.total) : messages.statuses.unread,
+      ...(summary?.attention ? [messages.attentionCount(summary.attention)] : []),
       dateFormat.format(entry.updated),
     ].join(" · ");
     const open = () => navigate({ view: "score", id: entry.id });
     const play = () => entry.doc && player.open(entry.doc);
     const actions: HTMLButtonElement[] = [];
     if (entry.files.length) {
-      const button = actionButton("開く", open, "primary");
-      button.title = pages ? `${pages} ページ` : "";
+      const button = actionButton(messages.open, open, "primary");
+      button.title = pages ? messages.pages(pages) : "";
       actions.push(button);
     }
     // Something read can be played; work without its files (imported without them) still plays.
-    if (entry.doc && (!entry.files.length || (summary && summary.unread < summary.total))) actions.push(actionButton("演奏ビュー", play));
+    if (entry.doc && (!entry.files.length || (summary && summary.unread < summary.total))) actions.push(actionButton(messages.playView, play));
     const remove = actionButton(
-      "削除",
+      messages.remove,
       async () => {
-        if (!confirm(`${entry.name} と作業内容をこの端末から削除しますか？（保存した gts.json は消えません）`)) return;
+        if (!confirm(messages.confirmRemove(entry.name))) return;
         await library.remove(entry.id);
         void renderLibrary();
       },
       "danger",
     );
-    remove.setAttribute("aria-label", `${entry.name} を端末から削除`);
+    remove.setAttribute("aria-label", messages.removeLabel(entry.name));
     actions.push(remove);
     const source = entry.cover ? null : entrySource(entry);
     if (source) {
@@ -964,7 +959,7 @@ async function renderLibrary() {
   // The samples always come last, so new scans are never pushed down by them.
   ui.libraryList.replaceChildren(...scanned, ...(await sampleCards()));
   ui.libraryNote.textContent =
-    usage === null ? "" : `この端末で使っている容量: ${(usage / 1024 / 1024).toFixed(1)} MB`;
+    usage === null ? "" : messages.storageUsed((usage / 1024 / 1024).toFixed(1));
 }
 
 /** Covers of the sample PDFs, made on this visit (the samples are part of the page, not the library). */
@@ -983,8 +978,8 @@ async function sampleCards(): Promise<HTMLLIElement[]> {
     const open = () => id && navigate({ view: "score", id });
     const play = () => song.gts && player.open(structuredClone(song.gts));
     const actions = [
-      ...(id ? [actionButton("開く", open, "primary")] : []),
-      ...(song.gts ? [actionButton("演奏ビュー", play)] : []),
+      ...(id ? [actionButton(messages.open, open, "primary")] : []),
+      ...(song.gts ? [actionButton(messages.playView, play)] : []),
     ];
     if (song.pdf && !cover) {
       whenCovered(`sample:${song.label}`, { kind: "sample", name: song.pdf.file, bytes: decode(song.pdf.pdf) }, (cover) => {
@@ -994,8 +989,8 @@ async function sampleCards(): Promise<HTMLLIElement[]> {
     }
     const li = scoreCard({
       title: song.label,
-      facts: [...song.notes, ...(summary ? [`確認済み ${summary.reviewed} / ${summary.total} 小節`] : [])].join(" · "),
-      tags: ["サンプル"],
+      facts: [...song.notes, ...(summary ? [messages.reviewedOf(summary.reviewed, summary.total)] : [])].join(" · "),
+      tags: [messages.sampleTag],
       cover: coverArt(cover, song.label, chordNames(song.gts ?? work)),
       primary: id ? open : play,
       actions,
@@ -1008,7 +1003,7 @@ async function sampleCards(): Promise<HTMLLIElement[]> {
 /** Write the whole library to one file, to move it to another device. */
 async function exportAll() {
   ui.libraryExport.disabled = true;
-  ui.libraryMessage.textContent = "書き出しています…";
+  ui.libraryMessage.textContent = messages.exporting;
   try {
     const entries = await library.all();
     const lines = await exportLibrary(entries, { files: ui.libraryWithFiles.checked });
@@ -1018,10 +1013,10 @@ async function exportAll() {
       `guitarmr-library-${date}.jsonl`,
       `${lines.join("\n")}\n`,
       "application/jsonl",
-      `${count} 曲を書き出しました。新しい端末でこのページを開き「取り込む」で選んでください。`,
+      messages.exported(count),
     );
   } catch (e) {
-    ui.libraryMessage.textContent = `書き出せませんでした（${(e as Error).message}）。`;
+    ui.libraryMessage.textContent = messages.cannotExport(errorText(e));
   } finally {
     ui.libraryExport.disabled = false;
   }
@@ -1029,7 +1024,7 @@ async function exportAll() {
 
 /** Take in a library export: the work on every score first, files where they came through whole. */
 async function importFile(file: File) {
-  ui.libraryMessage.textContent = `${file.name} を取り込んでいます…`;
+  ui.libraryMessage.textContent = messages.importing(file.name);
   try {
     const result = await importLibrary(linesOf(file));
     let failed = 0;
@@ -1037,15 +1032,13 @@ async function importFile(file: File) {
       if (!(await library.put(mergeEntry(await library.get(incoming.id), incoming)))) failed++;
     }
     const scores = result.entries.filter((e) => e.kind !== "sample").length;
-    const parts = [`${scores} 曲を取り込みました。`];
-    if (result.withoutFiles.length) {
-      parts.push(`${result.withoutFiles.join("、")} は PDF・写真が壊れていたか途中で切れていたので、作業内容だけ取り込みました（同じ PDF・写真を開くと戻ります）。`);
-    }
-    if (result.truncated && !result.withoutFiles.length) parts.push("ファイルの最後が欠けていましたが、取り込める分はすべて取り込みました。");
-    if (failed) parts.push(`${failed} 曲は端末の容量が足りず保存できませんでした。`);
-    ui.libraryMessage.textContent = parts.join("");
+    const parts = [messages.imported(scores)];
+    if (result.withoutFiles.length) parts.push(messages.importedWithoutFiles(result.withoutFiles.join(messages.listSeparator)));
+    if (result.truncated && !result.withoutFiles.length) parts.push(messages.importTruncated);
+    if (failed) parts.push(messages.importFull(failed));
+    ui.libraryMessage.textContent = messages.joinSentences(parts);
   } catch (e) {
-    ui.libraryMessage.textContent = `${file.name} を取り込めませんでした（${(e as Error).message}）。`;
+    ui.libraryMessage.textContent = messages.cannotImport(file.name, errorText(e));
   }
   void renderLibrary();
   ui.library.scrollIntoView({ block: "nearest" });
@@ -1074,7 +1067,7 @@ async function openEntry(id: string) {
       await analyze({ kind: "sample", name: sample.file, bytes: decode(sample.pdf) });
       return;
     }
-    setStatus(entry ? "この楽譜のファイルが端末に残っていません。" : "この楽譜はこの端末のライブラリにありません。");
+    setStatus(entry ? messages.filesMissing : messages.notInLibrary);
     if (route.view === "score" && route.id === id) navigate({ view: "library" }, true);
   } finally {
     if (opening === id) opening = null;

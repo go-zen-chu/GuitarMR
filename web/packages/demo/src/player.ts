@@ -30,6 +30,7 @@ import {
   tuningOf,
 } from "@guitarmr/gts";
 import { type BracketPiece, brackets, keyNote, progressionDetail, scaleDetail } from "./explain.ts";
+import type { Messages } from "./i18n.ts";
 import { type Synth, createSynth } from "./synth.ts";
 
 export const SVG = "http://www.w3.org/2000/svg";
@@ -71,7 +72,8 @@ function diagram(frets: (number | null)[]): SVGSVGElement {
   return svg;
 }
 
-export function createPlayer() {
+/** The play view, its words in the language of `text`. */
+export function createPlayer(text: Messages) {
   const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
   const el = {
     root: $<HTMLElement>("player"),
@@ -163,7 +165,7 @@ export function createPlayer() {
     found = key ? progressions(steps, key) : [];
     el.explain.hidden = !key;
     scale = key ? songScale(doc, steps, key) : null;
-    el.notes.replaceChildren(...(key ? keyNote(key, scale, doc.meta.capo ?? 0, found.length) : []));
+    el.notes.replaceChildren(...(key ? keyNote(key, scale, doc.meta.capo ?? 0, found.length, text) : []));
     const lanes = brackets(found, steps, sounding);
     const shapes = doc.chordShapes ?? {};
     const hasLyrics = steps.some((s) => s.measure.lyrics?.length);
@@ -172,7 +174,7 @@ export function createPlayer() {
       doc.meta.key ? `Key ${prettyChord(doc.meta.key)}` : "",
       doc.meta.capo ? `Capo ${doc.meta.capo}` : "",
       doc.meta.timeSignature ?? "",
-      `${steps.length} 小節`,
+      text.measures(steps.length),
     ].filter(Boolean);
     el.meta.textContent = facts.join(" · ");
     cells = steps.map((step, k) => {
@@ -207,7 +209,7 @@ export function createPlayer() {
       if (step.pass > 1) {
         const pass = document.createElement("span");
         pass.className = "mark pass";
-        pass.textContent = `${step.pass}回目`;
+        pass.textContent = text.pass(step.pass);
         head.append(pass);
       }
       const lane = document.createElement("div");
@@ -252,7 +254,7 @@ export function createPlayer() {
         for (const c of withShapes) row.append(diagram(shapes[c.shape!]!.frets as (number | null)[]));
         cell.append(row);
       }
-      cell.setAttribute("aria-label", `${k + 1}小節目 ${chords.map((c) => c.symbol).join(" ")} ${lyric ?? ""}`);
+      cell.setAttribute("aria-label", `${text.measureLabel(k + 1)} ${chords.map((c) => c.symbol).join(" ")} ${lyric ?? ""}`);
       return cell;
     });
     el.bars.replaceChildren(...cells);
@@ -309,7 +311,8 @@ export function createPlayer() {
         name.className = "bracket-name";
         name.dataset.pick = String(piece.progression);
         name.dataset.place = String(piece.place);
-        name.textContent = found[piece.progression]!.name;
+        const id = found[piece.progression]!.id;
+        name.textContent = text.progressions[id]?.name ?? id;
         part.append(name);
       }
       if (piece.toChord !== null) {
@@ -383,7 +386,7 @@ export function createPlayer() {
     el.bars
       .querySelector(`.bracket-name[data-pick="${target.progression}"][data-place="${target.place}"]`)
       ?.setAttribute("aria-current", "true");
-    el.detailBody.replaceChildren(...progressionDetail(progression, target.progression, target.place));
+    el.detailBody.replaceChildren(...progressionDetail(progression, target.progression, target.place, text));
   }
 
   /** Show the details of the song's scale ("main") or of another fitting one (its index). */
@@ -392,7 +395,7 @@ export function createPlayer() {
     const fit = which === "main" ? scale?.main : scale?.others[Number(which)];
     if (!doc || !key || !scale || !fit) return;
     el.notes.querySelector(`.scale-name[data-scale="${which}"]`)?.setAttribute("aria-current", "true");
-    el.detailBody.replaceChildren(...scaleDetail(fit, key, scale, tuningOf(doc)));
+    el.detailBody.replaceChildren(...scaleDetail(fit, key, scale, tuningOf(doc), text));
     el.detail.hidden = false;
     el.detail.scrollTop = 0;
   }
@@ -544,7 +547,7 @@ export function createPlayer() {
     const from = steps[stepAt(Math.max(anchorBeat, 0))]!;
     playing = true;
     anchor(Math.max(anchorBeat, 0) === 0 ? -from.beats : from.start - from.beats);
-    el.play.textContent = "一時停止";
+    el.play.textContent = text.pause;
     el.play.setAttribute("aria-pressed", "true");
     try {
       wakeLock = await (navigator as unknown as { wakeLock?: { request(t: string): Promise<{ release(): Promise<void> }> } }).wakeLock?.request("screen") ?? null;
@@ -562,7 +565,7 @@ export function createPlayer() {
     cancelAnimationFrame(frame);
     synth?.stop();
     el.count.hidden = true;
-    el.play.textContent = "再生";
+    el.play.textContent = text.play;
     el.play.setAttribute("aria-pressed", "false");
     void wakeLock?.release().catch(() => undefined);
     wakeLock = null;

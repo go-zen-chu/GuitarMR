@@ -19,6 +19,15 @@ export const LIBRARY_VERSION = 1;
 /** Raw bytes per chunk line (a multiple of 3, so each line is base64 on its own). */
 export const CHUNK_BYTES = 3 * 256 * 1024;
 
+/** Why a file cannot be imported at all: not an export, or one from a newer version. */
+export class ImportError extends Error {
+  readonly code: "not-export" | "newer-version";
+  constructor(code: "not-export" | "newer-version") {
+    super(code);
+    this.code = code;
+  }
+}
+
 interface FileInfo {
   name: string;
   type: string;
@@ -115,13 +124,13 @@ export async function importLibrary(lines: AsyncIterable<string> | Iterable<stri
     try {
       record = JSON.parse(line) as LibraryRecord;
     } catch {
-      if (!header) throw new Error("ライブラリの書き出しファイルではありません");
+      if (!header) throw new ImportError("not-export");
       skipped++;
       continue;
     }
     if (!header) {
-      if (!("format" in record) || record.format !== LIBRARY_FORMAT) throw new Error("ライブラリの書き出しファイルではありません");
-      if (record.version > LIBRARY_VERSION) throw new Error("新しい版のアプリで書き出されたファイルです");
+      if (!("format" in record) || record.format !== LIBRARY_FORMAT) throw new ImportError("not-export");
+      if (record.version > LIBRARY_VERSION) throw new ImportError("newer-version");
       header = true;
       continue;
     }
@@ -145,7 +154,7 @@ export async function importLibrary(lines: AsyncIterable<string> | Iterable<stri
       ended = true;
     } else skipped++;
   }
-  if (!header) throw new Error("ライブラリの書き出しファイルではありません");
+  if (!header) throw new ImportError("not-export");
 
   const result: ImportResult = { entries: [], withoutFiles: [], skipped, truncated: !ended };
   for (const e of entries.values()) {

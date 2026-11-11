@@ -6,6 +6,7 @@
  */
 
 import { type GtsDocument, measures } from "@guitarmr/gts";
+import type { Messages } from "./i18n.ts";
 import {
   type SystemCrop,
   applyReading,
@@ -28,6 +29,8 @@ export interface ReaderHost {
   commit(doc: GtsDocument): void;
   pageImage(page: number): { blob: Blob; width: number; height: number } | undefined;
   progress(text: string): void;
+  /** The progress and warning words, in the page's language. */
+  text: Pick<Messages, "readingPage" | "pageUnreadable">;
 }
 
 export const TAG_COLOR = "#d0167a";
@@ -135,7 +138,7 @@ export async function readPages(
       const chunk = crops.slice(i, i + maxCount - (first ? 1 : 0));
       i += chunk.length;
       const ids = chunk.flatMap((c) => c.measures.map((m) => m.id));
-      host.progress(`p${page + 1}${layer === "tab" ? " の TAB" : ""} を読んでいます（${n + 1} / ${pages.length} ページ）…`);
+      host.progress(host.text.readingPage(page + 1, n + 1, pages.length, layer === "tab"));
       try {
         const images = await systemImages(image, chunk, first);
         if (layer === "tab") {
@@ -155,7 +158,7 @@ export async function readPages(
         const error = e as { code?: string; message?: string };
         const code = error.code ?? "upstream_error";
         if (!PAGE_ERRORS.has(code)) return { warnings, error: { code, message: error.message ?? String(e) } };
-        warnings.push(`p${page + 1}: ${code === "invalid_json" ? "答えを読み取れませんでした" : "このページは読めませんでした"}（${code}）`);
+        warnings.push(host.text.pageUnreadable(page + 1, code));
       }
     }
   }

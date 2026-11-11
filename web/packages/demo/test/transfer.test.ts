@@ -110,8 +110,8 @@ describe("library transfer", () => {
   });
 
   it("If another file is imported it should be refused", async () => {
-    await assert.rejects(importLibrary(['{"format":"gts","version":"0.1"}']), /書き出しファイルではありません/);
-    await assert.rejects(importLibrary(["%PDF-1.4"]), /書き出しファイルではありません/);
+    await assert.rejects(importLibrary(['{"format":"gts","version":"0.1"}']), { code: "not-export" });
+    await assert.rejects(importLibrary(["%PDF-1.4"]), { code: "not-export" });
   });
 
   it("If an imported score is already on the device the newer work should win and the device's files stay", () => {

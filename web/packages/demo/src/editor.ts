@@ -30,7 +30,8 @@ import {
   updateMeasure,
   withContext,
 } from "@guitarmr/extract";
-import { STATUS_LABEL, sectionLabels, statusOf } from "./score-view.ts";
+import type { Messages } from "./i18n.ts";
+import { sectionLabels, statusOf } from "./score-view.ts";
 
 export interface EditorHost {
   doc(): GtsDocument;
@@ -40,6 +41,8 @@ export interface EditorHost {
   /** Commit a change to the measures themselves, which the viewer can undo; `done` says what happened. */
   restructure(doc: GtsDocument, done: string): void;
   select(id: string | null): void;
+  /** The words of the sheet, in the page's language. */
+  text: Messages;
 }
 
 /** How much of the surroundings the measure image shows: shares of the measure's width and height. */
@@ -91,7 +94,7 @@ export function createEditor(host: EditorHost) {
     if (!m || !m.id) return close();
     const status = statusOf(m);
     f.title.textContent = `${m.id}（p${(m.region?.page ?? 0) + 1}）`;
-    f.status.textContent = STATUS_LABEL[status];
+    f.status.textContent = host.text.statuses[status];
     f.status.className = `chip s-${status}`;
     const image = m.region ? host.pageImage(m.region.page) : undefined;
     f.crop.hidden = !image || !m.region;
@@ -122,13 +125,13 @@ export function createEditor(host: EditorHost) {
     f.merge.disabled = !nextInSystem(host.doc(), m.id);
     f.remove.disabled = measures(host.doc()).length <= 1;
     f.note.hidden = !m.review?.comment;
-    f.note.textContent = m.review?.comment ? `メモ: ${m.review.comment}` : "";
+    f.note.textContent = m.review?.comment ? host.text.memo(m.review.comment) : "";
     f.chords.value = formatChordLine(m.chords, perBar(m));
     f.chordsError.textContent = "";
     // A repeat-sign measure plays the previous one's tab: it has none of its own.
     f.tab.disabled = Boolean(m.simile);
     f.tab.value = m.simile ? "" : formatTabLine(m.beats);
-    f.tab.placeholder = m.simile ? "繰り返し記号の小節（前の小節と同じ）" : m.beats ? "TAB に何も書かれていない" : "まだ読んでいません";
+    f.tab.placeholder = m.simile ? host.text.simileMeasure : m.beats ? host.text.noTab : host.text.notRead;
     f.tabError.textContent = "";
     showTotal();
     const issues = checkDocument(host.doc()).filter((i) => i.ids.includes(m.id!));
@@ -152,7 +155,7 @@ export function createEditor(host: EditorHost) {
     if (marked) f.more.open = true;
   }
 
-  /** The beats typed so far against the time signature, e.g. "合計 3 / 4 拍". */
+  /** The beats typed so far against the time signature, e.g. "Total 3 / 4 beats". */
   function showTotal() {
     const m = measure();
     const signature = m?.id ? timeSignatures(host.doc()).get(m.id) : undefined;
@@ -164,7 +167,7 @@ export function createEditor(host: EditorHost) {
     const [num, den] = measureLength({ beats });
     const [n, d] = signature.split("/").map(Number) as [number, number];
     const total = Math.round(((num * d) / den) * 100) / 100;
-    f.tabTotal.textContent = beats.length ? `合計 ${total} / ${n} 拍` : "";
+    f.tabTotal.textContent = beats.length ? host.text.beatTotal(String(total), n) : "";
   }
 
   function setSplitting(on: boolean) {
@@ -172,7 +175,7 @@ export function createEditor(host: EditorHost) {
     f.crop.classList.toggle("splitting", on);
     f.cut.hidden = true;
     f.splitHint.hidden = !on;
-    f.splitHint.textContent = on ? "上の画像で、小節線を入れる位置をタップしてください（もう一度押すとやめます）。" : "";
+    f.splitHint.textContent = on ? host.text.splitHint : "";
   }
 
   /** The page x under a pointer on the measure image, or null when it is off the image. */
@@ -233,29 +236,28 @@ export function createEditor(host: EditorHost) {
     if (!f.crop.classList.contains("splitting") || !m?.id) return;
     const x = pageX(event);
     if (x === null || !splittable(x)) {
-      f.splitHint.textContent = "小節の枠の内側（端から少し離れたところ）をタップしてください。";
+      f.splitHint.textContent = host.text.splitInside;
       return;
     }
-    host.restructure(splitMeasure(host.doc(), m.id, x), `${ordinal(m.id)} 小節目を2つに分けました`);
+    host.restructure(splitMeasure(host.doc(), m.id, x), host.text.splitDone(ordinal(m.id)));
   });
   f.merge.addEventListener("click", () => {
     const m = measure();
     if (!m?.id || !nextInSystem(host.doc(), m.id)) return;
-    const n = ordinal(m.id);
-    host.restructure(mergeWithNext(host.doc(), m.id), `${n} 小節目と ${n + 1} 小節目をつなげました`);
+    host.restructure(mergeWithNext(host.doc(), m.id), host.text.mergeDone(ordinal(m.id)));
   });
   f.remove.addEventListener("click", () => {
     const m = measure();
     if (!m?.id || measures(host.doc()).length <= 1) return;
     // The id now names the measure that followed, which the sheet shows next.
-    host.restructure(deleteMeasures(host.doc(), [m.id]), `${ordinal(m.id)} 小節目を消しました`);
+    host.restructure(deleteMeasures(host.doc(), [m.id]), host.text.deleteDone(ordinal(m.id)));
   });
   f.chords.addEventListener("change", () => {
     const m = measure();
     if (!m) return;
     const { chords, invalid } = parseChordLine(f.chords.value, perBar(m));
     f.chordsError.textContent = invalid.length
-      ? `${invalid.map((t) => `「${t}」`).join("")}をコードとして読めません（拍は 1〜${perBar(m)}）。直してください。`
+      ? host.text.badChords(invalid, perBar(m))
       : "";
     if (!invalid.length) apply({ chords });
   });
@@ -264,7 +266,7 @@ export function createEditor(host: EditorHost) {
     const m = measure();
     if (!m || m.simile) return;
     const { beats, invalid } = parseTabLine(f.tab.value, m.beats);
-    f.tabError.textContent = invalid.length ? `${invalid.join("。")}。直してください。` : "";
+    f.tabError.textContent = invalid.length ? host.text.badTab(invalid) : "";
     // Unchanged text keeps an unread measure unread.
     if (!invalid.length && (m.beats || beats.length)) apply({ beats });
   });
