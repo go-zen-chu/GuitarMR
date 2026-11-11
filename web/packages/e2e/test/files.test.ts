@@ -156,33 +156,6 @@ describe("files in and out", { timeout: 300_000 }, () => {
     assert.deepEqual(errors, []);
   });
 
-  it("If a draft from an earlier version is in localStorage it should be moved to the library", async () => {
-    const doc = structuredClone(loadExample("sakura-sakura.gts.json")) as Doc;
-    doc.source.sha256 = sakuraSha;
-    doc.sections[0]!.measures[1]!.review = { status: "reviewed" };
-    const { page, errors } = await openPage(browser, {
-      setup: (p) =>
-        p.addInitScript(
-          ([key, value]) => {
-            // Only before the first load: the moved draft must not come back from here.
-            if (!sessionStorage.getItem("seeded")) {
-              localStorage.setItem(key!, value!);
-              sessionStorage.setItem("seeded", "1");
-            }
-          },
-          [`guitarmr.draft.${sakuraSha}`, JSON.stringify(doc)],
-        ),
-    });
-    await openSample(page);
-    assert.equal(await page.locator("#draft-note").isVisible(), true);
-    assert.match((await page.locator("#review-summary").textContent())!, /確認済み 1/);
-    await page.waitForFunction((key) => localStorage.getItem(key) === null, `guitarmr.draft.${sakuraSha}`);
-    await page.reload();
-    await analyzed(page, "sakura-sakura.pdf");
-    assert.match((await page.locator("#review-summary").textContent())!, /確認済み 1/);
-    assert.deepEqual(errors, []);
-  });
-
   it("If the browser blocks storage the page should still work and say the work is not kept", async () => {
     const { page, errors } = await openPage(browser, {
       setup: (p) =>

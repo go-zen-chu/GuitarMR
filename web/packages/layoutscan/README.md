@@ -44,12 +44,20 @@ pnpm --filter @guitarmr/layoutscan layoutscan path/to/song.pdf --debug-dir debug
    lines bent by paper curvature stay whole (the scans bend by up to one
    line spacing across a page). Lines are grouped into staves by spacing;
    6 lines = TAB, a 5-line staff right above a TAB joins its system.
+   A "TAB" whose lines all break off together for more than 10% of its
+   width (gaps longer than two line spacings) is dropped: staff paper is
+   ruled across the page, while a chart of chord diagrams drawn sideways
+   lines up like a TAB but is blank between the diagrams. Such a page
+   then has no systems and is skipped.
 6. **Bar lines**: vertical strokes covering the TAB from top to bottom
    line, found on a row-contrast mask that keeps faint printed lines. A
-   stroke is a stem when most of its columns continue below the TAB (a
-   stem right next to a bar line does not count); on staff + TAB paper a
-   bar line must also cross the staff, which rejects stems and boxed
-   labels.
+   stroke is a stem when most of its columns continue past the TAB on one
+   side only (a stem right next to a bar line does not count); a
+   hand-drawn bar line that runs past both sides is kept. On staff + TAB
+   paper a bar line must also cross the staff, which rejects stems and
+   boxed labels; one that runs on below the TAB is kept when it is a
+   single stroke from the staff down across the gap above the TAB, which
+   a stem hanging below the TAB never crosses.
 7. **Measures**: spans between bar lines; spans narrower than 5 line
    spacings (clef area before a start repeat) are merged into a neighbor.
 8. **Regions**: a measure spans its bar lines horizontally; vertically,

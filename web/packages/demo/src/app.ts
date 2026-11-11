@@ -14,7 +14,7 @@
  */
 
 import { type GtsDocument, measures } from "@guitarmr/gts";
-import { checkDocument, reviewSummary, tabUnread } from "@guitarmr/extract";
+import { checkDocument, removePage, restorePage, reviewSummary, tabUnread } from "@guitarmr/extract";
 import { type RgbaImage, type ScannedPage, buildDocument, renderPages, sha256Hex } from "@guitarmr/layoutscan";
 import * as pdfjs from "pdfjs-dist";
 import { coverArt, coverPixels, coverUrl } from "./cover.ts";
@@ -109,6 +109,9 @@ const ui = {
   playOpen: $<HTMLButtonElement>("play-open"),
   playGts: $<HTMLInputElement>("play-gts"),
   pages: $<HTMLOListElement>("pages"),
+  undoBar: $<HTMLElement>("undo-bar"),
+  undoMessage: $<HTMLElement>("undo-message"),
+  undo: $<HTMLButtonElement>("undo"),
 };
 
 pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
@@ -149,6 +152,8 @@ const state = {
   doc: null as GtsDocument | null,
   pages: new Map<number, PageView>(),
   selected: null as string | null,
+  /** Documents before each change to the measures themselves, newest last. */
+  undo: [] as GtsDocument[],
 };
 
 let run = 0; // a newer analysis cancels the running one
@@ -164,8 +169,6 @@ const outputName = () => state.name.replace(/\.(pdf|jpe?g|png|heic|heif|webp)$/i
 const json = () => `${JSON.stringify(state.doc, null, 2)}\n`;
 
 // The work in progress is kept in the library on this device, per source.
-// Drafts of earlier versions were kept in localStorage; they are moved over.
-const DRAFT_PREFIX = "guitarmr.draft.";
 function saveDraft() {
   const doc = state.doc;
   if (!doc) return;
@@ -173,27 +176,17 @@ function saveDraft() {
     .saveDoc(state.sha256, doc, { id: state.sha256, name: state.name, kind: state.kind, files: [], added: Date.now() })
     .then(() => renderLibrary());
 }
-function legacyDraft(sha256: string): GtsDocument | null {
-  try {
-    const doc = JSON.parse(localStorage.getItem(DRAFT_PREFIX + sha256) ?? "null") as GtsDocument | null;
-    return doc?.format === "gts" && doc.source?.sha256 === sha256 ? doc : null;
-  } catch {
-    return null;
-  }
-}
 function dropDraft() {
-  try {
-    localStorage.removeItem(DRAFT_PREFIX + state.sha256);
-  } catch {
-    // ignore
-  }
   void library.get(state.sha256).then((entry) => entry && library.put({ ...entry, doc: state.detected, updated: Date.now() }));
 }
 
 /** Make `doc` the current document and bring every view up to date. */
 function commit(doc: GtsDocument, persist = true) {
   state.doc = doc;
-  for (const view of state.pages.values()) drawPage(view, doc, state.selected, messages.statuses);
+  for (const view of state.pages.values()) {
+    drawPage(view, doc, state.selected, messages.statuses);
+    showPageIncluded(view.index, measures(doc).some((m) => m.region?.page === view.index));
+  }
   const s = reviewSummary(doc);
   const parts = [
     [messages.statuses.reviewed, s.reviewed, "reviewed"],
@@ -229,6 +222,57 @@ function commit(doc: GtsDocument, persist = true) {
   ui.save.textContent = messages.saveAs(outputName());
   editor.refresh();
   if (persist) saveDraft();
+}
+
+const UNDO_LIMIT = 30;
+let undoTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Commit a change to the measures (split, joined, deleted, a page left out), keeping the way back. */
+function restructure(doc: GtsDocument, done: string) {
+  if (state.doc) state.undo = [...state.undo.slice(1 - UNDO_LIMIT), state.doc];
+  commit(doc);
+  showUndo(done);
+}
+
+function showUndo(message: string) {
+  clearTimeout(undoTimer);
+  ui.undoMessage.textContent = message;
+  ui.undo.hidden = state.undo.length === 0;
+  ui.undoBar.hidden = false;
+  undoTimer = setTimeout(() => {
+    ui.undoBar.hidden = true;
+  }, 8000);
+}
+
+function undo() {
+  const previous = state.undo.pop();
+  if (!previous) return;
+  commit(previous);
+  showUndo(messages.undone(state.undo.length > 0));
+}
+
+/** A page's card as part of the score, or as left out (its overlay faded, a button to bring it back). */
+function showPageIncluded(page: number, included: boolean) {
+  const li = ui.pages.querySelector<HTMLLIElement>(`[data-page="${page}"]`);
+  const button = li?.querySelector<HTMLButtonElement>(".page-remove");
+  if (!li || !button) return;
+  li.classList.toggle("excluded", !included);
+  button.textContent = included ? messages.removePage : messages.restorePage;
+  button.title = included ? messages.removePageTitle : messages.restorePageTitle;
+  button.classList.toggle("danger", included);
+  button.disabled = included && measures(state.doc!).every((m) => m.region?.page === page);
+  const reread = li.querySelector<HTMLButtonElement>(".reread");
+  if (reread) reread.disabled = !included;
+}
+
+function togglePage(page: number) {
+  const doc = state.doc;
+  if (!doc) return;
+  if (measures(doc).some((m) => m.region?.page === page)) {
+    restructure(removePage(doc, page), messages.pageRemoved(page + 1));
+  } else if (state.detected) {
+    restructure(restorePage(doc, state.detected, page), messages.pageRestored(page + 1));
+  }
 }
 
 /** Every check that fails, each one a button to its measure. */
@@ -270,6 +314,7 @@ const editor = createEditor({
     return view && { url: view.url, width: view.width, height: view.height };
   },
   commit,
+  restructure,
   select,
   text: messages,
 });
@@ -278,6 +323,7 @@ function pageCard(result: DetectResult, preview: { blob: Blob; url: string } | n
   const { layout } = result;
   const li = document.createElement("li");
   li.className = "page";
+  li.dataset.page = String(result.index);
   const head = document.createElement("div");
   head.className = "page-head";
   const title = document.createElement("h3");
@@ -317,7 +363,15 @@ function pageCard(result: DetectResult, preview: { blob: Blob; url: string } | n
   reread.title = messages.rereadWarning;
   reread.hidden = ui.ai.hidden;
   reread.addEventListener("click", () => void read([result.index]));
-  head.append(reread);
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "page-remove danger";
+  remove.textContent = messages.removePage;
+  remove.addEventListener("click", () => togglePage(result.index));
+  const tools = document.createElement("div");
+  tools.className = "page-tools";
+  tools.append(remove, reread);
+  head.append(tools);
   const figure = document.createElement("div");
   figure.className = "figure";
   const img = document.createElement("img");
@@ -388,6 +442,8 @@ function reset() {
   state.photoUrls = [];
   state.pages.clear();
   state.doc = state.detected = null;
+  state.undo = [];
+  ui.undoBar.hidden = true;
   state.sha256 = "";
   ui.summary.hidden = true;
   ui.pages.replaceChildren();
@@ -475,8 +531,7 @@ async function analyze(source: Source) {
   // The library keeps the files (so the score can be opened again) and the work on them.
   const entry = await library.get(sha256);
   if (mine !== run) return;
-  const legacy = entry?.doc ? null : legacyDraft(sha256);
-  const draft = entry?.doc ?? legacy;
+  const draft = entry?.doc ?? null;
   const now = Date.now();
   const stored: LibraryEntry = entry
     ? { ...entry, updated: now, files: entry.files.length ? entry.files : filesOf(source) }
@@ -485,7 +540,6 @@ async function analyze(source: Source) {
   // The detected layout is already work worth keeping (and moving to another device).
   stored.doc = draft ?? state.detected;
   const kept = await library.put(stored);
-  if (kept && legacy) dropLegacy(sha256);
   if (mine !== run) return;
   // Only work beyond the detection counts as a draft to tell about.
   ui.draftNote.hidden = !draft || JSON.stringify(draft) === JSON.stringify(state.detected);
@@ -499,14 +553,6 @@ async function analyze(source: Source) {
   void renderLibrary();
   // A finished scan opens its score; one finished while the viewer went elsewhere waits in the list.
   if (route.view === "scan" || route.view === "score") navigate({ view: "score", id: sha256 }, route.view === "score");
-}
-
-function dropLegacy(sha256: string) {
-  try {
-    localStorage.removeItem(DRAFT_PREFIX + sha256);
-  } catch {
-    // ignore
-  }
 }
 
 // Reading with Claude (claude.ai "sample" capability).
@@ -1133,8 +1179,11 @@ ui.discardDraft.addEventListener("click", () => {
   dropDraft();
   ui.draftNote.hidden = true;
   editor.close();
+  state.undo = [];
+  ui.undoBar.hidden = true;
   if (state.detected) commit(state.detected, false);
 });
+ui.undo.addEventListener("click", undo);
 ui.read.addEventListener("click", () => void read());
 ui.readTab.addEventListener("click", () => void read(undefined, "tab"));
 ui.stop.addEventListener("click", () => readAbort?.abort());

@@ -3,7 +3,8 @@
  * of the page, with its chords, tab, section start, bar lines and signs, and
  * what the checks found about it. Each
  * field applies when it is changed; "確認済みにして次へ" marks the measure
- * reviewed and moves on.
+ * reviewed and moves on. Where detection drew the measure wrong, it can be
+ * split (tap where the bar line is), joined with the next one or deleted.
  */
 
 import {
@@ -17,7 +18,18 @@ import {
   parseChordLine,
   parseTabLine,
 } from "@guitarmr/gts";
-import { checkDocument, setSectionStart, timeSignatures, updateMeasure, withContext } from "@guitarmr/extract";
+import {
+  MIN_SPLIT_SHARE,
+  checkDocument,
+  deleteMeasures,
+  mergeWithNext,
+  nextInSystem,
+  setSectionStart,
+  splitMeasure,
+  timeSignatures,
+  updateMeasure,
+  withContext,
+} from "@guitarmr/extract";
 import type { Messages } from "./i18n.ts";
 import { sectionLabels, statusOf } from "./score-view.ts";
 
@@ -26,6 +38,8 @@ export interface EditorHost {
   /** The upright page image: object URL and size in pixels. */
   pageImage(page: number): { url: string; width: number; height: number } | undefined;
   commit(doc: GtsDocument): void;
+  /** Commit a change to the measures themselves, which the viewer can undo; `done` says what happened. */
+  restructure(doc: GtsDocument, done: string): void;
   select(id: string | null): void;
   /** The words of the sheet, in the page's language. */
   text: Messages;
@@ -44,6 +58,11 @@ export function createEditor(host: EditorHost) {
     status: $<HTMLElement>("sheet-status"),
     crop: $<HTMLElement>("sheet-crop"),
     frame: $<HTMLElement>("sheet-frame"),
+    cut: $<HTMLElement>("sheet-cut"),
+    split: $<HTMLButtonElement>("f-split"),
+    splitHint: $<HTMLElement>("f-split-hint"),
+    merge: $<HTMLButtonElement>("f-merge"),
+    remove: $<HTMLButtonElement>("f-delete"),
     note: $<HTMLElement>("sheet-note"),
     chords: $<HTMLInputElement>("f-chords"),
     chordsError: $<HTMLElement>("f-chords-error"),
@@ -61,6 +80,8 @@ export function createEditor(host: EditorHost) {
     nav: Object.fromEntries(NAV_IDS.map((n) => [n, $<HTMLInputElement>(`f-nav-${n}`)])) as Record<string, HTMLInputElement>,
   };
   let currentId: string | null = null;
+  /** The page x range the measure image shows, for turning a tap into a split point. */
+  let shown: [number, number] | null = null;
 
   const measure = (): Measure | undefined => measures(host.doc()).find((m) => m.id === currentId);
   const perBar = (m: Measure) => beatsPerBar(m.timeSignature ?? host.doc().meta.timeSignature);
@@ -77,12 +98,14 @@ export function createEditor(host: EditorHost) {
     f.status.className = `chip s-${status}`;
     const image = m.region ? host.pageImage(m.region.page) : undefined;
     f.crop.hidden = !image || !m.region;
+    shown = null;
     if (image && m.region) {
       // A window onto the page image: the measure framed, with a little of
       // its neighbors and of the systems above and below (faded), so lyrics
       // and signs written across its edges can be read.
       const { outer, inner } = withContext(m.region.bbox, MEASURE_CONTEXT);
       const [x0, y0, x1, y1] = outer;
+      shown = [x0, x1];
       const w = x1 - x0;
       const h = y1 - y0;
       f.crop.style.backgroundImage = `url("${image.url}")`;
@@ -97,6 +120,10 @@ export function createEditor(host: EditorHost) {
         height: `${(iy1 - iy0) * 100}%`,
       });
     }
+    setSplitting(false);
+    f.split.disabled = !m.region || !image;
+    f.merge.disabled = !nextInSystem(host.doc(), m.id);
+    f.remove.disabled = measures(host.doc()).length <= 1;
     f.note.hidden = !m.review?.comment;
     f.note.textContent = m.review?.comment ? host.text.memo(m.review.comment) : "";
     f.chords.value = formatChordLine(m.chords, perBar(m));
@@ -143,6 +170,34 @@ export function createEditor(host: EditorHost) {
     f.tabTotal.textContent = beats.length ? host.text.beatTotal(String(total), n) : "";
   }
 
+  function setSplitting(on: boolean) {
+    f.split.setAttribute("aria-pressed", String(on));
+    f.crop.classList.toggle("splitting", on);
+    f.cut.hidden = true;
+    f.splitHint.hidden = !on;
+    f.splitHint.textContent = on ? host.text.splitHint : "";
+  }
+
+  /** The page x under a pointer on the measure image, or null when it is off the image. */
+  function pageX(event: PointerEvent | MouseEvent): number | null {
+    if (!shown) return null;
+    const rect = f.crop.getBoundingClientRect();
+    const share = (event.clientX - rect.left) / rect.width;
+    if (!(share >= 0 && share <= 1)) return null;
+    return shown[0] + share * (shown[1] - shown[0]);
+  }
+
+  /** The measure's place in the score, 1-based, as the viewer counts it. */
+  const ordinal = (id: string): number => measures(host.doc()).findIndex((n) => n.id === id) + 1;
+
+  /** Whether page x leaves both parts of the measure wide enough. */
+  function splittable(x: number): boolean {
+    const [x0, , x1] = (measure()?.region?.bbox ?? []) as number[];
+    if (x0 === undefined || x1 === undefined) return false;
+    const margin = MIN_SPLIT_SHARE * (x1 - x0);
+    return x > x0 + margin && x < x1 - margin;
+  }
+
   function open(id: string) {
     currentId = id;
     f.sheet.hidden = false;
@@ -166,6 +221,37 @@ export function createEditor(host: EditorHost) {
     else close();
   }
 
+  f.split.addEventListener("click", () => setSplitting(f.split.getAttribute("aria-pressed") !== "true"));
+  f.crop.addEventListener("pointermove", (event) => {
+    if (!f.crop.classList.contains("splitting")) return;
+    const x = pageX(event);
+    f.cut.hidden = x === null || !splittable(x);
+    if (!f.cut.hidden) f.cut.style.left = `${((x! - shown![0]) / (shown![1] - shown![0])) * 100}%`;
+  });
+  f.crop.addEventListener("pointerleave", () => {
+    f.cut.hidden = true;
+  });
+  f.crop.addEventListener("click", (event) => {
+    const m = measure();
+    if (!f.crop.classList.contains("splitting") || !m?.id) return;
+    const x = pageX(event);
+    if (x === null || !splittable(x)) {
+      f.splitHint.textContent = host.text.splitInside;
+      return;
+    }
+    host.restructure(splitMeasure(host.doc(), m.id, x), host.text.splitDone(ordinal(m.id)));
+  });
+  f.merge.addEventListener("click", () => {
+    const m = measure();
+    if (!m?.id || !nextInSystem(host.doc(), m.id)) return;
+    host.restructure(mergeWithNext(host.doc(), m.id), host.text.mergeDone(ordinal(m.id)));
+  });
+  f.remove.addEventListener("click", () => {
+    const m = measure();
+    if (!m?.id || measures(host.doc()).length <= 1) return;
+    // The id now names the measure that followed, which the sheet shows next.
+    host.restructure(deleteMeasures(host.doc(), [m.id]), host.text.deleteDone(ordinal(m.id)));
+  });
   f.chords.addEventListener("change", () => {
     const m = measure();
     if (!m) return;

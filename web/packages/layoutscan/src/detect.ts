@@ -488,19 +488,26 @@ export function findBarlines(strokes: Plane, system: System, content: Plane | nu
     // stem right next to a bar line only affects a few of them.
     const continues = (y0: number, y1: number): boolean =>
       cluster.filter((cx) => covered(columnOf(widened, cx, cx), y0, y1)).length >= cluster.length / 2;
-    if (continues(tabBottom + 0.3 * s, tabBottom + 1.2 * s)) continue; // a stem below the TAB
+    const below = continues(tabBottom + 0.3 * s, tabBottom + 1.2 * s);
+    const above = continues(tabTop - 1.2 * s, tabTop - 0.3 * s);
     const staff = system.staff;
+    // Search a little sideways: printed bar lines are often slightly
+    // slanted, so the staff part is offset from the TAB part.
+    const reach = Math.max(Math.trunc(0.5 * s), 2);
     if (staff) {
-      // Search a little sideways: printed bar lines are often slightly
-      // slanted, so the staff part is offset from the TAB part.
-      const reach = Math.max(Math.trunc(0.5 * s), 2);
       let crosses = false;
       for (let xx = Math.max(x - reach, 0); xx <= Math.min(x + reach, width - 1) && !crosses; xx++) {
         crosses = covered(columnOf(widened, xx, xx), staffTopAt(staff, xx), staffBottomAt(staff, xx));
       }
       if (!crosses) continue;
-    } else if (continues(tabTop - 1.2 * s, tabTop - 0.3 * s)) {
-      continue; // a stem above the TAB
+      // A hand-drawn bar line often runs past the TAB; it is still one
+      // stroke from the staff down, across the empty gap above the TAB,
+      // which a stem hanging below the TAB never crosses.
+      if (below && !covered(columnOf(widened, x - reach, x + reach), staffTopAt(staff, x), tabBottom, 0.9)) continue;
+    } else if (below !== above) {
+      // A stem leaves the TAB on one side; a hand-drawn bar line that runs
+      // past it does so on both.
+      continue;
     }
     // Ovals drawn around stacked chords: curved, and closed. (A parenthesis
     // is curved too, but some writers use one as the measure boundary.)
@@ -701,8 +708,45 @@ export function measureSpans(system: System, minWidth = 5): [number, number][] {
 // ---------------------------------------------------------------------------
 // Page level
 
+/**
+ * Share of a staff's width where most of its lines have no ink for longer
+ * than two line spacings. Staff paper is ruled across the page, so this is
+ * near zero even under handwriting; a row of chord diagrams drawn sideways
+ * lines up like a TAB but is blank between the diagrams.
+ */
+export function staffBreaks(ink: Plane, staff: Staff): number {
+  const s = staffSpacing(staff);
+  const left = staffLeft(staff);
+  const right = staffRight(staff);
+  if (!(s > 0) || right <= left) return 1;
+  const band = Math.max(Math.round(0.15 * s), 2);
+  const inked = (line: Line, x: number): boolean => {
+    const y = Math.round(lineY(line, x));
+    for (let yy = Math.max(y - band, 0); yy <= Math.min(y + band, ink.height - 1); yy++) {
+      if (ink.data[yy * ink.width + x]) return true;
+    }
+    return false;
+  };
+  let broken = 0;
+  let run = 0;
+  for (let x = left; x <= right + 1; x++) {
+    const blank = x <= right && staff.lines.filter((l) => inked(l, x)).length * 2 < staff.lines.length;
+    if (blank) {
+      run++;
+    } else {
+      if (run > 2 * s) broken += run;
+      run = 0;
+    }
+  }
+  return broken / (right - left + 1);
+}
+
+/** Above this share of breaks (see staffBreaks) a group of lines is not a TAB. */
+export const MAX_STAFF_BREAKS = 0.1;
+
 function detectUpright(mask: Plane) {
-  return buildSystems(groupStaves(findLines(horizontalLines(mask), mask)));
+  const found = buildSystems(groupStaves(findLines(horizontalLines(mask), mask)));
+  return { ...found, systems: found.systems.filter((s) => staffBreaks(mask, s.tab) <= MAX_STAFF_BREAKS) };
 }
 
 /**

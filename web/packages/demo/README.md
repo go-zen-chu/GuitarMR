@@ -30,7 +30,16 @@ are behind the gear (ADR-009 amendment 2026-11-02). The screen is kept in the UR
    measure opens an editor with the measure image, chords, section start,
    bar lines and signs, the tab as a tab line with a running beat total,
    and what the checks found about the measure; "確認済みにして次へ"
-   marks it reviewed. Above the save button, the checks across the score
+   marks it reviewed. Where detection drew the measures wrong, the editor
+   fixes them: "2つに分ける" then a tap on the measure image where the
+   bar line is splits it, "次の小節とつなげる" joins it with its neighbor
+   in the system, "この小節を消す" deletes it; a page that is not part of
+   the score (a chord chart, a cover) is left out with "このページを外す"
+   on its card and brought back with "このページを戻す". Measures are
+   numbered in order again after each of these, what was read inside a
+   changed measure is dropped (read it again), and "元に戻す" in the bar
+   at the top undoes them one by one (`@guitarmr/extract` edit.ts).
+   Above the save button, the checks across the score
    (repeats, endings, D.S./Coda, sections, and each measure's tab) are
    listed; tapping one opens its measure.
 4. Save `<name>.gts.json`. The library on the device (`src/library.ts`,
