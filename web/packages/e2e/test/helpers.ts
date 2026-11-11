@@ -56,7 +56,8 @@ export interface OpenPage {
 
 export async function openPage(browser: Browser, options: OpenOptions = {}): Promise<OpenPage> {
   const { claudeFrom, claude, setup, ...contextOptions } = options;
-  const context = await browser.newContext({ viewport: PHONE, deviceScaleFactor: 2, ...contextOptions });
+  // The page follows the device's language; the tests read it in Japanese unless they ask otherwise.
+  const context = await browser.newContext({ viewport: PHONE, deviceScaleFactor: 2, locale: "ja-JP", ...contextOptions });
   const page = await context.newPage();
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));

@@ -91,6 +91,15 @@ pnpm --filter @guitarmr/demo build:android      # dist/android/ for the Android 
   decodes photos and runs the tray, `src/library.ts` is the library. `src/preview.ts` and
   `src/worker.ts` run in the worker (detection plus a 2400 px upright
   preview, kept as a JPEG).
+- The page is in Japanese or English after the device's language
+  (`navigator.languages`: Japanese when it comes first, English otherwise).
+  `src/i18n.ts` holds the words: `page.html` is written in Japanese and
+  marks its text with `data-i18n` / `data-i18n-html` /
+  `data-i18n-<attribute>` keys whose English is in `PAGE_EN`; text made at
+  run time comes from `MESSAGES`, handed to each module that shows it
+  (`test/i18n.test.ts` keeps the keys and both languages complete). Song
+  content (titles, lyrics) and the check messages written into a score's
+  `review.comment` stay as they are.
 - The output is a page body without `<html>`/`<head>`: it is published as
   a private claude.ai Artifact declaring the `downloads` and
   `sample` (with images) capabilities, which provide the save dialog and

@@ -18,7 +18,8 @@ import {
   parseTabLine,
 } from "@guitarmr/gts";
 import { checkDocument, setSectionStart, timeSignatures, updateMeasure, withContext } from "@guitarmr/extract";
-import { STATUS_LABEL, sectionLabels, statusOf } from "./score-view.ts";
+import type { Messages } from "./i18n.ts";
+import { sectionLabels, statusOf } from "./score-view.ts";
 
 export interface EditorHost {
   doc(): GtsDocument;
@@ -26,6 +27,8 @@ export interface EditorHost {
   pageImage(page: number): { url: string; width: number; height: number } | undefined;
   commit(doc: GtsDocument): void;
   select(id: string | null): void;
+  /** The words of the sheet, in the page's language. */
+  text: Messages;
 }
 
 /** How much of the surroundings the measure image shows: shares of the measure's width and height. */
@@ -70,7 +73,7 @@ export function createEditor(host: EditorHost) {
     if (!m || !m.id) return close();
     const status = statusOf(m);
     f.title.textContent = `${m.id}（p${(m.region?.page ?? 0) + 1}）`;
-    f.status.textContent = STATUS_LABEL[status];
+    f.status.textContent = host.text.statuses[status];
     f.status.className = `chip s-${status}`;
     const image = m.region ? host.pageImage(m.region.page) : undefined;
     f.crop.hidden = !image || !m.region;
@@ -95,13 +98,13 @@ export function createEditor(host: EditorHost) {
       });
     }
     f.note.hidden = !m.review?.comment;
-    f.note.textContent = m.review?.comment ? `メモ: ${m.review.comment}` : "";
+    f.note.textContent = m.review?.comment ? host.text.memo(m.review.comment) : "";
     f.chords.value = formatChordLine(m.chords, perBar(m));
     f.chordsError.textContent = "";
     // A repeat-sign measure plays the previous one's tab: it has none of its own.
     f.tab.disabled = Boolean(m.simile);
     f.tab.value = m.simile ? "" : formatTabLine(m.beats);
-    f.tab.placeholder = m.simile ? "繰り返し記号の小節（前の小節と同じ）" : m.beats ? "TAB に何も書かれていない" : "まだ読んでいません";
+    f.tab.placeholder = m.simile ? host.text.simileMeasure : m.beats ? host.text.noTab : host.text.notRead;
     f.tabError.textContent = "";
     showTotal();
     const issues = checkDocument(host.doc()).filter((i) => i.ids.includes(m.id!));
@@ -125,7 +128,7 @@ export function createEditor(host: EditorHost) {
     if (marked) f.more.open = true;
   }
 
-  /** The beats typed so far against the time signature, e.g. "合計 3 / 4 拍". */
+  /** The beats typed so far against the time signature, e.g. "Total 3 / 4 beats". */
   function showTotal() {
     const m = measure();
     const signature = m?.id ? timeSignatures(host.doc()).get(m.id) : undefined;
@@ -137,7 +140,7 @@ export function createEditor(host: EditorHost) {
     const [num, den] = measureLength({ beats });
     const [n, d] = signature.split("/").map(Number) as [number, number];
     const total = Math.round(((num * d) / den) * 100) / 100;
-    f.tabTotal.textContent = beats.length ? `合計 ${total} / ${n} 拍` : "";
+    f.tabTotal.textContent = beats.length ? host.text.beatTotal(String(total), n) : "";
   }
 
   function open(id: string) {
@@ -168,7 +171,7 @@ export function createEditor(host: EditorHost) {
     if (!m) return;
     const { chords, invalid } = parseChordLine(f.chords.value, perBar(m));
     f.chordsError.textContent = invalid.length
-      ? `${invalid.map((t) => `「${t}」`).join("")}をコードとして読めません（拍は 1〜${perBar(m)}）。直してください。`
+      ? host.text.badChords(invalid, perBar(m))
       : "";
     if (!invalid.length) apply({ chords });
   });
@@ -177,7 +180,7 @@ export function createEditor(host: EditorHost) {
     const m = measure();
     if (!m || m.simile) return;
     const { beats, invalid } = parseTabLine(f.tab.value, m.beats);
-    f.tabError.textContent = invalid.length ? `${invalid.join("。")}。直してください。` : "";
+    f.tabError.textContent = invalid.length ? host.text.badTab(invalid) : "";
     // Unchanged text keeps an unread measure unread.
     if (!invalid.length && (m.beats || beats.length)) apply({ beats });
   });

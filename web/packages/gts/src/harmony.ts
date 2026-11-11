@@ -181,10 +181,8 @@ export interface ProgressionOccurrence {
 }
 
 export interface Progression {
+  /** Which progression ("two-five-one", "komuro", ...); the viewer names and explains it. */
   id: string;
-  name: string;
-  /** One or two sentences on what the progression does, for a player. */
-  description: string;
   /** Each place it is played, once per written place (repeats are not counted again), in play order. */
   occurrences: ProgressionOccurrence[];
 }
@@ -201,8 +199,6 @@ interface PatternStep {
 
 interface Pattern {
   id: string;
-  name: string;
-  description: string;
   /**
    * What the degrees count from: the key's tonic, the tonic of the major
    * key (the relative major in a minor key), or anywhere (the pattern is
@@ -220,66 +216,48 @@ const degreeStep = (degree: number, kinds: readonly ChordKind[]): PatternStep =>
 const PATTERNS: Pattern[] = [
   {
     id: "canon",
-    name: "カノン進行",
-    description: "Ⅰ→Ⅴ→Ⅵm→Ⅲm（→Ⅳ→Ⅰ→Ⅳ→Ⅴ）。ベースが一段ずつ下りていく、パッヘルベルのカノン由来の定番進行。",
     from: "major",
     steps: [degreeStep(0, ["major"]), degreeStep(7, ["major", "dominant"]), degreeStep(9, ["minor"]), degreeStep(4, ["minor"])],
   },
   {
     id: "royal-road",
-    name: "王道進行",
-    description: "Ⅳ→Ⅴ→Ⅲm→Ⅵm。盛り上がった Ⅴ から Ⅰ に行かずに Ⅲm→Ⅵm へ、切なく着地する J-POP のサビの定番。",
     from: "major",
     steps: [degreeStep(5, ["major"]), degreeStep(7, ["major", "dominant"]), degreeStep(4, ["minor"]), degreeStep(9, ["minor"])],
   },
   {
     id: "komuro",
-    name: "小室進行",
-    description: "Ⅵm→Ⅳ→Ⅴ→Ⅰ。マイナーで始まり明るい Ⅰ へ抜ける、疾走感のある進行。",
     from: "major",
     steps: [degreeStep(9, ["minor"]), degreeStep(5, ["major"]), degreeStep(7, ["major", "dominant"]), degreeStep(0, ["major"])],
   },
   {
     id: "two-five-one",
-    name: "ツーファイブワン",
-    description: "Ⅱm→Ⅴ7→Ⅰ。Ⅱm で準備し、Ⅴ7 で緊張を作って Ⅰ に解決する、いちばん基本的な解決の形（マイナーでは Ⅱm7-5→Ⅴ7→Ⅰm）。",
     from: "anywhere",
     steps: [degreeStep(2, SUPERTONIC), degreeStep(7, DOMINANT), degreeStep(0, TONIC)],
   },
   {
     id: "cadence",
-    name: "カデンツ（Ⅳ→Ⅴ→Ⅰ）",
-    description: "サブドミナント→ドミナント→トニック。曲やフレーズの終わりをはっきり締めくくる流れ。",
     from: "tonic",
     steps: [degreeStep(5, TONIC), degreeStep(7, DOMINANT), degreeStep(0, TONIC)],
   },
   {
     id: "dominant-motion",
-    name: "ドミナントモーション",
-    description: "Ⅴ(7)→Ⅰ。不安定な Ⅴ が主和音の Ⅰ に落ち着く、終止感のもと。",
     from: "tonic",
     steps: [degreeStep(7, DOMINANT), degreeStep(0, TONIC)],
   },
   {
     id: "secondary-dominant",
-    name: "セカンダリー・ドミナント",
-    description: "Ⅰ 以外のコードへ向かう 7th コード。行き先を一時的に Ⅰ に見立て、その 5 度上の 7th で強く引き寄せる。",
     from: "anywhere",
     steps: [degreeStep(7, ["dominant"]), degreeStep(0, TONIC)],
     accept: ([, target], key) => target!.root !== key.tonic,
   },
   {
     id: "two-five",
-    name: "ツーファイブ",
-    description: "Ⅱm→Ⅴ7。解決先を期待させる準備の動き。ここでは Ⅰ に行かずに次へ進む。",
     from: "anywhere",
     steps: [degreeStep(2, SUPERTONIC), degreeStep(7, DOMINANT)],
     accept: ([, five], key) => five!.kind === "dominant" || (five!.root - key.tonic + 12) % 12 === 7,
   },
   {
     id: "plagal",
-    name: "Ⅳ→Ⅰ（アーメン終止）",
-    description: "サブドミナントから直接トニックへ。ドミナントを通らない、柔らかい戻り方。",
     from: "tonic",
     steps: [degreeStep(5, TONIC), degreeStep(0, TONIC)],
   },
@@ -288,8 +266,6 @@ const PATTERNS: Pattern[] = [
 /** Not part of the chain above: it is about one chord's voice, and shows wherever it is. */
 const SUS4: Pattern = {
   id: "sus4",
-  name: "sus4 の解決",
-  description: "sus4 の 4 度の音が 3 度へ下りて解決する。宙に浮いた響きが落ち着く、小さな動き。",
   from: "anywhere",
   steps: [degreeStep(0, ["suspended"]), degreeStep(0, ["major", "dominant", "minor"])],
 };
@@ -388,7 +364,7 @@ export function progressions(steps: readonly PlayStep[], key: Key): Progression[
         degrees: m.chords.map((p) => degreeName(p.symbol, key)!),
       });
     }
-    if (occurrences.length) out.push({ id: pattern.id, name: pattern.name, description: pattern.description, occurrences });
+    if (occurrences.length) out.push({ id: pattern.id, occurrences });
   };
   for (const pattern of PATTERNS) add(pattern, matchesOf(pattern, units, key), true);
   add(SUS4, findSus4(played), false);

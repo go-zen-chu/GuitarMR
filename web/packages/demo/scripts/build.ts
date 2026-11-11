@@ -61,6 +61,7 @@ export const APP = [
   "../src/editor.ts",
   "../src/reader.ts",
   "../src/synth.ts",
+  "../src/i18n.ts",
   "../src/player.ts",
   "../src/explain.ts",
   "../src/library.ts",
