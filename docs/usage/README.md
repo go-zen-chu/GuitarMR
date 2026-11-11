@@ -33,7 +33,7 @@ No PC tooling is required. Either:
 2. On first use the picker asks for file access: press **A** to open the
    system settings, enable **"Allow management of all files"**, and return to
    the app. This is needed because Android's scoped storage does not let apps
-   read PDFs from shared folders otherwise (see docs/design ADR-007).
+   read PDFs from shared folders otherwise (see docs/design/mr.md ADR-007).
 3. Move the highlight with the **right thumbstick**, load with **A**, cancel
    with **B**. The picker lists all PDFs in the `Download` and `Documents`
    folders.

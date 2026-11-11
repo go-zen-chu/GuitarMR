@@ -47,14 +47,11 @@ export function localizePage(root: Document, lang: Lang): void {
 /** English for the keys used in page.html. */
 export const PAGE_EN: Record<string, string> = {
   settings: "Settings",
-  scores: "Scores",
-  libraryEmpty: 'Nothing yet. Open a PDF or photos in <a href="#/scan">Scan</a> and the scores read appear here.',
+  home: "Home",
+  scoreList: "Scores",
+  libraryEmpty: 'Scores you <a href="#/scan">scan</a> come before the sample songs.',
   libraryUnavailable:
     'This screen cannot keep scores on the device. Save a score opened in <a href="#/scan">Scan</a> as gts.json when you are done.',
-  scannedScores: "Scanned scores",
-  sampleSongs: "Sample songs",
-  sampleNote:
-    "Public-domain songs. “Open” goes through scanning and reading; “Play view” lets you hear the chords and tab in time.",
   scanTitle: "Turn handwritten tab into data",
   scanLead:
     "Pick a scanned PDF or photos of a score: the page's orientation and tilt are fixed, and systems and measures are found on this device. For photos the white paper is cut out and the perspective and uneven lighting are corrected first. Then Claude reads the chords and the structure (repeats and signs), and you can tap a measure to check and correct it.",
@@ -72,7 +69,7 @@ export const PAGE_EN: Record<string, string> = {
   addPhotos: "Add photos",
   cancel: "Cancel",
   scoreDetail: "Score details",
-  backToScores: "← Scores",
+  backToHome: "← Home",
   legend: "Legend",
   legendSystem: "System (staff + tab)",
   legendMeasure: "Measure (numbered through)",
