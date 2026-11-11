@@ -107,6 +107,11 @@ export function songScale(document: GtsDocument, steps: readonly PlayStep[], key
   return { main: main!, others, from, weights };
 }
 
+/** The key's own scale: the major scale, or the natural minor. */
+export function keyScaleFit(key: Key): ScaleFit {
+  return { scale: SCALES.find((s) => s.id === (key.minor ? "natural-minor" : "major"))!, tonic: key.tonic, coverage: 1 };
+}
+
 /** Named scales on other tonics made of exactly the same notes (A 平調子 = E 都節音階, C major = A natural minor). */
 export function sameNoteScales(fit: ScaleFit): ScaleFit[] {
   const notes = (f: { tonic: number; intervals: readonly number[] }) =>

@@ -243,6 +243,39 @@ describe("play view", { timeout: 180_000 }, () => {
     assert.deepEqual(errors, []);
   });
 
+  it("If アレンジ is turned on it should lay the safe notes on the neck over the chord sounding now", async () => {
+    const { page, errors } = await openPlayer(browser, "さくらさくら", { viewport: PHONE });
+    await page.click("#player-explain");
+    const toggle = page.locator("#player-notes .arrange-toggle");
+    assert.equal(await toggle.getAttribute("aria-pressed"), "false");
+    assert.equal(await page.locator("#player-arrange").isVisible(), false);
+    await toggle.click();
+    assert.equal(await toggle.getAttribute("aria-pressed"), "true");
+    const panel = page.locator("#player-arrange");
+    assert.equal(await panel.locator(".arrange-head b").textContent(), "Am（Ⅰm）の上で弾ける音");
+    assert.match(await panel.locator(".arrange-head span").textContent() ?? "", /1小節目 · A ヨナ抜き短音階（平調子）/);
+    // Over Am on string 1 (E): E 0, F 1, A 5, B 7, C 8, E 12; of them E, A and C are Am's.
+    const stringOne = await page.evaluate(() =>
+      [...document.querySelectorAll<SVGCircleElement>("#player-arrange .at-note")]
+        .filter((c) => c.getAttribute("cy") === "12")
+        .map((c) => `${c.nextElementSibling!.textContent}${c.classList.contains("at-chord-tone") ? "*" : ""}`),
+    );
+    assert.deepEqual(stringOne, ["0*", "1", "5*", "7", "8*", "12*"]);
+    assert.ok((await panel.locator(".at-tonic").count()) >= 6);
+    await page.screenshot({ path: `${ARTIFACTS}/player-arrange-phone.png` });
+    // Moving to measure 4 follows its Dm7.
+    await page.locator('#player-bars .bar[data-k="3"]').click();
+    assert.equal(await panel.locator(".arrange-head b").textContent(), "Dm7（Ⅳm7）の上で弾ける音");
+    // Turning 解説 off hides the board; on again it comes back, still switched on.
+    await page.click("#player-explain");
+    assert.equal(await panel.isVisible(), false);
+    await page.click("#player-explain");
+    assert.equal(await panel.isVisible(), true);
+    await toggle.click();
+    assert.equal(await panel.isVisible(), false);
+    assert.deepEqual(errors, []);
+  });
+
   it("If the device is in English the page and the play view's explanation should be in English", async () => {
     const { page, errors } = await openPage(browser, { locale: "en-US" });
     assert.equal(await page.getAttribute("html", "lang"), "en");
@@ -261,6 +294,7 @@ describe("play view", { timeout: 180_000 }, () => {
     await page.click("#player-notes .circle-open");
     assert.equal(await page.locator("#player-detail h3").textContent(), "A minor on the circle of fifths");
     assert.match(await page.locator("#player-detail").textContent() ?? "", /Close keys: dominant Em, subdominant Dm, relative C, parallel A/);
+    assert.equal(await page.locator("#player-notes .arrange-toggle").textContent(), "Arrange");
     await page.click("#player-detail-close");
     await page.locator("#player-bars .bracket-name", { hasText: "Two-five-one" }).first().click();
     assert.match(await page.locator("#player-detail .detail-chords").textContent() ?? "", /\(from measure 13\)/);
