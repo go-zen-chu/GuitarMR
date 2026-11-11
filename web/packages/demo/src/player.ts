@@ -1,7 +1,8 @@
 /**
  * The play view: the song's measures in play order (repeats and jumps
  * expanded), each showing its chords at their beats, the lyrics of the
- * current verse and chord diagrams when the gts file has them. Playing
+ * current verse, the tab and chord diagrams when the gts file has them (a
+ * score with both chords and tab can show either alone). Playing
  * follows the tempo: the current measure is highlighted, its beat marks
  * (4, 8 or 16 per 4/4 measure, from the song's feel) fill in, and the
  * view scrolls so the current line stays near the top, on any screen size.
@@ -12,6 +13,7 @@
  */
 
 import {
+  type Beat,
   type GtsDocument,
   type Key,
   type PlayStep,
@@ -19,6 +21,7 @@ import {
   type SongScale,
   type SoundEvent,
   type SoundingChords,
+  type TimedBeat,
   degreeName,
   lyricsFor,
   playOrder,
@@ -27,6 +30,7 @@ import {
   songScale,
   soundEvents,
   soundingChords,
+  tabBeats,
   tuningOf,
 } from "@guitarmr/gts";
 import { type BracketPiece, brackets, keyNote, progressionDetail, scaleDetail } from "./explain.ts";
@@ -39,12 +43,31 @@ const CLICK_KEY = "guitarmr.player.click";
 const CHORD_SOUND_KEY = "guitarmr.player.chordSound";
 const TAB_SOUND_KEY = "guitarmr.player.tabSound";
 const EXPLAIN_KEY = "guitarmr.player.explain";
+const VIEW_KEY = "guitarmr.player.view";
 /** Seconds of sound scheduled ahead on the audio clock. */
 const LOOKAHEAD = 0.12;
 
 /** "F#m7-5" → "F♯m7-5", "Bb" → "B♭" (display only). */
 export function prettyChord(symbol: string): string {
   return symbol.replace(/^([A-G])#/, "$1♯").replace(/^([A-G])b/, "$1♭").replace(/\/([A-G])#/, "/$1♯").replace(/\/([A-G])b/, "/$1♭");
+}
+
+/** What the measures show: the chord names, the tab, or both. */
+type View = "both" | "chords" | "tab";
+const isView = (value: string | null | undefined): value is View => value === "both" || value === "chords" || value === "tab";
+
+type Note = NonNullable<Beat["notes"]>[number];
+
+/** A tab note as written on its line: "5", "x" (dead), "(5)" (ghost), "<12>" (harmonic). */
+function fretText(note: Note): string {
+  const fret = note.dead ? "x" : String(note.fret ?? "");
+  return note.ghost ? `(${fret})` : note.harmonic ? `<${fret}>` : fret;
+}
+
+/** How a note moves on: h (hammer-on), p (pull-off), / (slide), b (bend), ~ (vibrato). */
+function techniqueText(note: Note): string {
+  const slur = note.slur === "hammer-on" ? "h" : note.slur === "pull-off" ? "p" : note.slur === "slide" ? "/" : "";
+  return `${slur}${note.bend ? "b" : ""}${note.vibrato ? "~" : ""}`;
 }
 
 /** A small chord diagram: strings 6 (left) to 1, frets from the lowest used. */
@@ -92,6 +115,7 @@ export function createPlayer(text: Messages) {
     count: $<HTMLElement>("player-count"),
     close: $<HTMLButtonElement>("player-close"),
     feel: $<HTMLElement>("player-feel"),
+    view: $<HTMLElement>("player-view"),
     explain: $<HTMLButtonElement>("player-explain"),
     notes: $<HTMLElement>("player-notes"),
     detail: $<HTMLElement>("player-detail"),
@@ -143,7 +167,11 @@ export function createPlayer(text: Messages) {
   el.click.checked = store.get(CLICK_KEY) === "1";
   el.chordSound.checked = store.get(CHORD_SOUND_KEY) !== "0";
   el.tabSound.checked = store.get(TAB_SOUND_KEY) !== "0";
-  let explaining = store.get(EXPLAIN_KEY) === "1";
+  let explainWanted = store.get(EXPLAIN_KEY) === "1";
+  let explaining = false;
+  const storedView = store.get(VIEW_KEY);
+  let viewWanted: View = isView(storedView) ? storedView : "both";
+  let view: View = "both";
   const applyZoom = () => el.root.style.setProperty("--zoom", String(zoom));
   applyZoom();
 
@@ -163,12 +191,15 @@ export function createPlayer(text: Messages) {
     el.tabSound.closest("label")!.hidden = !sounds.some((e) => e.part === "tab");
     key = songKey(doc, steps);
     found = key ? progressions(steps, key) : [];
-    el.explain.hidden = !key;
     scale = key ? songScale(doc, steps, key) : null;
     el.notes.replaceChildren(...(key ? keyNote(key, scale, doc.meta.capo ?? 0, found.length, text) : []));
     const lanes = brackets(found, steps, sounding);
     const shapes = doc.chordShapes ?? {};
     const hasLyrics = steps.some((s) => s.measure.lyrics?.length);
+    const timed = tabBeats(doc, steps);
+    const hasTab = timed.some((beats) => beats.length);
+    // Choosing chords or tab alone only makes sense when the score has both.
+    el.view.hidden = !hasTab || !sounding.some((s) => s.chords.length);
     el.title.textContent = doc.meta.title;
     const facts = [
       doc.meta.key ? `Key ${prettyChord(doc.meta.key)}` : "",
@@ -236,6 +267,8 @@ export function createPlayer(text: Messages) {
       cell.append(head, lane);
       if (key) cell.append(degreeLane(chords, carried, step.beats, key));
       if (lanes.tracks) cell.append(bracketLane(lanes.pieces.get(k) ?? [], lanes.tracks));
+      // Like lyrics, every measure of a song with tab gets its staff.
+      if (hasTab) cell.append(tabLane(timed[k]!, step.beats));
       // Lyrics get their line in every measure of a song that has lyrics, so
       // chords and lyrics sit at the same height across a row; diagrams,
       // which only some measures have, come last.
@@ -340,6 +373,38 @@ export function createPlayer(text: Messages) {
   }
 
 
+  /** The tab on six lines (string 1 at the top), each beat placed by its time in the measure. */
+  function tabLane(beats: readonly TimedBeat[], length: number): HTMLElement {
+    const lane = document.createElement("div");
+    lane.className = "tab";
+    lane.setAttribute("aria-hidden", "true");
+    for (const { beat, at } of beats) {
+      const left = `${(Math.min(at / length, 1) * 100).toFixed(2)}%`;
+      if (beat.slash) {
+        const slash = document.createElement("span");
+        slash.className = "tab-slash";
+        slash.style.left = left;
+        lane.append(slash);
+        continue;
+      }
+      for (const note of beat.notes ?? []) {
+        const fret = document.createElement("span");
+        fret.className = note.tie ? "tab-note tie" : "tab-note";
+        fret.style.left = left;
+        fret.style.setProperty("--string", String(note.string));
+        fret.textContent = fretText(note);
+        const technique = techniqueText(note);
+        if (technique) {
+          const small = document.createElement("small");
+          small.textContent = technique;
+          fret.append(small);
+        }
+        lane.append(fret);
+      }
+    }
+    return lane;
+  }
+
   /** Each chord's degree under its name, taking the same room as the chord line. */
   function degreeLane(chords: SoundingChords["chords"], carried: boolean, beats: number, inKey: Key): HTMLElement {
     const lane = document.createElement("div");
@@ -363,15 +428,27 @@ export function createPlayer(text: Messages) {
     return lane;
   }
 
-  /** Show or hide the degrees, the brackets and the key note. */
+  /** Show or hide the degrees, the brackets and the key note; they explain the chords, so not with the tab alone. */
   function setExplaining(next: boolean) {
-    explaining = next && !!key;
+    explaining = next && !!key && view !== "tab";
     el.root.classList.toggle("explaining", explaining);
     el.notes.hidden = !explaining;
     el.explain.setAttribute("aria-pressed", String(explaining));
     if (!explaining) pick(null);
     fit();
     rowTop = -1;
+  }
+
+  /** Show the chords, the tab or both (both when the score does not have the two to choose from). */
+  function setView(next: View) {
+    view = el.view.hidden ? "both" : next;
+    el.root.classList.toggle("only-chords", view === "chords");
+    el.root.classList.toggle("only-tab", view === "tab");
+    for (const b of el.view.querySelectorAll<HTMLButtonElement>("button")) {
+      b.setAttribute("aria-pressed", String(b.dataset.view === view));
+    }
+    el.explain.hidden = !key || view === "tab";
+    setExplaining(explainWanted);
   }
 
   /** Mark the measures of one place of a progression and show its details; null hides them. */
@@ -625,8 +702,16 @@ export function createPlayer(text: Messages) {
   });
   el.close.addEventListener("click", () => close());
   el.explain.addEventListener("click", () => {
-    setExplaining(!explaining);
-    store.set(EXPLAIN_KEY, explaining ? "1" : "0");
+    explainWanted = !explaining;
+    store.set(EXPLAIN_KEY, explainWanted ? "1" : "0");
+    setExplaining(explainWanted);
+  });
+  el.view.addEventListener("click", (e) => {
+    const value = (e.target as Element).closest<HTMLElement>("[data-view]")?.dataset.view;
+    if (!isView(value)) return;
+    viewWanted = value;
+    store.set(VIEW_KEY, viewWanted);
+    setView(viewWanted);
   });
   el.detail.addEventListener("click", (e) => {
     const button = (e.target as Element).closest<HTMLElement>("[data-pick]");
@@ -674,7 +759,7 @@ export function createPlayer(text: Messages) {
     el.root.hidden = false;
     document.body.classList.add("in-player");
     build();
-    setExplaining(explaining);
+    setView(viewWanted);
     setFeel(feel);
     el.root.scrollTo({ top: 0 });
     show(0);

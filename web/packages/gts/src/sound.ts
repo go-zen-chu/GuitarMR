@@ -7,7 +7,7 @@
  * over the play order, shared by the phone viewer and (later) the Quest app.
  */
 
-import type { GuitarTabScoreGts as GtsDocument, ChordShape } from "./types.generated.ts";
+import type { GuitarTabScoreGts as GtsDocument, Beat, ChordShape } from "./types.generated.ts";
 import { type PlayStep, soundingChords } from "./playback.ts";
 import { beatLength } from "./index.ts";
 
@@ -141,6 +141,38 @@ function beatUnit(timeSignature: string | undefined): number {
   return Number.isInteger(n) && n > 0 ? n : 4;
 }
 
+/** One beat of the tab layer placed in its measure. */
+export interface TimedBeat {
+  beat: Beat;
+  /** Beats from the start of the measure, as PlayStep.beats counts them. */
+  at: number;
+  /** How long it lasts, in the same beats. */
+  length: number;
+}
+
+/**
+ * The tab layer of each step of `document` (from playOrder), placed in
+ * time; a measure-repeat sign repeats the beats of the measure it points
+ * back to.
+ */
+export function tabBeats(document: GtsDocument, steps: readonly PlayStep[]): TimedBeat[][] {
+  let timeSignature = document.meta.timeSignature;
+  return steps.map((step, k) => {
+    if (step.measure.timeSignature) timeSignature = step.measure.timeSignature;
+    const unit = beatUnit(timeSignature);
+    const simile = step.measure.simile;
+    const beats = step.measure.beats ?? (simile ? steps[k - simile]?.measure.beats : undefined) ?? [];
+    // The offset is summed as a fraction of a whole note, so triplets add up exactly.
+    let [atNum, atDen] = [0, 1];
+    return beats.map((beat) => {
+      const [num, den] = beatLength(beat);
+      const timed = { beat, at: (atNum / atDen) * unit, length: (num / den) * unit };
+      [atNum, atDen] = [atNum * den + num * atDen, atDen * den];
+      return timed;
+    });
+  });
+}
+
 /**
  * The sound of the steps of `document` (from playOrder), in time order.
  * Tied notes are left out (the earlier note keeps ringing).
@@ -155,13 +187,11 @@ export function soundEvents(document: GtsDocument, steps: readonly PlayStep[]): 
     return notes?.length ? notes.map((n) => n + capo) : null;
   };
   const sounding = soundingChords(steps);
+  const timed = tabBeats(document, steps);
   const events: SoundEvent[] = [];
-  let timeSignature = document.meta.timeSignature;
   let lastChord: { symbol: string; shape?: string } | undefined;
 
   steps.forEach((step, k) => {
-    if (step.measure.timeSignature) timeSignature = step.measure.timeSignature;
-    const unit = beatUnit(timeSignature);
     const { chords } = sounding[k]!;
     const before = lastChord;
     chords.forEach((chord, j) => {
@@ -174,12 +204,7 @@ export function soundEvents(document: GtsDocument, steps: readonly PlayStep[]): 
 
     /** The chord sounding at `offset` beats into the measure. */
     const chordAt = (offset: number) => [...chords].reverse().find((c) => (c.beat ?? 1) - 1 <= offset + 1e-6) ?? before;
-    const simile = step.measure.simile;
-    const beats = step.measure.beats ?? (simile ? steps[k - simile]?.measure.beats : undefined) ?? [];
-    let offset = 0;
-    for (const beat of beats) {
-      const [num, den] = beatLength(beat);
-      const length = (num / den) * unit;
+    for (const { beat, at: offset, length } of timed[k]!) {
       const at = step.start + offset;
       if (beat.slash) {
         const chord = chordAt(offset);
@@ -208,7 +233,6 @@ export function soundEvents(document: GtsDocument, steps: readonly PlayStep[]): 
           });
         }
       }
-      offset += length;
     }
   });
   return events.sort((a, b) => a.at - b.at);

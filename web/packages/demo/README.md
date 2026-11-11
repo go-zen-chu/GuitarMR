@@ -70,7 +70,10 @@ are behind the gear (ADR-009 amendment 2026-11-02). The screen is kept in the UR
    measure's width (container query units), with A−/A＋ on top. Inside a
    measure the marks, chord and lyric lines have fixed heights, and a row
    shrinks long names as a whole, so chords and lyrics stay level across
-   a row for the eye to follow. 解説 (remembered per device) adds each
+   a row for the eye to follow. A score with tab shows it on six lines
+   under the chords, each fret placed by its time in the measure
+   (`tabBeats` in `@guitarmr/gts`); 表示 picks コード＋TAB, コード or TAB
+   alone (remembered per device). 解説 (remembered per device) adds each
    chord's degree in the key under its name and a foldable panel
    (`src/explain.ts`) with the song's most telling progressions (ツーファイブ
    ワン, カデンツ, 王道・小室・カノン進行, secondary dominants, sus4

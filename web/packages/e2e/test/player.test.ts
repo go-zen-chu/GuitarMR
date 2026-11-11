@@ -131,6 +131,48 @@ describe("play view", { timeout: 180_000 }, () => {
     assert.deepEqual(errors, []);
   });
 
+  it("If a song has chords and tab it should show both, or either alone as chosen, and keep the choice", async () => {
+    const { page, errors } = await openPlayer(browser, "練習曲", { viewport: PHONE });
+    const visible = async (selector: string) => page.locator(`#player-bars .bar[data-k="0"] ${selector}`).isVisible();
+    assert.equal(await page.locator("#player-view").isVisible(), true);
+    assert.equal(await page.getAttribute('#player-view [data-view="both"]', "aria-pressed"), "true");
+    assert.deepEqual([await visible(".chords"), await visible(".tab")], [true, true]);
+    assert.ok((await page.locator("#player-bars .tab-note").count()) > 0);
+    // Staffs sit at the same height across a row, and a measure's first note at its start.
+    const layout = await page.evaluate(() => {
+      const tops = new Map<number, number[]>();
+      for (const bar of document.querySelectorAll<HTMLElement>("#player-bars .bar")) {
+        tops.set(bar.offsetTop, [...(tops.get(bar.offsetTop) ?? []), bar.querySelector(".tab")!.getBoundingClientRect().top]);
+      }
+      const first = document.querySelector('#player-bars .bar[data-k="0"]')!;
+      const lane = first.querySelector(".tab")!.getBoundingClientRect();
+      const note = first.querySelector(".tab-note, .tab-slash")!.getBoundingClientRect();
+      return { spread: Math.max(...[...tops.values()].map((t) => Math.max(...t) - Math.min(...t))), lead: note.left - lane.left };
+    });
+    assert.ok(layout.spread <= 1.5 && layout.lead >= 0 && layout.lead < 12, JSON.stringify(layout));
+    await page.screenshot({ path: `${ARTIFACTS}/player-tab-phone.png` });
+
+    // The tab alone: no chords, nor the explanation of them.
+    await page.click('#player-view [data-view="tab"]');
+    assert.deepEqual([await visible(".chords"), await visible(".tab")], [false, true]);
+    assert.equal(await page.locator("#player-bars .diagram").first().isVisible(), false);
+    assert.equal(await page.locator("#player-explain").isVisible(), false);
+    await page.screenshot({ path: `${ARTIFACTS}/player-tab-only-phone.png` });
+
+    // The chords alone.
+    await page.click('#player-view [data-view="chords"]');
+    assert.deepEqual([await visible(".chords"), await visible(".tab")], [true, false]);
+    assert.equal(await page.locator("#player-explain").isVisible(), true);
+
+    // Remembered.
+    await page.click("#player-close");
+    await page.reload();
+    await page.locator("#library-list li.sample-song", { hasText: "さくらさくら" }).getByRole("button", { name: "演奏ビュー" }).click();
+    assert.equal(await page.getAttribute('#player-view [data-view="chords"]', "aria-pressed"), "true");
+    assert.deepEqual([await visible(".chords"), await visible(".tab")], [true, false]);
+    assert.deepEqual(errors, []);
+  });
+
   it("If 解説 is turned on it should show the degrees and bracket the progressions, a name opening its details", async () => {
     const { page, errors } = await openPlayer(browser, "さくらさくら", { viewport: PHONE });
     assert.equal(await page.locator("#player-notes").isVisible(), false);
