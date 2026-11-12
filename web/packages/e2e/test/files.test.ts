@@ -42,6 +42,30 @@ describe("files in and out", { timeout: 300_000 }, () => {
     assert.deepEqual(errors, []);
   });
 
+  it("If a PDF of several pages is picked its score should open with the first page's measures before the last page is done", async () => {
+    const { page, errors } = await openPage(browser);
+    await show(page, "scan");
+    // Note what is on screen when the score first shows a measure.
+    await page.evaluate(() => {
+      const w = window as unknown as { __early?: { summary: boolean; page2: boolean } };
+      const observer = new MutationObserver(() => {
+        const shown = !document.getElementById("view-score")!.hidden;
+        if (w.__early || !shown || !document.querySelector('.page[data-page="0"] svg .measure')) return;
+        w.__early = {
+          summary: !document.getElementById("summary")!.hidden,
+          page2: !!document.querySelector('.page[data-page="1"]'),
+        };
+        observer.disconnect();
+      });
+      observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["hidden"] });
+    });
+    await page.setInputFiles("#pdf-file", join(dir, "other.pdf"));
+    await analyzed(page, "other.pdf");
+    const early = await page.evaluate(() => (window as unknown as { __early?: unknown }).__early);
+    assert.deepEqual(early, { summary: false, page2: false });
+    assert.deepEqual(errors, []);
+  });
+
   it("If several PDFs are picked the first should be analyzed", async () => {
     const { page, errors } = await openPage(browser);
     await openSample(page);

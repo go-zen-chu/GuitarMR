@@ -453,6 +453,14 @@ function columnOf(mask: Plane, x0: number, x1: number): Uint8Array {
 }
 
 /**
+ * Share of the TAB's height a bar line must cover. Faint pencil lines break
+ * up (one on a real scan covered 0.84, its neighbours 0.98 and more); on
+ * staff + TAB paper the line must cross the staff as well, which already
+ * rules out stems, so less is asked there.
+ */
+export const BARLINE_COVER = { staffAndTab: 0.75, tabOnly: 0.9 };
+
+/**
  * x positions of bar lines crossing the whole TAB of a system. A bar line
  * covers the TAB from its top to its bottom line and, unlike note stems,
  * does not continue below it; on staff + TAB paper it must also cross the
@@ -464,6 +472,7 @@ function columnOf(mask: Plane, x0: number, x1: number): Uint8Array {
 export function findBarlines(strokes: Plane, system: System, content: Plane | null = null): number[] {
   const s = systemSpacing(system);
   if (!(s > 0)) return [];
+  const cover = system.staff ? BARLINE_COVER.staffAndTab : BARLINE_COVER.tabOnly;
   // Tolerate slightly slanted hand-drawn lines by widening strokes first.
   const widened = dilateRows(strokes, 2);
   const { width } = widened;
@@ -476,7 +485,7 @@ export function findBarlines(strokes: Plane, system: System, content: Plane | nu
     if (b <= t) continue;
     let n = 0;
     for (let y = t; y <= b; y++) n += widened.data[y * width + x]!;
-    if (n / (b - t + 1) >= 0.9) candidates.push(x);
+    if (n / (b - t + 1) >= cover) candidates.push(x);
   }
 
   const accepted: number[] = [];

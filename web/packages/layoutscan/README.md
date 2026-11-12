@@ -50,7 +50,9 @@ pnpm --filter @guitarmr/layoutscan layoutscan path/to/song.pdf --debug-dir debug
    lines up like a TAB but is blank between the diagrams. Such a page
    then has no systems and is skipped.
 6. **Bar lines**: vertical strokes covering the TAB from top to bottom
-   line, found on a row-contrast mask that keeps faint printed lines. A
+   line (90% of its height; 75% on staff + TAB paper, where faint pencil
+   lines break up and crossing the staff already rules out stems), found
+   on a row-contrast mask that keeps faint printed lines. A
    stroke is a stem when most of its columns continue past the TAB on one
    side only (a stem right next to a bar line does not count); a
    hand-drawn bar line that runs past both sides is kept. On staff + TAB

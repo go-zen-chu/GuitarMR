@@ -461,6 +461,20 @@ function reset() {
   ui.pages.replaceChildren();
 }
 
+/**
+ * Show a page as soon as it is analyzed: the score opens with the first page
+ * found to hold systems, and each page gets its measures numbered in the
+ * order found so far.
+ */
+function showScanned(sha256: string, sofar: GtsDocument, page: number) {
+  if (!state.sha256) {
+    state.sha256 = sha256;
+    if (route.view === "scan") navigate({ view: "score", id: sha256 });
+  }
+  const view = state.pages.get(page);
+  if (view) drawPage(view, sofar, null, messages.statuses);
+}
+
 /** Rendered PDF pages, or decoded photos, as [index, pixels, is a photo]. */
 async function* pagesOf(source: Source): AsyncGenerator<[number, RgbaImage, boolean]> {
   if (source.kind === "photos") {
@@ -499,6 +513,7 @@ async function analyze(source: Source) {
   let cover: string | undefined;
   try {
     total = await pageCount(source);
+    sha256 = await sha256Hex(source.kind === "photos" ? concatPhotos(source.photos) : source.bytes);
     for await (const [index, image, photo] of pagesOf(source)) {
       if (mine !== run) return;
       setStatus((photo ? messages.analysingPhoto : messages.analysingPage)(name, index + 1, total), done / total);
@@ -525,10 +540,10 @@ async function analyze(source: Source) {
           ...(source.kind === "photos" ? { file: source.photos[index]!.name } : {}),
           ...(result.paper ? { paper: result.paper } : {}),
         });
+        showScanned(sha256, buildDocument(name, sha256, scanned), index);
       }
       done++;
     }
-    sha256 = await sha256Hex(source.kind === "photos" ? concatPhotos(source.photos) : source.bytes);
   } catch (e) {
     if (mine === run) setStatus(messages.cannotProcess(name, errorText(e)));
     return;
