@@ -42,6 +42,17 @@ describe("screens", { timeout: 180_000 }, () => {
     assert.deepEqual(errors, []);
   });
 
+  it("If the scan screen is shown on a phone it should stack its parts in one column, with no samples to pick", async () => {
+    const { page, errors } = await openPage(browser);
+    await show(page, "scan");
+    const title = (await page.locator("#scan-title").boundingBox())!;
+    const pick = (await page.locator("#view-scan .file-button").first().boundingBox())!;
+    assert.ok(pick.y > title.y + title.height, "the file button is below the title");
+    assert.ok(pick.width > PHONE.width * 0.8, "the file button spans the screen");
+    assert.equal(await page.locator("#view-scan .sample").count(), 0);
+    assert.deepEqual(errors, []);
+  });
+
   it("If back is pressed it should close the editor, then the play view, then go to the score list, then leave", async () => {
     const { page, errors } = await openPage(browser);
     await openSample(page);

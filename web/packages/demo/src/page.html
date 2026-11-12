@@ -87,15 +87,14 @@ p { margin: 0; }
    (some in-app browsers ignore taps forwarded through a label). */
 .file-button input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0; }
 .pick-hint { font-size: 0.85rem; color: var(--muted); }
-.samples-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.samples-row > p { font-size: 0.85rem; color: var(--muted); width: 100%; }
+.pick-help summary { min-height: 32px; display: flex; align-items: center; font-size: 0.85rem; color: var(--muted); cursor: pointer; }
 button { font: inherit; color: inherit; }
-.sample { display: grid; text-align: left; gap: 0; padding: 8px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); cursor: pointer; flex: 1 1 200px; min-width: 0; }
-.sample small { color: var(--muted); font-size: 0.8rem; }
-.sample:hover { border-color: var(--muted); }
 button:focus-visible { outline: 3px solid var(--system); outline-offset: 2px; }
-.status { display: grid; gap: 6px; min-height: 1.6em; color: var(--muted); font-size: 0.9rem; }
-progress { width: 100%; height: 6px; accent-color: var(--measure); }
+.status { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--rule); border-left: 4px solid var(--measure); border-radius: 10px; background: var(--surface); font-size: 0.95rem; font-weight: 600; }
+.status p, .ai .status p { color: var(--ink); font-size: inherit; }
+/* Stays in sight while the score below it scrolls. */
+#status-box { position: sticky; top: 8px; z-index: 4; box-shadow: 0 2px 10px var(--scrim); }
+progress { width: 100%; height: 10px; accent-color: var(--measure); }
 .summary { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); }
 .summary h2 { font-size: 1.05rem; overflow-wrap: anywhere; }
 .summary .stats { font-family: var(--font-mono); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
@@ -366,10 +365,10 @@ body.in-player { overflow: hidden; }
 .feel span { margin-right: 4px; }
 .player-controls .feel button { min-width: 34px; font-family: var(--font-mono); }
 .feel button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
-.view { display: flex; align-items: center; gap: 2px; font-size: 0.8rem; color: var(--muted); }
-.view span { margin-right: 4px; }
-.player-controls .view button { padding: 0 8px; color: var(--ink); }
-.view button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.parts { display: flex; align-items: center; gap: 2px; font-size: 0.8rem; color: var(--muted); }
+.parts span { margin-right: 4px; }
+.player-controls .parts button { padding: 0 8px; color: var(--ink); }
+.parts button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
 /* Tab: six lines, string 1 at the top; each fret sits on its line, placed by its time in the measure. */
 .tab { --tab: calc(clamp(0.7rem, 8cqi, 1rem) * var(--zoom)); --gap: calc(var(--tab) * 0.95); position: relative; height: calc(var(--gap) * 5 + 1px); margin-block: calc(var(--gap) * 0.6); overflow-x: clip; background: repeating-linear-gradient(color-mix(in srgb, var(--muted) 55%, transparent) 0 1px, transparent 1px var(--gap)); font-family: var(--font-mono); font-size: var(--tab); font-weight: 600; line-height: 1; }
 .tab-note { position: absolute; top: calc((var(--string) - 1) * var(--gap)); transform: translateY(-50%); padding: 0 1px; white-space: nowrap; color: var(--ink); background: var(--paper); }
@@ -405,14 +404,13 @@ body.in-player { overflow: hidden; }
 
   <section class="view" id="view-scan" hidden aria-labelledby="scan-title">
     <h1 id="scan-title" data-i18n="scanTitle">手書きTAB譜をデータにする</h1>
-    <p class="lead" data-i18n="scanLead">スキャンしたPDFか、楽譜を撮った写真を選ぶと、ページの向きと傾きを直し、段と小節をこの端末の中で見つけます。写真は白い紙の部分を切り出して、斜めから撮った歪みと明るさのムラを直してから使います。続けて Claude にコードと構成（リピートや記号）を読ませ、小節をタップして確認・修正できます。</p>
+    <p class="lead" data-i18n="scanLead">PDFか楽譜の写真を選ぶと、段と小節をこの端末の中で見つけます。続けて Claude にコードと構成を読ませ、小節をタップして直せます。</p>
     <section class="pick" aria-label="PDFか写真を選ぶ" data-i18n-aria-label="pickSource">
       <div class="pick-buttons">
         <label class="file-button" data-i18n="pickFiles">PDF・写真を選ぶ<input id="pdf-file" type="file" multiple aria-label="PDF・写真を選ぶ" data-i18n-aria-label="pickFiles"></label>
         <label class="file-button secondary" data-i18n="takePhoto">カメラで撮る<input id="camera" type="file" accept="image/*" capture="environment" aria-label="カメラで撮る" data-i18n-aria-label="takePhoto"></label>
       </div>
-      <p class="pick-hint" data-i18n="pickHint">写真は1枚が1ページです。紙より暗い机などに置き、紙全体が入るように撮ってください。ファイルを選ぶ画面が開かないときは、このリンクを Safari や Chrome で開いてください（Claude アプリの中では選べないことがあります）。パソコンでは PDF や写真をこのページにドラッグしても読み込めます。</p>
-      <div class="samples-row" id="samples"><p data-i18n="samplesRow">サンプル（パブリックドメインの曲から自動生成したスキャン風PDF）</p></div>
+      <details class="pick-help"><summary data-i18n="pickHelp">撮り方・選べないとき</summary><p class="pick-hint" data-i18n="pickHint">写真は1枚が1ページです。紙より暗い机などに置き、紙全体が入るように撮ってください。ファイルを選ぶ画面が開かないときは、このリンクを Safari や Chrome で開いてください（Claude アプリの中では選べないことがあります）。パソコンでは PDF や写真をこのページにドラッグしても読み込めます。</p></details>
     </section>
 
     <section class="tray" id="tray" hidden aria-label="撮った写真" data-i18n-aria-label="photosTaken">
@@ -440,7 +438,7 @@ body.in-player { overflow: hidden; }
         <p data-i18n="aiNote">各段の画像（写真は補正したもの）を、あなたの Claude（claude.ai のアカウント、Android アプリでは自分の API キー）に送って読ませます（1ページ数十秒）。PDFや写真そのものは送りません。</p>
         <div class="actions"><button type="button" class="primary" id="read" data-i18n="read">読み取る</button><button type="button" class="primary" id="read-tab" hidden data-i18n="readTab">TAB（リズム・フレット）を読む</button><button type="button" id="stop" hidden data-i18n="stop">止める</button></div>
         <p data-i18n="aiTabNote">コードと構成を読み終えたら、TAB の数字とリズムも読めます。拍の合計やフレットの範囲を確かめ、おかしい小節は要確認にします。</p>
-        <p id="read-status" aria-live="polite"></p>
+        <div class="status" id="read-box" hidden aria-live="polite"><p id="read-status"></p><progress id="read-progress" max="1" value="0" hidden></progress></div>
         <details id="read-warnings" hidden><summary data-i18n="readingNotes">読み取りのメモ</summary><ul></ul></details>
       </div>
       <details class="checks-panel" id="checks" hidden open>
@@ -552,7 +550,7 @@ body.in-player { overflow: hidden; }
         <button type="button" id="player-faster" aria-label="テンポを速く" data-i18n-aria-label="faster">＋</button>
       </div>
       <div class="feel" id="player-feel" role="group" aria-label="ビートの数（1小節あたり）" data-i18n-aria-label="beatsPerBar"><span data-i18n="beat">ビート</span><button type="button" data-feel="4" aria-pressed="true">4</button><button type="button" data-feel="8" aria-pressed="false">8</button><button type="button" data-feel="16" aria-pressed="false">16</button></div>
-      <div class="view" id="player-view" role="group" aria-label="表示する譜面" data-i18n-aria-label="shownParts" hidden><span data-i18n="show">表示</span><button type="button" data-view="both" aria-pressed="true" data-i18n="showBoth">コード＋TAB</button><button type="button" data-view="chords" aria-pressed="false" data-i18n="showChords">コード</button><button type="button" data-view="tab" aria-pressed="false" data-i18n="showTab">TAB</button></div>
+      <div class="parts" id="player-view" role="group" aria-label="表示する譜面" data-i18n-aria-label="shownParts" hidden><span data-i18n="show">表示</span><button type="button" data-view="both" aria-pressed="true" data-i18n="showBoth">コード＋TAB</button><button type="button" data-view="chords" aria-pressed="false" data-i18n="showChords">コード</button><button type="button" data-view="tab" aria-pressed="false" data-i18n="showTab">TAB</button></div>
       <label class="toggle" data-i18n="click"><input type="checkbox" id="player-click">クリック音</label>
       <label class="toggle" data-i18n="chordSound"><input type="checkbox" id="player-chord-sound">コード音</label>
       <label class="toggle" data-i18n="tabSound"><input type="checkbox" id="player-tab-sound">TAB音</label>
