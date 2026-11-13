@@ -37,8 +37,11 @@ are behind the gear (ADR-009 amendment 2026-11-02). The screen is kept in the UR
    the score (a chord chart, a cover) is left out with "このページを外す"
    on its card and brought back with "このページを戻す". Measures are
    numbered in order again after each of these, what was read inside a
-   changed measure is dropped (read it again), and "元に戻す" in the bar
-   at the top undoes them one by one (`@guitarmr/extract` edit.ts).
+   changed measure is dropped (read it again). "元に戻す" undoes these
+   and the fields typed in the sheet one by one (`@guitarmr/extract`
+   edit.ts): in the notice at the top right after a change, in the
+   sheet's head, and next to the review counts (also Ctrl/⌘+Z outside a
+   text field).
    Above the save button, the checks across the score
    (repeats, endings, D.S./Coda, sections, and each measure's tab) are
    listed; tapping one opens its measure.
@@ -55,7 +58,8 @@ are behind the gear (ADR-009 amendment 2026-11-02). The screen is kept in the UR
    on every score comes first and the PDFs and photos last, in chunks
    checked by SHA-256, so a file cut short or damaged still moves all the
    work. Moving devices is in the settings.
-5. Play it: the play view (`src/player.ts`) shows the measures in play
+5. Play it (once Claude has read something; measures only found on the
+   page would be empty bars): the play view (`src/player.ts`) shows the measures in play
    order (repeats, endings and D.S./D.C./Coda expanded by `playOrder` in
    `@guitarmr/gts`), each with its chords spread by duration, the verse
    for the current pass and chord diagrams from `chordShapes`. Playing

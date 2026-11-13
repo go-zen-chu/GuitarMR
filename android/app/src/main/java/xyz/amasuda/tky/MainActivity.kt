@@ -29,6 +29,9 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.Toast
 import java.io.IOException
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 /**
  * Runs the phone page (web/packages/demo, built for Android) in a WebView and
@@ -173,7 +176,7 @@ class MainActivity : Activity(), PageHost {
         }
         val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.api_key_title)
-            .setMessage(R.string.api_key_message)
+            .setMessage(if (withForget) "${getString(R.string.api_key_message)}\n\n${storedKeyLines()}" else getString(R.string.api_key_message))
             .setView(container)
             .setPositiveButton(R.string.api_key_save, null)
             .setNegativeButton(R.string.cancel) { _, _ -> answer("") }
@@ -202,6 +205,15 @@ class MainActivity : Activity(), PageHost {
             }
         }
         dialog.show()
+    }
+
+    /** Which key is stored and since when, so the user can tell it in the Claude Console and see how long it has been in use. */
+    private fun storedKeyLines(): String {
+        val current = getString(R.string.api_key_current, ApiKeys.preview(keys.apiKey()))
+        val savedOn = keys.savedOn()
+            ?: return "$current\n${getString(R.string.api_key_saved_on_unknown)}"
+        val date = savedOn.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
+        return "$current\n${getString(R.string.api_key_saved_on, date, ApiKeys.daysSince(savedOn, LocalDate.now()))}"
     }
 
     /** Lets the user pick where the page's file goes, then writes it there. */

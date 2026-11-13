@@ -9,6 +9,7 @@ class HostBridgeTest {
     private class MemoryKeys(var key: String = "") : ApiKeyStore {
         override fun apiKey() = key
         override fun model() = ""
+        override fun savedOn() = null
         override fun saveApiKey(key: String) {
             this.key = key
         }

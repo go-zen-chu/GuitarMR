@@ -4,6 +4,9 @@
     <string name="api_key_title">Claude API キー</string>
     <string name="api_key_message">譜面を読み取るのに使う、あなたの Claude API キー（sk-ant-…）を入れてください。キーはこの端末のアプリの中にだけ保存されます。</string>
     <string name="api_key_hint">sk-ant-…</string>
+    <string name="api_key_current">登録中のキー: %1$s</string>
+    <string name="api_key_saved_on">登録日: %1$s（%2$d 日前）</string>
+    <string name="api_key_saved_on_unknown">登録日: 不明（この版より前に登録したキー）</string>
     <string name="api_key_save">保存</string>
     <string name="api_key_forget">キーを消す</string>
     <string name="cancel">キャンセル</string>

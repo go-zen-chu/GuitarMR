@@ -1,4 +1,4 @@
-/** Fixing detected measures by hand: split, joined, deleted, a page left out and brought back, and undo. */
+/** Fixing detected measures by hand: split, joined, deleted, a page left out and brought back, and undo, also of typed fields. */
 
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
@@ -97,6 +97,28 @@ describe("fixing detected measures", { timeout: 300_000 }, () => {
     await page.reload();
     await analyzed(page, "sakura-sakura.pdf");
     assert.deepEqual(await ids(page), countOf(13));
+    assert.deepEqual(errors, []);
+  });
+
+  it("If a deleted measure's notice is gone it should still come back from the sheet, and a typed chord too", async () => {
+    const { page, errors } = await open();
+    const before = await all(page);
+    await page.locator('[data-id="m2"]').click();
+    assert.equal(await page.locator("#sheet-undo").isDisabled(), true);
+    await page.click("#f-delete");
+    assert.deepEqual(await ids(page), countOf(14));
+    await page.locator("#undo-bar").waitFor({ state: "hidden", timeout: 15_000 });
+    await page.click("#sheet-undo");
+    assert.deepEqual(await all(page), before);
+    // The sheet stays on m2, now the measure brought back.
+    assert.match((await page.locator("#sheet-title").textContent())!, /^m2（/);
+    await page.fill("#f-chords", "Am");
+    await page.press("#f-chords", "Enter");
+    await page.click("#sheet-close");
+    assert.notDeepEqual((await all(page))[1]!.chords, before[1]!.chords);
+    await page.click("#undo-edit");
+    assert.deepEqual(await all(page), before);
+    assert.equal(await page.locator("#undo-edit").isHidden(), true);
     assert.deepEqual(errors, []);
   });
 

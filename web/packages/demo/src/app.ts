@@ -118,6 +118,8 @@ const ui = {
   undoBar: $<HTMLElement>("undo-bar"),
   undoMessage: $<HTMLElement>("undo-message"),
   undo: $<HTMLButtonElement>("undo"),
+  undoEdit: $<HTMLButtonElement>("undo-edit"),
+  sheetUndo: $<HTMLButtonElement>("sheet-undo"),
 };
 
 pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
@@ -225,6 +227,8 @@ function commit(doc: GtsDocument, persist = true) {
   ].join(" · ");
   ui.read.textContent = s.unread === s.total ? messages.read : messages.readMore(s.unread);
   ui.read.hidden = s.unread === 0;
+  // Measures found on the page but not read yet play as empty bars, which only confuses.
+  ui.playOpen.hidden = s.unread === s.total;
   // The tab is read after structure and chords (repeat-sign measures need none).
   const tabLeft = tabUnread(doc).length;
   ui.readTab.hidden = s.unread > 0 || tabLeft === 0;
@@ -232,6 +236,7 @@ function commit(doc: GtsDocument, persist = true) {
   renderChecks(doc);
   ui.json.value = json();
   ui.save.textContent = messages.saveAs(outputName());
+  ui.undoEdit.hidden = ui.sheetUndo.disabled = state.undo.length === 0;
   editor.refresh();
   if (persist) saveDraft();
 }
@@ -239,9 +244,20 @@ function commit(doc: GtsDocument, persist = true) {
 const UNDO_LIMIT = 30;
 let undoTimer: ReturnType<typeof setTimeout> | undefined;
 
+/** Keep the current document as the way back from the change about to be committed. */
+function remember() {
+  if (state.doc) state.undo = [...state.undo.slice(1 - UNDO_LIMIT), state.doc];
+}
+
+/** Commit a field edited by hand in the measure editor, keeping the way back. */
+function edit(doc: GtsDocument) {
+  remember();
+  commit(doc);
+}
+
 /** Commit a change to the measures (split, joined, deleted, a page left out), keeping the way back. */
 function restructure(doc: GtsDocument, done: string) {
-  if (state.doc) state.undo = [...state.undo.slice(1 - UNDO_LIMIT), state.doc];
+  remember();
   commit(doc);
   showUndo(done);
 }
@@ -325,7 +341,7 @@ const editor = createEditor({
     const view = state.pages.get(page);
     return view && { url: view.url, width: view.width, height: view.height };
   },
-  commit,
+  commit: edit,
   restructure,
   select,
   text: messages,
@@ -1203,6 +1219,16 @@ ui.discardDraft.addEventListener("click", () => {
   if (state.detected) commit(state.detected, false);
 });
 ui.undo.addEventListener("click", undo);
+ui.undoEdit.addEventListener("click", undo);
+ui.sheetUndo.addEventListener("click", undo);
+addEventListener("keydown", (e) => {
+  // A text field keeps its own undo of what is being typed.
+  const typing = (e.target as Element).closest?.("input, textarea, select");
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "z" && !typing && state.undo.length) {
+    e.preventDefault();
+    undo();
+  }
+});
 ui.read.addEventListener("click", () => void read());
 ui.readTab.addEventListener("click", () => void read(undefined, "tab"));
 ui.stop.addEventListener("click", () => readAbort?.abort());
