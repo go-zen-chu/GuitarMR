@@ -60,6 +60,7 @@ export const APP = [
   "../src/score-view.ts",
   "../src/editor.ts",
   "../src/reader.ts",
+  "../src/retry.ts",
   "../src/synth.ts",
   "../src/i18n.ts",
   "../src/player.ts",

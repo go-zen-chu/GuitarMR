@@ -20,7 +20,10 @@ are behind the gear (ADR-009 amendment 2026-11-02). The screen is kept in the UR
    on the viewer's own claude.ai account, one request per page, and fills
    the `structure` and `chords` layers (`@guitarmr/extract`). The PDF
    itself (or the photo) is never sent; for photos the images are cut
-   from the corrected page.
+   from the corrected page. A request that cannot reach Claude is asked
+   again twice (after 2 s and 6 s, `src/retry.ts`); if it still fails,
+   the status says so with what went wrong underneath (an HTTP status, a
+   network error).
    Once chords and structure are read, "TAB（リズム・フレット）を読む"
    reads the tab layer the same way (one tab line per measure, see
    `@guitarmr/extract`); measures whose beats do not add up or whose notes
@@ -103,7 +106,7 @@ pnpm --filter @guitarmr/demo build:android      # dist/android/ for the Android 
   `package.json`.
 - `src/app.ts` runs the page, `src/router.ts` names the screens in the URL hash, `src/score-view.ts` draws the SVG layer over
   each page image, `src/editor.ts` is the measure editor and
-  `src/reader.ts` cuts the images and calls Claude. `src/photos.ts`
+  `src/reader.ts` cuts the images and calls Claude (`src/retry.ts` asks again after a lost connection). `src/photos.ts`
   decodes photos and runs the tray, `src/library.ts` is the library. `src/preview.ts` and
   `src/worker.ts` run in the worker (detection plus a 2400 px upright
   preview, kept as a JPEG).

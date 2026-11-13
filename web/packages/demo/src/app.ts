@@ -26,6 +26,7 @@ import { MESSAGES, localizePage, pickLang } from "./i18n.ts";
 import { createPlayer, prettyChord } from "./player.ts";
 import type { DetectResult } from "./preview.ts";
 import { type ReadLayer, type Sample, readPages } from "./reader.ts";
+import { withRetries } from "./retry.ts";
 import { type Route, parentRoute, parseRoute, routeHash } from "./router.ts";
 import { type PageView, drawPage, statusOf } from "./score-view.ts";
 
@@ -650,7 +651,10 @@ async function read(pages?: number[], layer: ReadLayer = "structure") {
   ui.stop.hidden = true;
   const s = reviewSummary(state.doc);
   if (result.error) {
-    setReadStatus(messages.readErrors[result.error.code] ?? messages.cannotReadHere(result.error.code));
+    const { code, message } = result.error;
+    const text = messages.readErrors[code] ?? messages.cannotReadHere(code);
+    // What went wrong underneath (an HTTP status, a network error) is what tells a passing failure from one that stays.
+    setReadStatus(code === "upstream_error" && message ? `${text}${messages.errorDetail(message.slice(0, 160))}` : text);
     if (["not_granted", "sampling_disabled", "images_unavailable", "unavailable"].includes(result.error.code)) hideAi();
   } else {
     setReadStatus(s.attention > 0 ? messages.readDoneAttention(s.attention) : messages.readDone);
@@ -673,7 +677,8 @@ function hideAi() {
 }
 
 async function setUpAi() {
-  sample = ((await claude?.use("sample")) as Sample | null | undefined) ?? null;
+  const found = ((await claude?.use("sample")) as Sample | null | undefined) ?? null;
+  sample = found && withRetries(found);
   const images = sample ? (await sample.limits().catch(() => null))?.images : undefined;
   if (!sample || !images) {
     sample = null;
