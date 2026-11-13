@@ -87,7 +87,7 @@ export const PAGE_EN: Record<string, string> = {
     "Once the chords and structure are read, the tab numbers and rhythm can be read too. Beat totals and fret spans are checked and odd measures marked to check.",
   readingNotes: "Notes from reading",
   checksHint:
-    "Checks repeats against endings, D.S./Coda targets, sections, each measure's beat total and whether it can be fretted. Tap one to open its measure.",
+    "Checks repeats against endings, D.S./Coda targets, sections, measures far wider or narrower than the rest, each measure's beat total and whether it can be fretted. Tap one to open its measure.",
   save: "Save gts.json",
   copyJson: "Copy JSON",
   openPlayView: "Open in the play view",

@@ -40,7 +40,10 @@ and the image cutting are left to the caller (the phone page in
   coda after it, Fine only with a D.S./D.C., one jump only, similes with
   something to repeat and no tab, sections not starting inside endings and
   the first one named when the others are, and a play order that ends.
-  `checkDocument` returns both as a list for the page.
+  Of the scanned layout (`checkWidths`): measures at least 1.7 times or at
+  most 0.4 times the score's median width (a missed bar line, or a stroke
+  taken for one), unless reviewed. `checkDocument` returns them all as a
+  list for the page.
 
 `pnpm test` runs the whole read-and-merge path on the public-domain
 samples with perfect answers built from their committed data (structure
