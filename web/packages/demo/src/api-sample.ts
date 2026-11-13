@@ -57,7 +57,22 @@ export function codeOfStatus(status: number, body: string): string {
   if (status === 413) return "prompt_too_large";
   if (status === 400 && /image/i.test(body)) return "image_rejected";
   if (status === 400 && /too long|too large|max_tokens/i.test(body)) return "prompt_too_large";
+  if (status === 400 && /credit balance/i.test(body)) return "no_credit";
+  if (status === 404) return "model_unavailable";
+  // Any other refusal of the request stays the same when asked again, unlike a failing service.
+  if (status >= 400 && status < 500) return "request_rejected";
   return "upstream_error";
+}
+
+/** The status and the API's own words for a failed response (its error body is JSON), short enough to show. */
+export function detailOfStatus(status: number, body: string): string {
+  let text = body;
+  try {
+    text = (JSON.parse(body) as { error?: { message?: string } }).error?.message ?? body;
+  } catch {
+    // not JSON: keep the body as it is
+  }
+  return `${status} ${text}`.trim().slice(0, 300);
 }
 
 interface MessageResponse {
@@ -104,7 +119,7 @@ export function createApiSample(options: ApiSampleOptions): Sample {
       }
       if (!response.ok) {
         const body = await response.text().catch(() => "");
-        throw fail(codeOfStatus(response.status, body), `${response.status} ${body.slice(0, 300)}`);
+        throw fail(codeOfStatus(response.status, body), detailOfStatus(response.status, body));
       }
       const message = (await response.json()) as MessageResponse;
       if (message.stop_reason === "refusal") throw fail("refused", "refused");

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { type AndroidBridge, createAndroidHost, mimeTypeOf } from "../src/android-host.ts";
-import { codeOfStatus, createApiSample, jsonOfReply } from "../src/api-sample.ts";
+import { codeOfStatus, createApiSample, detailOfStatus, jsonOfReply } from "../src/api-sample.ts";
 import type { Sample } from "../src/reader.ts";
 
 interface Sent {
@@ -88,9 +88,18 @@ describe("api sample", () => {
       [413, "", "prompt_too_large"],
       [400, "Could not process image", "image_rejected"],
       [400, "prompt is too long", "prompt_too_large"],
+      [400, '{"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API."}}', "no_credit"],
+      [404, '{"error":{"type":"not_found_error","message":"model: claude-x"}}', "model_unavailable"],
+      [400, "something else", "request_rejected"],
       [529, "overloaded", "upstream_error"],
+      [500, "", "upstream_error"],
     ];
     for (const [status, body, code] of cases) assert.equal(codeOfStatus(status, body), code, `${status} ${body}`);
+  });
+
+  it("If the API's error body is JSON it should show the status with the API's message", () => {
+    assert.equal(detailOfStatus(404, '{"type":"error","error":{"type":"not_found_error","message":"model: claude-x"}}'), "404 model: claude-x");
+    assert.equal(detailOfStatus(502, "Bad Gateway"), "502 Bad Gateway");
   });
 
   it("If a reply wraps its JSON in a fence or prose it should still read the JSON", () => {

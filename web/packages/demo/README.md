@@ -23,7 +23,9 @@ are behind the gear (ADR-009 amendment 2026-11-02). The screen is kept in the UR
    from the corrected page. A request that cannot reach Claude is asked
    again twice (after 2 s and 6 s, `src/retry.ts`); if it still fails,
    the status says so with what went wrong underneath (an HTTP status, a
-   network error).
+   network error). In the Android app, API answers that will not pass by
+   waiting are told apart (`src/api-sample.ts`): a credit balance too low,
+   a model the key cannot use (404), any other refused request.
    Once chords and structure are read, "TAB（リズム・フレット）を読む"
    reads the tab layer the same way (one tab line per measure, see
    `@guitarmr/extract`); measures whose beats do not add up or whose notes

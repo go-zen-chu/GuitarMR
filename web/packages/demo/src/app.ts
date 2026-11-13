@@ -653,8 +653,9 @@ async function read(pages?: number[], layer: ReadLayer = "structure") {
   if (result.error) {
     const { code, message } = result.error;
     const text = messages.readErrors[code] ?? messages.cannotReadHere(code);
-    // What went wrong underneath (an HTTP status, a network error) is what tells a passing failure from one that stays.
-    setReadStatus(code === "upstream_error" && message ? `${text}${messages.errorDetail(message.slice(0, 160))}` : text);
+    // What went wrong underneath (an HTTP status, the API's words, a network error) is what tells the cause.
+    const detailed = message && ["upstream_error", "model_unavailable", "request_rejected"].includes(code);
+    setReadStatus(detailed ? `${text}${messages.errorDetail(message.slice(0, 200))}` : text);
     if (["not_granted", "sampling_disabled", "images_unavailable", "unavailable"].includes(result.error.code)) hideAi();
   } else {
     setReadStatus(s.attention > 0 ? messages.readDoneAttention(s.attention) : messages.readDone);
