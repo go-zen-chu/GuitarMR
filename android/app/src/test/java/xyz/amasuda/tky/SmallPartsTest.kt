@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 
 class SmallPartsTest {
 
@@ -19,6 +20,19 @@ class SmallPartsTest {
         for (input in listOf("", "sk-ant-short", "sk-proj-" + "a".repeat(40), "sk-ant-" + "a".repeat(30) + " x")) {
             assertNull(input, ApiKeys.normalize(input))
         }
+    }
+
+    @Test
+    fun `If a key is shown it should keep only its first characters and last four`() {
+        val key = "sk-ant-api03-AbCd" + "x".repeat(80) + "WXYZ"
+        assertEquals("sk-ant-api03-AbCd…WXYZ", ApiKeys.preview(key))
+        assertEquals("…", ApiKeys.preview("sk-ant-short"))
+    }
+
+    @Test
+    fun `If a key was saved some days ago it should count the whole days since`() {
+        assertEquals(0L, ApiKeys.daysSince(LocalDate.of(2026, 11, 13), LocalDate.of(2026, 11, 13)))
+        assertEquals(31L, ApiKeys.daysSince(LocalDate.of(2026, 10, 13), LocalDate.of(2026, 11, 13)))
     }
 
     @Test

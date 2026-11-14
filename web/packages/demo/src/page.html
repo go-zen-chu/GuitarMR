@@ -134,6 +134,7 @@ textarea { width: 100%; box-sizing: border-box; min-height: 12em; margin-top: 8p
 .chip.s-attention { color: var(--st-attention); }
 .chip.s-reviewed { color: var(--st-reviewed); }
 .review-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.review-row .undo-edit { border-color: var(--rule); color: var(--ink); }
 .review-row button { min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--st-attention); color: var(--st-attention); background: transparent; cursor: pointer; font-size: 0.85rem; }
 .note-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); }
 .note-row button { min-height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; cursor: pointer; font-size: 0.85rem; }
@@ -150,7 +151,9 @@ textarea { width: 100%; box-sizing: border-box; min-height: 12em; margin-top: 8p
 body.editing main { padding-bottom: 70dvh; }
 .sheet-head { display: flex; align-items: center; gap: 10px; }
 .sheet-head h2 { font-family: var(--font-mono); font-size: 1rem; }
-.sheet-head .close { margin-left: auto; width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; font-size: 1.2rem; cursor: pointer; }
+.sheet-head .sheet-undo { margin-left: auto; min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; cursor: pointer; }
+.sheet-head .sheet-undo:disabled { opacity: 0.4; cursor: default; }
+.sheet-head .close { width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; font-size: 1.2rem; cursor: pointer; }
 /* Keep the measure short enough that the fields stay in view. */
 .crop { position: relative; overflow: hidden; aspect-ratio: var(--aspect, 3); width: min(100%, calc(28dvh * var(--aspect, 3))); max-width: 100%; margin-inline: auto; background-repeat: no-repeat; border: 1px solid var(--rule); border-radius: 6px; background-color: var(--ov-halo); }
 /* The measure itself; its surroundings are faded by the frame's shadow. */
@@ -428,10 +431,9 @@ body.in-player { overflow: hidden; }
 
   <section class="view" id="view-score" hidden aria-label="楽譜の詳細" data-i18n-aria-label="scoreDetail">
     <a class="back" href="#/" data-i18n="backToHome">← ホーム</a>
-    <div class="legend" aria-label="凡例" data-i18n-aria-label="legend"><span class="sys" data-i18n="legendSystem">段（五線＋TAB）</span><span class="mea" data-i18n="legendMeasure">小節（番号は通し）</span></div>
     <section class="summary" id="summary" hidden aria-label="結果" data-i18n-aria-label="result">
       <div><h2 id="summary-source"></h2><p class="stats" id="summary-stats"></p></div>
-      <div class="review-row"><span id="review-summary" class="review-row"></span><button type="button" id="next-attention" hidden data-i18n="toAttention">要確認へ</button></div>
+      <div class="review-row"><span id="review-summary" class="review-row"></span><button type="button" id="next-attention" hidden data-i18n="toAttention">要確認へ</button><button type="button" class="undo-edit" id="undo-edit" hidden data-i18n="undo">元に戻す</button></div>
       <div class="note-row" id="draft-note" hidden data-i18n="draftNote">前回の作業（この端末のライブラリに残っていた内容）を開きました。<button type="button" id="discard-draft" data-i18n="discardDraft">下書きを捨てて最初から</button></div>
       <div class="ai" id="ai" hidden>
         <h3 data-i18n="aiTitle">Claude で読む（コード・構成・TAB）</h3>
@@ -443,7 +445,7 @@ body.in-player { overflow: hidden; }
       </div>
       <details class="checks-panel" id="checks" hidden open>
         <summary id="checks-title"></summary>
-        <p class="pick-hint" data-i18n="checksHint">リピートと番カッコの対応、D.S. / Coda の飛び先、セクション、各小節の拍の合計と押さえられるかを確かめています。タップするとその小節を開きます。</p>
+        <p class="pick-hint" data-i18n="checksHint">リピートと番カッコの対応、D.S. / Coda の飛び先、セクション、ほかと幅が大きく違う小節、各小節の拍の合計と押さえられるかを確かめています。タップするとその小節を開きます。</p>
         <ul id="checks-list"></ul>
       </details>
       <div class="actions">
@@ -456,6 +458,7 @@ body.in-player { overflow: hidden; }
       <details><summary data-i18n="showJson">中身を見る（gts JSON）</summary><textarea id="json" readonly spellcheck="false" aria-label="gts JSON"></textarea></details>
     </section>
 
+    <div class="legend" aria-label="凡例" data-i18n-aria-label="legend"><span class="sys" data-i18n="legendSystem">段（五線＋TAB）</span><span class="mea" data-i18n="legendMeasure">小節（番号は通し）</span></div>
     <ol class="pages" id="pages" aria-label="ページ" data-i18n-aria-label="pages"></ol>
   </section>
 
@@ -486,7 +489,7 @@ body.in-player { overflow: hidden; }
       <p class="pick-hint" data-i18n="playGtsHint">ほかの端末で保存した gts.json だけで、PDF や写真なしに演奏ビューで開けます。</p>
       <div class="actions"><label class="file-link" data-i18n="pickGts">gts.json を選ぶ<input id="play-gts" type="file" aria-label="gts.json を演奏ビューで開く" data-i18n-aria-label="playGtsTitle"></label></div>
     </section>
-    <footer data-i18n="footer">GuitarMR · layout（小節の位置）は端末内で、structure と chords（構成とコード）は Claude で読みます。TAB の数字と歌詞の読み取りはこれからです。開いたファイルと作業中の内容は、この端末のブラウザの中にだけ残ります。</footer>
+    <footer data-i18n="footer">GuitarMR · 小節の位置はこの端末の中で見つけ、コード・構成・TAB は Claude で読みます。歌詞の読み取りはこれからです。開いたファイルと作業中の内容は、この端末の中にだけ残ります。</footer>
   </section>
 </main>
 
@@ -497,7 +500,7 @@ body.in-player { overflow: hidden; }
 
 <aside class="sheet" id="sheet" hidden aria-label="小節の編集" data-i18n-aria-label="editMeasure">
   <div class="sheet-inner">
-    <div class="sheet-head"><h2 id="sheet-title"></h2><span class="chip" id="sheet-status"></span><button type="button" class="close" id="sheet-close" aria-label="閉じる" data-i18n-aria-label="close">×</button></div>
+    <div class="sheet-head"><h2 id="sheet-title"></h2><span class="chip" id="sheet-status"></span><button type="button" class="sheet-undo" id="sheet-undo" disabled data-i18n="undo">元に戻す</button><button type="button" class="close" id="sheet-close" aria-label="閉じる" data-i18n-aria-label="close">×</button></div>
     <div class="crop" id="sheet-crop" role="img" aria-label="この小節の画像（前後の小節を薄く表示）" data-i18n-aria-label="measureImage"><div class="crop-frame" id="sheet-frame"></div><div class="crop-cut" id="sheet-cut" hidden></div></div>
     <div class="region-tools" role="group" aria-label="小節の区切りを直す" data-i18n-aria-label="fixMeasures">
       <button type="button" id="f-split" aria-pressed="false" data-i18n="splitMeasure">2つに分ける</button>

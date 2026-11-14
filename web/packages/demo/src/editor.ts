@@ -37,6 +37,7 @@ export interface EditorHost {
   doc(): GtsDocument;
   /** The upright page image: object URL and size in pixels. */
   pageImage(page: number): { url: string; width: number; height: number } | undefined;
+  /** Commit a field edited by hand, which the viewer can undo. */
   commit(doc: GtsDocument): void;
   /** Commit a change to the measures themselves, which the viewer can undo; `done` says what happened. */
   restructure(doc: GtsDocument, done: string): void;

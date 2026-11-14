@@ -26,6 +26,7 @@ import { MESSAGES, localizePage, pickLang } from "./i18n.ts";
 import { createPlayer, prettyChord } from "./player.ts";
 import type { DetectResult } from "./preview.ts";
 import { type ReadLayer, type Sample, readPages } from "./reader.ts";
+import { withRetries } from "./retry.ts";
 import { type Route, parentRoute, parseRoute, routeHash } from "./router.ts";
 import { type PageView, drawPage, statusOf } from "./score-view.ts";
 
@@ -118,6 +119,8 @@ const ui = {
   undoBar: $<HTMLElement>("undo-bar"),
   undoMessage: $<HTMLElement>("undo-message"),
   undo: $<HTMLButtonElement>("undo"),
+  undoEdit: $<HTMLButtonElement>("undo-edit"),
+  sheetUndo: $<HTMLButtonElement>("sheet-undo"),
 };
 
 pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
@@ -217,14 +220,11 @@ function commit(doc: GtsDocument, persist = true) {
       }),
   );
   ui.nextAttention.hidden = s.attention === 0;
-  const layers = doc.meta.layers ?? [];
-  ui.stats.textContent = [
-    messages.pages(state.pages.size),
-    messages.measures(s.total),
-    messages.layers(layers.join(", ")),
-  ].join(" · ");
+  ui.stats.textContent = [messages.pages(state.pages.size), messages.measures(s.total)].join(" · ");
   ui.read.textContent = s.unread === s.total ? messages.read : messages.readMore(s.unread);
   ui.read.hidden = s.unread === 0;
+  // Measures found on the page but not read yet play as empty bars, which only confuses.
+  ui.playOpen.hidden = s.unread === s.total;
   // The tab is read after structure and chords (repeat-sign measures need none).
   const tabLeft = tabUnread(doc).length;
   ui.readTab.hidden = s.unread > 0 || tabLeft === 0;
@@ -232,6 +232,7 @@ function commit(doc: GtsDocument, persist = true) {
   renderChecks(doc);
   ui.json.value = json();
   ui.save.textContent = messages.saveAs(outputName());
+  ui.undoEdit.hidden = ui.sheetUndo.disabled = state.undo.length === 0;
   editor.refresh();
   if (persist) saveDraft();
 }
@@ -239,9 +240,20 @@ function commit(doc: GtsDocument, persist = true) {
 const UNDO_LIMIT = 30;
 let undoTimer: ReturnType<typeof setTimeout> | undefined;
 
+/** Keep the current document as the way back from the change about to be committed. */
+function remember() {
+  if (state.doc) state.undo = [...state.undo.slice(1 - UNDO_LIMIT), state.doc];
+}
+
+/** Commit a field edited by hand in the measure editor, keeping the way back. */
+function edit(doc: GtsDocument) {
+  remember();
+  commit(doc);
+}
+
 /** Commit a change to the measures (split, joined, deleted, a page left out), keeping the way back. */
 function restructure(doc: GtsDocument, done: string) {
-  if (state.doc) state.undo = [...state.undo.slice(1 - UNDO_LIMIT), state.doc];
+  remember();
   commit(doc);
   showUndo(done);
 }
@@ -325,7 +337,7 @@ const editor = createEditor({
     const view = state.pages.get(page);
     return view && { url: view.url, width: view.width, height: view.height };
   },
-  commit,
+  commit: edit,
   restructure,
   select,
   text: messages,
@@ -634,7 +646,11 @@ async function read(pages?: number[], layer: ReadLayer = "structure") {
   ui.stop.hidden = true;
   const s = reviewSummary(state.doc);
   if (result.error) {
-    setReadStatus(messages.readErrors[result.error.code] ?? messages.cannotReadHere(result.error.code));
+    const { code, message } = result.error;
+    const text = messages.readErrors[code] ?? messages.cannotReadHere(code);
+    // What went wrong underneath (an HTTP status, the API's words, a network error) is what tells the cause.
+    const detailed = message && ["upstream_error", "model_unavailable", "request_rejected"].includes(code);
+    setReadStatus(detailed ? `${text}${messages.errorDetail(message.slice(0, 200))}` : text);
     if (["not_granted", "sampling_disabled", "images_unavailable", "unavailable"].includes(result.error.code)) hideAi();
   } else {
     setReadStatus(s.attention > 0 ? messages.readDoneAttention(s.attention) : messages.readDone);
@@ -657,7 +673,8 @@ function hideAi() {
 }
 
 async function setUpAi() {
-  sample = ((await claude?.use("sample")) as Sample | null | undefined) ?? null;
+  const found = ((await claude?.use("sample")) as Sample | null | undefined) ?? null;
+  sample = found && withRetries(found);
   const images = sample ? (await sample.limits().catch(() => null))?.images : undefined;
   if (!sample || !images) {
     sample = null;
@@ -1203,6 +1220,16 @@ ui.discardDraft.addEventListener("click", () => {
   if (state.detected) commit(state.detected, false);
 });
 ui.undo.addEventListener("click", undo);
+ui.undoEdit.addEventListener("click", undo);
+ui.sheetUndo.addEventListener("click", undo);
+addEventListener("keydown", (e) => {
+  // A text field keeps its own undo of what is being typed.
+  const typing = (e.target as Element).closest?.("input, textarea, select");
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "z" && !typing && state.undo.length) {
+    e.preventDefault();
+    undo();
+  }
+});
 ui.read.addEventListener("click", () => void read());
 ui.readTab.addEventListener("click", () => void read(undefined, "tab"));
 ui.stop.addEventListener("click", () => readAbort?.abort());

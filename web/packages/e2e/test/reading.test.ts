@@ -1,4 +1,4 @@
-/** Reading with (a fake) Claude when things go wrong or are redone: stopping, limits, refusals, bad answers, re-reading. */
+/** Reading with (a fake) Claude when things go wrong or are redone: stopping, limits, lost connections, refusals, bad answers, re-reading. */
 
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
@@ -72,6 +72,24 @@ describe("reading with Claude, when things go wrong or are redone", { timeout: 3
       (await calls(page)).map((c) => c.ids.length),
       [8, 7, 7],
     );
+    assert.deepEqual(errors, []);
+  });
+
+  it("If Claude cannot be reached once it should ask again and finish the reading", async () => {
+    const { page, errors } = await open({ errors: { 1: "upstream_error" } });
+    await page.click("#read");
+    await readEnded(page);
+    assert.match((await page.locator("#read-status").textContent())!, /読み終わりました/);
+    assert.doesNotMatch((await page.locator("#review-summary").textContent())!, /未読/);
+    assert.deepEqual(errors, []);
+  });
+
+  it("If Claude cannot be reached on every try it should give up and say what went wrong", async () => {
+    const { page, errors } = await open({ errors: { 1: "upstream_error", 2: "upstream_error", 3: "upstream_error" } });
+    await page.click("#read");
+    await readEnded(page);
+    assert.match((await page.locator("#read-status").textContent())!, /接続できませんでした.*（詳細: upstream_error）/);
+    assert.equal(await page.locator("#read").textContent(), "読み取る");
     assert.deepEqual(errors, []);
   });
 

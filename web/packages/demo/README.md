@@ -20,7 +20,12 @@ are behind the gear (ADR-009 amendment 2026-11-02). The screen is kept in the UR
    on the viewer's own claude.ai account, one request per page, and fills
    the `structure` and `chords` layers (`@guitarmr/extract`). The PDF
    itself (or the photo) is never sent; for photos the images are cut
-   from the corrected page.
+   from the corrected page. A request that cannot reach Claude is asked
+   again twice (after 2 s and 6 s, `src/retry.ts`); if it still fails,
+   the status says so with what went wrong underneath (an HTTP status, a
+   network error). In the Android app, API answers that will not pass by
+   waiting are told apart (`src/api-sample.ts`): a credit balance too low,
+   a model the key cannot use (404), any other refused request.
    Once chords and structure are read, "TAB（リズム・フレット）を読む"
    reads the tab layer the same way (one tab line per measure, see
    `@guitarmr/extract`); measures whose beats do not add up or whose notes
@@ -37,8 +42,11 @@ are behind the gear (ADR-009 amendment 2026-11-02). The screen is kept in the UR
    the score (a chord chart, a cover) is left out with "このページを外す"
    on its card and brought back with "このページを戻す". Measures are
    numbered in order again after each of these, what was read inside a
-   changed measure is dropped (read it again), and "元に戻す" in the bar
-   at the top undoes them one by one (`@guitarmr/extract` edit.ts).
+   changed measure is dropped (read it again). "元に戻す" undoes these
+   and the fields typed in the sheet one by one (`@guitarmr/extract`
+   edit.ts): in the notice at the top right after a change, in the
+   sheet's head, and next to the review counts (also Ctrl/⌘+Z outside a
+   text field).
    Above the save button, the checks across the score
    (repeats, endings, D.S./Coda, sections, and each measure's tab) are
    listed; tapping one opens its measure.
@@ -55,7 +63,8 @@ are behind the gear (ADR-009 amendment 2026-11-02). The screen is kept in the UR
    on every score comes first and the PDFs and photos last, in chunks
    checked by SHA-256, so a file cut short or damaged still moves all the
    work. Moving devices is in the settings.
-5. Play it: the play view (`src/player.ts`) shows the measures in play
+5. Play it (once Claude has read something; measures only found on the
+   page would be empty bars): the play view (`src/player.ts`) shows the measures in play
    order (repeats, endings and D.S./D.C./Coda expanded by `playOrder` in
    `@guitarmr/gts`), each with its chords spread by duration, the verse
    for the current pass and chord diagrams from `chordShapes`. Playing
@@ -99,7 +108,7 @@ pnpm --filter @guitarmr/demo build:android      # dist/android/ for the Android 
   `package.json`.
 - `src/app.ts` runs the page, `src/router.ts` names the screens in the URL hash, `src/score-view.ts` draws the SVG layer over
   each page image, `src/editor.ts` is the measure editor and
-  `src/reader.ts` cuts the images and calls Claude. `src/photos.ts`
+  `src/reader.ts` cuts the images and calls Claude (`src/retry.ts` asks again after a lost connection). `src/photos.ts`
   decodes photos and runs the tray, `src/library.ts` is the library. `src/preview.ts` and
   `src/worker.ts` run in the worker (detection plus a 2400 px upright
   preview, kept as a JPEG).

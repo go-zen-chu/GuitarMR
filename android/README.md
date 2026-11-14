@@ -21,7 +21,9 @@ JavaScript side of the bridge is `web/packages/demo/src/android-host.ts`.
 
 Both install side by side with their own data. To change or remove the API
 key later, open the settings (the gear) → **API キーを変える・消す**, or
-long-press the app icon → **API キー**. The back button goes back in the
+long-press the app icon → **API キー**; the dialog shows the start and
+the last four characters of the stored key and the day it was saved
+(with the days since), so it can be found in the Claude Console. The back button goes back in the
 page (closes the editor or the play view, then returns to the score list);
 on the score list it sends the app to the background.
 

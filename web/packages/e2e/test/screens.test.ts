@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import type { Browser, Page } from "playwright-core";
-import { ARTIFACTS, PHONE, launch, openPage, openSample, show } from "./helpers.ts";
+import { ARTIFACTS, PHONE, launch, loadExample, openPage, openSample, readEnded, show } from "./helpers.ts";
 
 /** What the Android app's back button does: ask the page, which says whether it went back. */
 const back = (page: Page) => page.evaluate(() => (globalThis as unknown as { tky: { back(): boolean } }).tky.back());
@@ -53,9 +53,22 @@ describe("screens", { timeout: 180_000 }, () => {
     assert.deepEqual(errors, []);
   });
 
-  it("If back is pressed it should close the editor, then the play view, then go to the score list, then leave", async () => {
+  it("If a score is open the legend of systems and measures should sit right above its pages", async () => {
     const { page, errors } = await openPage(browser);
     await openSample(page);
+    const legend = (await page.locator("#view-score .legend").boundingBox())!;
+    const summary = (await page.locator("#summary").boundingBox())!;
+    const pages = (await page.locator("#pages").boundingBox())!;
+    assert.ok(legend.y > summary.y + summary.height, "the legend is below the summary");
+    assert.ok(pages.y - (legend.y + legend.height) < 40, "the pages follow the legend");
+    assert.deepEqual(errors, []);
+  });
+
+  it("If back is pressed it should close the editor, then the play view, then go to the score list, then leave", async () => {
+    const { page, errors } = await openPage(browser, { claudeFrom: loadExample("sakura-sakura.gts.json") });
+    await openSample(page);
+    await page.click("#read");
+    await readEnded(page);
     await page.locator('[data-id="m1"]').click();
     await page.waitForSelector("#sheet:not([hidden])");
     assert.equal(await back(page), true);

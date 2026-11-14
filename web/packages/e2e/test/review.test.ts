@@ -3,8 +3,11 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { validate } from "@guitarmr/gts/validate";
-import type { Browser } from "playwright-core";
+import type { Browser, Page } from "playwright-core";
 import { ARTIFACTS, launch, loadExample, openPage, openSample } from "./helpers.ts";
+
+/** The layers the document says it holds. */
+const layers = async (page: Page): Promise<string[]> => JSON.parse(await page.locator("#json").inputValue()).meta.layers;
 
 describe("reading and reviewing", { timeout: 240_000 }, () => {
   let browser: Browser;
@@ -31,7 +34,7 @@ describe("reading and reviewing", { timeout: 240_000 }, () => {
         [7, 2, false],
       ],
     );
-    assert.match((await page.locator("#summary-stats").textContent())!, /layout, structure, chords/);
+    assert.deepEqual(await layers(page), ["layout", "structure", "chords"]);
     assert.match((await page.locator("#review-summary").textContent())!, /要確認 1/);
 
     // The unsure measure opens with the AI's note; a bad chord is refused.
@@ -89,7 +92,7 @@ describe("reading and reviewing", { timeout: 240_000 }, () => {
     // The status still says the chords were read; the button goes once every tab is in.
     await page.waitForSelector("#read-tab", { state: "hidden", timeout: 60_000 });
     await page.waitForFunction(() => document.querySelector("#read-status")?.textContent?.startsWith("読み終わりました"));
-    assert.match((await page.locator("#summary-stats").textContent())!, /layout, structure, chords, tab/);
+    assert.deepEqual(await layers(page), ["layout", "structure", "chords", "tab"]);
     // m3 from the chords (unsure), m5 from the tab (a beat short).
     assert.match((await page.locator("#review-summary").textContent())!, /要確認 2/);
     assert.deepEqual(await page.locator("#checks-list li").allTextContents(), ["m5: 拍が足りません（4/4 に 3 拍）"]);

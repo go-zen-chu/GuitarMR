@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { type GtsDocument, type Measure, parseTabLine } from "@guitarmr/gts";
-import { checkAllTabs, checkDocument, checkStructure, checkTab } from "../src/index.ts";
+import { checkAllTabs, checkDocument, checkStructure, checkTab, checkWidths } from "../src/index.ts";
 
 const load = (name: string): GtsDocument =>
   JSON.parse(readFileSync(new URL(`../../../../schemas/examples/${name}.gts.json`, import.meta.url), "utf8"));
@@ -129,5 +129,44 @@ describe("structure checks", () => {
         ["tab", ["m2"], "m2: 拍が足りません（4/4 に 1 拍）"],
       ],
     );
+  });
+});
+
+/** A score whose measures sit side by side on page 0 with these widths (shares of the page), with the given fields per measure (1-based). */
+function placed(widths: number[], fields: Record<number, Record<string, unknown>> = {}): GtsDocument {
+  let x = 0;
+  const regions: Record<number, Record<string, unknown>> = {};
+  widths.forEach((w, i) => {
+    regions[i + 1] = { region: { page: 0, bbox: [x, 0.1, x + w, 0.3] }, ...fields[i + 1] };
+    x += w;
+  });
+  return score(widths.length, regions);
+}
+
+const widthMessages = (doc: GtsDocument) => checkWidths(doc).map((i) => i.message.split("。")[0]);
+
+describe("width checks", () => {
+  it("If measures are about as wide as each other it should find nothing", () => {
+    assert.deepEqual(widthMessages(placed([0.2, 0.22, 0.19, 0.12, 0.21])), []);
+  });
+
+  it("If a measure is about twice as wide as the others it should suspect a missed bar line", () => {
+    assert.deepEqual(widthMessages(placed([0.4, 0.2, 0.2, 0.2, 0.21])), ["m1: ほかの小節の約 2.0 倍の幅です"]);
+  });
+
+  it("If a measure is far narrower than the others it should suspect a stray bar line", () => {
+    assert.deepEqual(widthMessages(placed([0.2, 0.05, 0.15, 0.2, 0.2])), ["m2: ほかの小節の約 0.3 倍の幅しかありません"]);
+  });
+
+  it("If the odd measure was reviewed it should not be raised again", () => {
+    assert.deepEqual(widthMessages(placed([0.4, 0.2, 0.2, 0.2], { 1: { review: { status: "reviewed" } } })), []);
+  });
+
+  it("If a score has too few measures to tell a typical width it should find nothing", () => {
+    assert.deepEqual(widthMessages(placed([0.4, 0.2, 0.2])), []);
+  });
+
+  it("If the whole document is checked it should list the width issues with the others", () => {
+    assert.deepEqual(checkDocument(placed([0.4, 0.2, 0.2, 0.2])).map((i) => i.kind), ["width"]);
   });
 });

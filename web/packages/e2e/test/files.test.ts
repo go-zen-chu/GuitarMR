@@ -9,7 +9,7 @@ import { after, before, describe, it } from "node:test";
 import { validate } from "@guitarmr/gts/validate";
 import { generatePdf, writePdf } from "@guitarmr/samples";
 import type { Browser } from "playwright-core";
-import { analyzed, dropFiles, launch, loadExample, openPage, openSample, show } from "./helpers.ts";
+import { analyzed, dropFiles, launch, loadExample, openPage, openSample, readEnded, show } from "./helpers.ts";
 
 type Doc = { source: { sha256: string }; sections: { measures: { id: string; review?: { status: string } }[] }[] };
 
@@ -99,7 +99,7 @@ describe("files in and out", { timeout: 300_000 }, () => {
     await page.setInputFiles("#gts-file", join(dir, "sakura-sakura.gts.json"));
     await page.waitForFunction(() => document.querySelector("#save-note")?.textContent === "sakura-sakura.gts.json を開きました。");
     assert.match((await page.locator("#review-summary").textContent())!, /確認済み 1/);
-    assert.match((await page.locator("#summary-stats").textContent())!, /layout, structure, chords, tab, lyrics/);
+    assert.equal(await page.locator("#summary-stats").textContent(), "2 ページ · 15 小節");
 
     // Through the main button too; another PDF's gts is refused, and so is a file that is not gts.
     const other = { ...doc, source: { ...doc.source, sha256: "0".repeat(64) } };
@@ -161,8 +161,13 @@ describe("files in and out", { timeout: 300_000 }, () => {
   });
 
   it("If a gts file is opened in the play view it should play without its PDF, and a wrong file be refused", async () => {
-    const { page, errors } = await openPage(browser);
+    const { page, errors } = await openPage(browser, { claudeFrom: loadExample("sakura-sakura.gts.json") });
     await openSample(page);
+    // Measures not read yet would play as empty bars.
+    assert.equal(await page.locator("#play-open").isHidden(), true);
+    await page.click("#read");
+    await readEnded(page);
+    assert.equal(await page.locator("#play-open").isVisible(), true);
     await show(page, "settings");
     await page.setInputFiles("#play-gts", join(dir, "not-a-score.gts.json"));
     await page.waitForFunction(() => document.querySelector("#status")?.textContent?.includes("演奏ビューで開けませんでした"));
