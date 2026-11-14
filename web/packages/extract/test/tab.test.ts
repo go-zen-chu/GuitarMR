@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { type GtsDocument, formatTabLine, measures } from "@guitarmr/gts";
 import { validate } from "@guitarmr/gts/validate";
-import { applyTabReading, parseTabReading, systemCrops, tabPrompt, tabUnread } from "../src/index.ts";
+import { ANNOTATIONS, applyTabReading, parseTabReading, systemCrops, tabPrompt, tabUnread } from "../src/index.ts";
 
 const load = (name: string): GtsDocument =>
   JSON.parse(readFileSync(new URL(`../../../../schemas/examples/${name}.gts.json`, import.meta.url), "utf8"));
@@ -78,6 +78,12 @@ describe("reading the tab layer", () => {
     assert.equal(byId.get("m6")!.review!.status, "needs-attention");
     assert.equal(byId.get("m7")!.review!.status, "auto");
     assert.ok(!doc.meta.layers?.includes("tab"));
+  });
+
+  it("If the scan may carry colored-pen marks it should tell Claude not to read circles and boxes as frets or signs", () => {
+    const prompt = tabPrompt([systemCrops(load("twinkle-twinkle"))[0]!]);
+    assert.ok(prompt.includes(ANNOTATIONS));
+    assert.match(ANNOTATIONS, /circle around a fret[\s\S]*not a fret "0", a\s+fret in parentheses, a harmonic/);
   });
 
   it("If a measure is a repeat sign it should keep no beats and be skipped in the prompt", () => {
