@@ -2,7 +2,9 @@
  * Checks of what was read, beyond the schema: inside a measure, that the
  * tab's beats fill its time signature and its notes can be played; across
  * measures, that repeats close, endings follow a repeat, D.S./D.C. find
- * their signs and sections start in sensible places. A check never
+ * their signs and sections start in sensible places; and that no measure
+ * is far wider or narrower than the others, a sign that the scan missed a
+ * bar line or took something else for one. A check never
  * changes the document; the reader marks measures with tab problems for
  * review, the page lists the rest. Messages are for the person reviewing,
  * in Japanese like the page.
@@ -10,7 +12,7 @@
 
 import { type Beat, type GtsDocument, type Measure, MAX_STEPS, measureLength, measures, playOrder } from "@guitarmr/gts";
 
-export type IssueKind = "tab" | "repeat" | "volta" | "navigation" | "section" | "simile";
+export type IssueKind = "tab" | "repeat" | "volta" | "navigation" | "section" | "simile" | "width";
 
 export interface Issue {
   kind: IssueKind;
@@ -204,11 +206,53 @@ export function checkStructure(document: GtsDocument): Issue[] {
   return issues;
 }
 
-/** Every issue: the structure checks, then the tab problems of each measure. */
+/**
+ * Widths against the score's typical measure, as shares of it: hand-drawn
+ * measures vary, but one twice as wide holds two (a missed bar line), and
+ * one a third as wide is rarely a measure (a stem or a stroke taken for a
+ * bar line). Short measures at the end of a line are common, so only very
+ * narrow ones count.
+ */
+export const WIDTH_LIMITS = { wide: 1.7, narrow: 0.4 };
+
+/** Fewer measures than this tell too little about the typical width. */
+const MIN_MEASURES_FOR_WIDTH = 4;
+
+/**
+ * Measures far wider or narrower than the score's typical (median) one,
+ * left out once the person reviewed them. Widths are shares of the page
+ * (regions are normalized), so pages of one score compare.
+ */
+export function checkWidths(document: GtsDocument): Issue[] {
+  const placed = measures(document).filter((m) => m.id && m.region);
+  if (placed.length < MIN_MEASURES_FOR_WIDTH) return [];
+  const width = (m: Measure) => m.region!.bbox[2]! - m.region!.bbox[0]!;
+  const sorted = placed.map(width).sort((a, b) => a - b);
+  const typical = sorted[Math.floor(sorted.length / 2)]!;
+  if (!(typical > 0)) return [];
+  const issues: Issue[] = [];
+  for (const m of placed) {
+    if (m.review?.status === "reviewed") continue;
+    const share = width(m) / typical;
+    const times = share.toFixed(1);
+    if (share >= WIDTH_LIMITS.wide) {
+      issues.push({ kind: "width", ids: [m.id!], message: `${m.id}: ほかの小節の約 ${times} 倍の幅です。小節線を見落としていたら「2つに分ける」で分けてください` });
+    } else if (share <= WIDTH_LIMITS.narrow) {
+      issues.push({
+        kind: "width",
+        ids: [m.id!],
+        message: `${m.id}: ほかの小節の約 ${times} 倍の幅しかありません。余分な小節線なら「次の小節とつなげる」、小節でなければ「この小節を消す」で直してください`,
+      });
+    }
+  }
+  return issues;
+}
+
+/** Every issue: the structure checks, the measure widths, then the tab problems of each measure. */
 export function checkDocument(document: GtsDocument): Issue[] {
   const tab = [...checkAllTabs(document)].flatMap(([id, problems]) =>
     problems.map((message): Issue => ({ kind: "tab", ids: [id], message: `${id}: ${message}` })),
   );
-  return [...checkStructure(document), ...tab];
+  return [...checkStructure(document), ...checkWidths(document), ...tab];
 }
 
