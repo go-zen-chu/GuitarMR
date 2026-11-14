@@ -111,7 +111,7 @@ export const PAGE_EN: Record<string, string> = {
   playGtsHint: "A gts.json saved on another device opens in the play view on its own, without the PDF or photos.",
   pickGts: "Choose gts.json",
   footer:
-    "GuitarMR · the layout (where the measures are) is found on the device; structure and chords are read by Claude. Reading the tab numbers and lyrics is still to come. The files you open and your work stay only in this device's browser.",
+    "GuitarMR · Where the measures are is found on this device; the chords, sections and tab are read by Claude. Reading the lyrics is still to come. The files you open and your work stay only on this device.",
   screens: "Screens",
   scan: "Scan",
   editMeasure: "Edit measure",
@@ -187,7 +187,6 @@ const JA = {
   // Score screen
   pages: (n: number) => `${n} ページ`,
   measures: (n: number) => `${n} 小節`,
-  layers: (list: string) => `レイヤー: ${list}`,
   read: "読み取る",
   readMore: (unread: number) => `続きを読む（未読 ${unread} 小節）`,
   readTab: "TAB（リズム・フレット）を読む",
@@ -408,7 +407,6 @@ const EN: Messages = {
   statuses: { unread: "Unread", auto: "AI", attention: "Check", reviewed: "Checked" },
   pages: (n) => `${n} ${n === 1 ? "page" : "pages"}`,
   measures: (n) => `${n} ${n === 1 ? "measure" : "measures"}`,
-  layers: (list) => `Layers: ${list}`,
   read: "Read",
   readMore: (unread) => `Read on (${unread} unread)`,
   readTab: "Read the tab (rhythm, frets)",

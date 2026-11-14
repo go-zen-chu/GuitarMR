@@ -220,12 +220,7 @@ function commit(doc: GtsDocument, persist = true) {
       }),
   );
   ui.nextAttention.hidden = s.attention === 0;
-  const layers = doc.meta.layers ?? [];
-  ui.stats.textContent = [
-    messages.pages(state.pages.size),
-    messages.measures(s.total),
-    messages.layers(layers.join(", ")),
-  ].join(" · ");
+  ui.stats.textContent = [messages.pages(state.pages.size), messages.measures(s.total)].join(" · ");
   ui.read.textContent = s.unread === s.total ? messages.read : messages.readMore(s.unread);
   ui.read.hidden = s.unread === 0;
   // Measures found on the page but not read yet play as empty bars, which only confuses.

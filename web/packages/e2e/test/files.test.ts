@@ -99,7 +99,7 @@ describe("files in and out", { timeout: 300_000 }, () => {
     await page.setInputFiles("#gts-file", join(dir, "sakura-sakura.gts.json"));
     await page.waitForFunction(() => document.querySelector("#save-note")?.textContent === "sakura-sakura.gts.json を開きました。");
     assert.match((await page.locator("#review-summary").textContent())!, /確認済み 1/);
-    assert.match((await page.locator("#summary-stats").textContent())!, /layout, structure, chords, tab, lyrics/);
+    assert.equal(await page.locator("#summary-stats").textContent(), "2 ページ · 15 小節");
 
     // Through the main button too; another PDF's gts is refused, and so is a file that is not gts.
     const other = { ...doc, source: { ...doc.source, sha256: "0".repeat(64) } };

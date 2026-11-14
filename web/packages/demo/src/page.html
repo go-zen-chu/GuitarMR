@@ -431,7 +431,6 @@ body.in-player { overflow: hidden; }
 
   <section class="view" id="view-score" hidden aria-label="楽譜の詳細" data-i18n-aria-label="scoreDetail">
     <a class="back" href="#/" data-i18n="backToHome">← ホーム</a>
-    <div class="legend" aria-label="凡例" data-i18n-aria-label="legend"><span class="sys" data-i18n="legendSystem">段（五線＋TAB）</span><span class="mea" data-i18n="legendMeasure">小節（番号は通し）</span></div>
     <section class="summary" id="summary" hidden aria-label="結果" data-i18n-aria-label="result">
       <div><h2 id="summary-source"></h2><p class="stats" id="summary-stats"></p></div>
       <div class="review-row"><span id="review-summary" class="review-row"></span><button type="button" id="next-attention" hidden data-i18n="toAttention">要確認へ</button><button type="button" class="undo-edit" id="undo-edit" hidden data-i18n="undo">元に戻す</button></div>
@@ -459,6 +458,7 @@ body.in-player { overflow: hidden; }
       <details><summary data-i18n="showJson">中身を見る（gts JSON）</summary><textarea id="json" readonly spellcheck="false" aria-label="gts JSON"></textarea></details>
     </section>
 
+    <div class="legend" aria-label="凡例" data-i18n-aria-label="legend"><span class="sys" data-i18n="legendSystem">段（五線＋TAB）</span><span class="mea" data-i18n="legendMeasure">小節（番号は通し）</span></div>
     <ol class="pages" id="pages" aria-label="ページ" data-i18n-aria-label="pages"></ol>
   </section>
 
@@ -489,7 +489,7 @@ body.in-player { overflow: hidden; }
       <p class="pick-hint" data-i18n="playGtsHint">ほかの端末で保存した gts.json だけで、PDF や写真なしに演奏ビューで開けます。</p>
       <div class="actions"><label class="file-link" data-i18n="pickGts">gts.json を選ぶ<input id="play-gts" type="file" aria-label="gts.json を演奏ビューで開く" data-i18n-aria-label="playGtsTitle"></label></div>
     </section>
-    <footer data-i18n="footer">GuitarMR · layout（小節の位置）は端末内で、structure と chords（構成とコード）は Claude で読みます。TAB の数字と歌詞の読み取りはこれからです。開いたファイルと作業中の内容は、この端末のブラウザの中にだけ残ります。</footer>
+    <footer data-i18n="footer">GuitarMR · 小節の位置はこの端末の中で見つけ、コード・構成・TAB は Claude で読みます。歌詞の読み取りはこれからです。開いたファイルと作業中の内容は、この端末の中にだけ残ります。</footer>
   </section>
 </main>
 
