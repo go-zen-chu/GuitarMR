@@ -452,6 +452,7 @@ body.in-player { overflow: hidden; }
         <button type="button" class="primary" id="save" data-i18n="save">gts.json を保存</button>
         <button type="button" id="copy" data-i18n="copyJson">JSONをコピー</button>
         <button type="button" id="play-open" data-i18n="openPlayView">演奏ビューで開く</button>
+        <button type="button" id="rescan" data-i18n="rescan" title="ページの画像と小節の位置を、ファイルから作り直します（作業内容は残ります）" data-i18n-title="rescanTitle">スキャンし直す</button>
         <label class="file-link" data-i18n="openSavedGts">保存した gts.json を開く<input id="gts-file" type="file" aria-label="保存した gts.json を開く" data-i18n-aria-label="openSavedGts"></label>
       </div>
       <p class="save-note" id="save-note" aria-live="polite"></p>
@@ -483,6 +484,12 @@ body.in-player { overflow: hidden; }
         <p class="save-note" id="library-message" aria-live="polite"></p>
       </details>
       <p class="library-note" id="library-note"></p>
+    </section>
+    <section class="setting" aria-label="スキャンのキャッシュ" data-i18n-aria-label="scanCacheTitle">
+      <h2 data-i18n="scanCacheTitle">スキャンのキャッシュ</h2>
+      <p class="pick-hint" data-i18n="scanCacheHint">一度スキャンした楽譜は、ページの画像と見つけた小節を端末に残し、次からはスキャンせずに開きます。消すと、次に開くときにスキャンし直します（作業内容は消えません）。</p>
+      <div class="actions"><button type="button" id="clear-scans" data-i18n="clearScans">キャッシュを消す</button></div>
+      <p class="save-note" id="clear-scans-note" aria-live="polite"></p>
     </section>
     <section class="setting" aria-label="gts.json を演奏ビューで開く" data-i18n-aria-label="playGtsTitle">
       <h2 data-i18n="playGtsTitle">gts.json を演奏ビューで開く</h2>
