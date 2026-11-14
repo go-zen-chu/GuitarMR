@@ -12,6 +12,7 @@
  */
 
 import type { GtsDocument } from "@guitarmr/gts";
+import type { PageLayout } from "@guitarmr/layoutscan";
 
 export interface StoredFile {
   name: string;
@@ -31,8 +32,30 @@ export interface LibraryEntry {
   doc: GtsDocument | null;
   /** A small JPEG of the first page (data URL) for the score list; made again from the files when missing. */
   cover?: string;
+  /** What scanning the files found, so the score opens again without scanning; dropped to scan again. */
+  scan?: ScanCache;
   added: number;
   updated: number;
+}
+
+/** One page as its scan left it. */
+export interface CachedPage {
+  index: number;
+  layout: PageLayout;
+  /** Image pixels per layout pixel. */
+  scale: number;
+  /** How long detection took, as shown on the page card. */
+  ms: number;
+  paper?: [number, number][] | null;
+  /** The upright page as JPEG bytes (an ArrayBuffer, as for the files); absent when no system was found. */
+  image?: { data: ArrayBuffer; width: number; height: number };
+}
+
+/** The scan of a score's files, valid for the detection code it was made with. */
+export interface ScanCache {
+  /** Names the detection code; a cache from other code is scanned again. */
+  version: string;
+  pages: CachedPage[];
 }
 
 const LIBRARY_DB = "guitarmr";
@@ -103,6 +126,13 @@ export const library = {
   async saveDoc(id: string, doc: GtsDocument | null, fallback: Omit<LibraryEntry, "doc" | "updated">): Promise<boolean> {
     const entry = (await library.get(id)) ?? { ...fallback, doc: null, updated: 0 };
     return library.put({ ...entry, doc, updated: Date.now() });
+  },
+
+  /** Drop every stored scan, so each score is scanned again when next opened; resolves to how many were dropped. */
+  async clearScans(): Promise<number> {
+    const scanned = (await library.all()).filter((e) => e.scan);
+    for (const { scan: _, ...entry } of scanned) await library.put(entry);
+    return scanned.length;
   },
 
   remove: async (id: string): Promise<boolean> => (await libraryRequest("readwrite", (s) => s.delete(id))) !== null,

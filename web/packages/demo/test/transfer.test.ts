@@ -46,6 +46,9 @@ function library(): LibraryEntry[] {
   ];
 }
 
+/** A stored scan of one page without systems. */
+const SCAN = { version: "v1", pages: [{ index: 0, layout: { rotation: 0, skew: 0, systems: [] } as never, scale: 1, ms: 5 }] };
+
 const parse = (lines: string[]) => lines.map((l) => JSON.parse(l) as { type?: string; entry?: unknown; data?: string });
 
 describe("library transfer", () => {
@@ -122,6 +125,24 @@ describe("library transfer", () => {
     assert.equal(merged.files, local!.files);
     assert.deepEqual([merged.added, merged.updated], [0, 99]);
     assert.equal(mergeEntry(local, { ...incoming, updated: 5 }).doc, local!.doc);
+  });
+
+  it("If a score has a stored scan it should neither be exported nor taken from an import", async () => {
+    const [scanned, ...rest] = library();
+    const withScan = { ...scanned!, scan: SCAN };
+    const lines = await exportLibrary([withScan, ...rest], { files: true });
+    assert.ok(parse(lines).every((l) => !(l.entry as { scan?: unknown } | undefined)?.scan));
+    const forged = lines.map((l) => (JSON.parse(l).type === "entry" ? JSON.stringify({ ...JSON.parse(l), entry: { ...JSON.parse(l).entry, scan: SCAN } }) : l));
+    const result = await importLibrary(forged);
+    assert.ok(result.entries.every((e) => !("scan" in e)));
+  });
+
+  it("If an imported score is merged it should keep this device's scan only while the device's files stay", () => {
+    const [local] = library();
+    const scanned = { ...local!, scan: SCAN };
+    assert.deepEqual(mergeEntry(scanned, { ...local!, updated: 99 }).scan, SCAN);
+    assert.equal(mergeEntry({ ...scanned, files: [] }, { ...local!, updated: 99 }).scan, undefined);
+    assert.equal(mergeEntry(local, { ...scanned, updated: 99 }).scan, undefined);
   });
 
   it("If an export is read as a file it should yield the same lines", async () => {
