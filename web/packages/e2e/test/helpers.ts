@@ -171,10 +171,10 @@ export async function show(page: Page, screen: Screen) {
 
 const SAMPLE_LABELS: Record<string, string> = { "sakura-sakura.pdf": "さくらさくら", "twinkle-twinkle.pdf": "きらきら星" };
 
-/** Open a built-in sample from the scan screen and wait for its score, where a finished scan leaves the viewer. */
+/** Open a built-in sample from its card on the home screen and wait for its score, where a finished scan leaves the viewer. */
 export async function openSample(page: Page, file = "sakura-sakura.pdf") {
-  await show(page, "scan");
-  await page.locator("#samples .sample", { hasText: SAMPLE_LABELS[file]! }).click();
+  await show(page, "library");
+  await page.locator("#library-list li.sample-song", { hasText: SAMPLE_LABELS[file]! }).getByRole("button", { name: "開く" }).click();
   await analyzed(page, file);
   await page.waitForSelector("#view-score:not([hidden])");
 }

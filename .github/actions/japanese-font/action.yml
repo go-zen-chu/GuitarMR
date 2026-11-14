@@ -1,0 +1,16 @@
+# The sample songs (さくらさくら) are engraved with Japanese text, which needs a CJK font.
+# Fetched from GitHub rather than apt: the runners' Ubuntu mirror is sometimes unreachable.
+name: Japanese font
+description: Downloads Noto Sans JP (checked against its SHA-256) and points GTS_JP_FONT at it.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        FONT_URL: https://github.com/notofonts/noto-cjk/raw/Sans2.004/Sans/SubsetOTF/JP/NotoSansJP-Regular.otf
+        FONT_SHA256: dff723ba59d57d136764a04b9b2d03205544f7cd785a711442d6d2d085ac5073
+      run: |
+        font="$RUNNER_TEMP/NotoSansJP-Regular.otf"
+        curl -fsSL --retry 5 --retry-all-errors -o "$font" "$FONT_URL"
+        echo "$FONT_SHA256  $font" | sha256sum -c -
+        echo "GTS_JP_FONT=$font" >> "$GITHUB_ENV"

@@ -28,7 +28,8 @@ export interface ReaderHost {
   doc(): GtsDocument;
   commit(doc: GtsDocument): void;
   pageImage(page: number): { blob: Blob; width: number; height: number } | undefined;
-  progress(text: string): void;
+  /** What is being read, and the share of the work done before it (0 to 1). */
+  progress(text: string, done: number): void;
   /** The progress and warning words, in the page's language. */
   text: Pick<Messages, "readingPage" | "pageUnreadable">;
 }
@@ -136,9 +137,9 @@ export async function readPages(
     for (let i = 0; i < crops.length; ) {
       const first = i === 0 && header;
       const chunk = crops.slice(i, i + maxCount - (first ? 1 : 0));
+      host.progress(host.text.readingPage(page + 1, n + 1, pages.length, layer === "tab"), (n + i / crops.length) / pages.length);
       i += chunk.length;
       const ids = chunk.flatMap((c) => c.measures.map((m) => m.id));
-      host.progress(host.text.readingPage(page + 1, n + 1, pages.length, layer === "tab"));
       try {
         const images = await systemImages(image, chunk, first);
         if (layer === "tab") {

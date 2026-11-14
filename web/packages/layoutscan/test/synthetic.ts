@@ -24,6 +24,7 @@ export interface SystemSpec {
   staffTopFrom?: number; // the top staff line is hidden left of this x (chord names written on it)
   tabTopFrom?: number; // the same for the top TAB line
   overshoot?: number; // line spacings the inner bar lines run past the system, above and below (hand-drawn)
+  broken?: number; // share of the TAB's height missing from the inner bar lines, in three breaks (faint pencil)
 }
 
 export const tabTop = (spec: SystemSpec): number =>
@@ -65,7 +66,16 @@ export function drawPage(systems: SystemSpec[]): RgbaImage {
     line(LEFT, top, LEFT, tBottom, INK, 2);
     line(RIGHT, top, RIGHT, tBottom, INK, 2);
     const over = (spec.overshoot ?? 0) * SPACING;
-    for (const x of spec.barlines) line(x, top - over, x, tBottom + over, INK, 2);
+    const breaks = [1, 2, 3].map((k) => tTop + (k / 4) * (tBottom - tTop));
+    const gap = ((spec.broken ?? 0) * (tBottom - tTop)) / 3;
+    for (const x of spec.barlines) {
+      let from = top - over;
+      for (const y of gap > 0 ? breaks : []) {
+        line(x, from, x, y - gap / 2, INK, 2);
+        from = y + gap / 2;
+      }
+      line(x, from, x, tBottom + over, INK, 2);
+    }
     for (const x of spec.stems ?? []) {
       // A stem from a note on the top string down to a beam under the TAB.
       line(x, tTop - 2, x, tBottom + 3 * SPACING, INK, 2);

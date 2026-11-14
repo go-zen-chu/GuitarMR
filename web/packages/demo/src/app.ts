@@ -57,6 +57,15 @@ localizePage(document, lang);
 const errorText = (e: unknown): string => (e instanceof ImportError ? messages.importErrors[e.code] : (e as Error).message);
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
+
+/** A line telling what is going on, with a bar for how far it got. */
+interface StatusBox {
+  box: HTMLElement;
+  text: HTMLElement;
+  bar: HTMLProgressElement;
+}
+/** The status box made of the elements with these ids. */
+const statusBox = (box: string, text: string, bar: string): StatusBox => ({ box: $(box), text: $(text), bar: $<HTMLProgressElement>(bar) });
 const ui = {
   views: {
     library: $<HTMLElement>("view-library"),
@@ -81,10 +90,7 @@ const ui = {
   libraryWithFiles: $<HTMLInputElement>("library-with-files"),
   libraryImport: $<HTMLInputElement>("library-import"),
   libraryMessage: $<HTMLElement>("library-message"),
-  samples: $<HTMLDivElement>("samples"),
-  statusBox: $<HTMLElement>("status-box"),
-  status: $<HTMLParagraphElement>("status"),
-  progress: $<HTMLProgressElement>("progress"),
+  status: statusBox("status-box", "status", "progress"),
   summary: $<HTMLElement>("summary"),
   source: $<HTMLElement>("summary-source"),
   stats: $<HTMLElement>("summary-stats"),
@@ -99,7 +105,7 @@ const ui = {
   checksTitle: $<HTMLElement>("checks-title"),
   checksList: $<HTMLUListElement>("checks-list"),
   stop: $<HTMLButtonElement>("stop"),
-  readStatus: $<HTMLElement>("read-status"),
+  readStatus: statusBox("read-box", "read-status", "read-progress"),
   readWarnings: $<HTMLDetailsElement>("read-warnings"),
   save: $<HTMLButtonElement>("save"),
   copy: $<HTMLButtonElement>("copy"),
@@ -158,12 +164,18 @@ const state = {
 
 let run = 0; // a newer analysis cancels the running one
 
-function setStatus(text: string, progress: number | null = null) {
-  ui.statusBox.hidden = !text && progress === null;
-  ui.status.textContent = text;
-  ui.progress.hidden = progress === null;
-  if (progress !== null) ui.progress.value = progress;
+/** Show what is going on in `box`, with a bar when `progress` (0 to 1) is known; no text and no progress hides it. */
+function showStatus(box: StatusBox, text: string, progress: number | null = null) {
+  box.box.hidden = !text && progress === null;
+  box.text.textContent = text;
+  box.bar.hidden = progress === null;
+  if (progress !== null) box.bar.value = progress;
 }
+
+/** Show the scan's progress or outcome at the top of the screen. */
+const setStatus = (text: string, progress: number | null = null) => showStatus(ui.status, text, progress);
+/** Show the reading's progress or outcome in the Claude panel. */
+const setReadStatus = (text: string, progress: number | null = null) => showStatus(ui.readStatus, text, progress);
 
 const outputName = () => state.name.replace(/\.(pdf|jpe?g|png|heic|heif|webp)$/i, "") + ".gts.json";
 const json = () => `${JSON.stringify(state.doc, null, 2)}\n`;
@@ -449,6 +461,20 @@ function reset() {
   ui.pages.replaceChildren();
 }
 
+/**
+ * Show a page as soon as it is analyzed: the score opens with the first page
+ * found to hold systems, and each page gets its measures numbered in the
+ * order found so far.
+ */
+function showScanned(sha256: string, sofar: GtsDocument, page: number) {
+  if (!state.sha256) {
+    state.sha256 = sha256;
+    if (route.view === "scan") navigate({ view: "score", id: sha256 });
+  }
+  const view = state.pages.get(page);
+  if (view) drawPage(view, sofar, null, messages.statuses);
+}
+
 /** Rendered PDF pages, or decoded photos, as [index, pixels, is a photo]. */
 async function* pagesOf(source: Source): AsyncGenerator<[number, RgbaImage, boolean]> {
   if (source.kind === "photos") {
@@ -487,6 +513,7 @@ async function analyze(source: Source) {
   let cover: string | undefined;
   try {
     total = await pageCount(source);
+    sha256 = await sha256Hex(source.kind === "photos" ? concatPhotos(source.photos) : source.bytes);
     for await (const [index, image, photo] of pagesOf(source)) {
       if (mine !== run) return;
       setStatus((photo ? messages.analysingPhoto : messages.analysingPage)(name, index + 1, total), done / total);
@@ -513,10 +540,10 @@ async function analyze(source: Source) {
           ...(source.kind === "photos" ? { file: source.photos[index]!.name } : {}),
           ...(result.paper ? { paper: result.paper } : {}),
         });
+        showScanned(sha256, buildDocument(name, sha256, scanned), index);
       }
       done++;
     }
-    sha256 = await sha256Hex(source.kind === "photos" ? concatPhotos(source.photos) : source.bytes);
   } catch (e) {
     if (mine === run) setStatus(messages.cannotProcess(name, errorText(e)));
     return;
@@ -545,7 +572,7 @@ async function analyze(source: Source) {
   ui.draftNote.hidden = !draft || JSON.stringify(draft) === JSON.stringify(state.detected);
   ui.source.textContent = name;
   ui.saveNote.textContent = kept || source.kind === "sample" ? "" : messages.cannotKeep;
-  ui.readStatus.textContent = "";
+  setReadStatus("");
   ui.readWarnings.hidden = true;
   ui.summary.hidden = false;
   commit(draft ?? state.detected, false);
@@ -578,9 +605,9 @@ async function read(pages?: number[], layer: ReadLayer = "structure") {
   ui.readWarnings.hidden = true;
   const started = Date.now();
   let label = "";
-  const tick = setInterval(() => {
-    ui.readStatus.textContent = `${label}${messages.elapsed(Math.round((Date.now() - started) / 1000))}`;
-  }, 1000);
+  let done = 0;
+  const showReading = () => setReadStatus(`${label}${messages.elapsed(Math.round((Date.now() - started) / 1000))}`, done);
+  const tick = setInterval(showReading, 1000);
   const result = await readPages(
     sample,
     {
@@ -590,8 +617,10 @@ async function read(pages?: number[], layer: ReadLayer = "structure") {
         const view = state.pages.get(page);
         return view && { blob: view.image, width: view.width, height: view.height };
       },
-      progress: (line) => {
+      progress: (line, share) => {
         label = `${line} `;
+        done = share;
+        showReading();
       },
       text: messages,
     },
@@ -605,10 +634,10 @@ async function read(pages?: number[], layer: ReadLayer = "structure") {
   ui.stop.hidden = true;
   const s = reviewSummary(state.doc);
   if (result.error) {
-    ui.readStatus.textContent = messages.readErrors[result.error.code] ?? messages.cannotReadHere(result.error.code);
+    setReadStatus(messages.readErrors[result.error.code] ?? messages.cannotReadHere(result.error.code));
     if (["not_granted", "sampling_disabled", "images_unavailable", "unavailable"].includes(result.error.code)) hideAi();
   } else {
-    ui.readStatus.textContent = s.attention > 0 ? messages.readDoneAttention(s.attention) : messages.readDone;
+    setReadStatus(s.attention > 0 ? messages.readDoneAttention(s.attention) : messages.readDone);
   }
   if (result.warnings.length) {
     ui.readWarnings.hidden = false;
@@ -743,16 +772,6 @@ const sampleSongs: SampleSong[] = [...new Set([...samples.map((s) => s.label), .
   const gts = scores.find((s) => s.label === label);
   return { label, notes: [pdf?.note, gts?.note].filter((n): n is string => !!n), ...(pdf ? { pdf } : {}), ...(gts ? { gts: gts.gts } : {}) };
 });
-for (const s of samples) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "sample";
-  button.innerHTML = "<span></span><small></small>";
-  button.querySelector("span")!.textContent = s.label;
-  button.querySelector("small")!.textContent = s.note;
-  button.addEventListener("click", () => analyze({ kind: "sample", name: s.file, bytes: decode(s.pdf) }));
-  ui.samples.append(button);
-}
 
 // Photos wait in the tray until they are analyzed together, one per page.
 const tray = createTray({

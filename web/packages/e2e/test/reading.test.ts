@@ -35,9 +35,13 @@ describe("reading with Claude, when things go wrong or are redone", { timeout: 3
     assert.equal(await page.locator("#read").isDisabled(), true);
     // Stop while page 2 is being read: page 1 is kept.
     await page.waitForFunction(() => document.querySelector("#read-status")?.textContent?.includes("p2 を読んでいます"), null, { timeout: 10_000 });
+    // Page 1 of 2 is done, and the bar says so.
+    assert.equal(await page.locator("#read-progress").evaluate((bar) => (bar as HTMLProgressElement).value), 0.5);
+    assert.equal(await page.locator("#read-progress").isVisible(), true);
     await page.click("#stop");
     await readEnded(page);
     assert.match((await page.locator("#read-status").textContent())!, /止めました/);
+    assert.equal(await page.locator("#read-progress").isVisible(), false);
     assert.equal(await page.locator("#read").textContent(), "続きを読む（未読 7 小節）");
     assert.equal(await page.locator("#stop").isVisible(), false);
     await page.click("#read");

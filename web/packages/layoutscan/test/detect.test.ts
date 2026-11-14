@@ -126,6 +126,11 @@ describe("analyzePage", () => {
     assert.deepEqual(measureCounts(layout), [4]);
   });
 
+  it("If faint bar lines break up across the TAB of a staff + TAB system it should still split the measures", () => {
+    const layout = analyzePage(drawPage([{ top: 400, barlines: [575, 1060, 1545], broken: 0.18 }]));
+    assert.deepEqual(measureCounts(layout), [4]);
+  });
+
   it("If the page is a chart of chord diagrams it should report no systems", () => {
     assert.deepEqual(analyzePage(chordChartPage()).systems, []);
   });

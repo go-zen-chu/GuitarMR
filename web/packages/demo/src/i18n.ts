@@ -54,13 +54,13 @@ export const PAGE_EN: Record<string, string> = {
     'This screen cannot keep scores on the device. Save a score opened in <a href="#/scan">Scan</a> as gts.json when you are done.',
   scanTitle: "Turn handwritten tab into data",
   scanLead:
-    "Pick a scanned PDF or photos of a score: the page's orientation and tilt are fixed, and systems and measures are found on this device. For photos the white paper is cut out and the perspective and uneven lighting are corrected first. Then Claude reads the chords and the structure (repeats and signs), and you can tap a measure to check and correct it.",
+    "Pick a PDF or photos of a score: systems and measures are found on this device. Then Claude reads the chords and the structure, and you can tap a measure to fix it.",
   pickSource: "Pick a PDF or photos",
   pickFiles: "Choose PDF or photos",
   takePhoto: "Take a photo",
+  pickHelp: "Taking photos, or when nothing can be picked",
   pickHint:
     "One photo is one page. Put the paper on something darker, such as a desk, and fit the whole sheet in. If no file picker opens, open this link in Safari or Chrome (the Claude app may not allow picking files). On a computer you can also drag PDFs or photos onto this page.",
-  samplesRow: "Samples (scan-like PDFs made from public-domain songs)",
   photosTaken: "Photos taken",
   trayTitle: "Photos taken (one per page)",
   trayHint: "Put them in page order. Analysing cuts out the white paper and corrects it.",
