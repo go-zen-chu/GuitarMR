@@ -50,6 +50,13 @@ describe("withRetries", () => {
     }
   });
 
+  it("If the sample tells what it spent it should still tell it, and not add it where there is none", () => {
+    const spent = { requests: 2, inputTokens: 10, outputTokens: 5 };
+    const billed: Sample = { ...failingThen([]).sample, spent: () => spent };
+    assert.deepEqual(withRetries(billed).spent?.(), spent);
+    assert.equal(withRetries(failingThen([]).sample).spent, undefined);
+  });
+
   it("If reading is stopped during a pause it should end as cancelled without asking again", async () => {
     const { sample, calls } = failingThen(["upstream_error"]);
     const stop = new AbortController();

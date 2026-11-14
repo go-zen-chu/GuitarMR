@@ -180,6 +180,9 @@ interface Described {
   alias?: string;
 }
 
+/** A token count in thousands, as the cost line shows it. */
+const kTokens = (tokens: number): string => `${(tokens / 1000).toFixed(1)}k`;
+
 const JA = {
   locale: "ja-JP",
   // Measure states
@@ -284,7 +287,11 @@ const JA = {
   readingPage: (page: number, n: number, total: number, tab: boolean) =>
     `p${page}${tab ? " の TAB" : ""} を読んでいます（${n} / ${total} ページ）…`,
   pageUnreadable: (page: number, code: string) =>
-    `p${page}: ${code === "invalid_json" ? "答えを読み取れませんでした" : "このページは読めませんでした"}（${code}）`,
+    `p${page}: ${
+      code === "invalid_json" ? "答えを読み取れませんでした" : code === "truncated" ? "答えが長すぎて途中で切れました" : "このページは読めませんでした"
+    }（${code}）`,
+  readSpent: (requests: number, inputTokens: number, outputTokens: number, usd?: number) =>
+    `（API ${requests} 回・入力 ${kTokens(inputTokens)}・出力 ${kTokens(outputTokens)} トークン${usd === undefined ? "" : `、約 $${usd.toFixed(2)}`}）`,
   // Photo tray
   analysePhotos: (n: number) => `この ${n} 枚で解析する`,
   movePhotoEarlier: (page: number) => `p${page} を前へ`,
@@ -500,7 +507,11 @@ const EN: Messages = {
   notInLibrary: "This score is not in this device's library.",
   readingPage: (page, n, total, tab) => `Reading ${tab ? "the tab of " : ""}p${page} (page ${n} of ${total})…`,
   pageUnreadable: (page, code) =>
-    `p${page}: ${code === "invalid_json" ? "could not make out the answer" : "this page could not be read"} (${code})`,
+    `p${page}: ${
+      code === "invalid_json" ? "could not make out the answer" : code === "truncated" ? "the answer ran too long and was cut off" : "this page could not be read"
+    } (${code})`,
+  readSpent: (requests, inputTokens, outputTokens, usd) =>
+    ` (API: ${requests} ${requests === 1 ? "request" : "requests"}, ${kTokens(inputTokens)} in / ${kTokens(outputTokens)} out tokens${usd === undefined ? "" : `, about $${usd.toFixed(2)}`})`,
   analysePhotos: (n) => `Analyse these ${n} ${n === 1 ? "photo" : "photos"}`,
   movePhotoEarlier: (page) => `Move p${page} earlier`,
   removePhoto: (page) => `Remove p${page}`,

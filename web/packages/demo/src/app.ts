@@ -616,6 +616,7 @@ async function read(pages?: number[], layer: ReadLayer = "structure") {
   ui.stop.hidden = false;
   ui.readWarnings.hidden = true;
   const started = Date.now();
+  const spentBefore = sample.spent?.();
   let label = "";
   let done = 0;
   const showReading = () => setReadStatus(`${label}${messages.elapsed(Math.round((Date.now() - started) / 1000))}`, done);
@@ -645,15 +646,26 @@ async function read(pages?: number[], layer: ReadLayer = "structure") {
   ui.read.disabled = ui.readTab.disabled = false;
   ui.stop.hidden = true;
   const s = reviewSummary(state.doc);
+  const spentNow = sample.spent?.();
+  // What this reading cost on the user's own key, so a reading's price can be checked.
+  const spent =
+    spentBefore && spentNow && spentNow.requests > spentBefore.requests
+      ? messages.readSpent(
+          spentNow.requests - spentBefore.requests,
+          spentNow.inputTokens - spentBefore.inputTokens,
+          spentNow.outputTokens - spentBefore.outputTokens,
+          spentNow.usd === undefined || spentBefore.usd === undefined ? undefined : spentNow.usd - spentBefore.usd,
+        )
+      : "";
   if (result.error) {
     const { code, message } = result.error;
     const text = messages.readErrors[code] ?? messages.cannotReadHere(code);
     // What went wrong underneath (an HTTP status, the API's words, a network error) is what tells the cause.
     const detailed = message && ["upstream_error", "model_unavailable", "request_rejected"].includes(code);
-    setReadStatus(detailed ? `${text}${messages.errorDetail(message.slice(0, 200))}` : text);
+    setReadStatus(`${detailed ? `${text}${messages.errorDetail(message.slice(0, 200))}` : text}${spent}`);
     if (["not_granted", "sampling_disabled", "images_unavailable", "unavailable"].includes(result.error.code)) hideAi();
   } else {
-    setReadStatus(s.attention > 0 ? messages.readDoneAttention(s.attention) : messages.readDone);
+    setReadStatus(`${s.attention > 0 ? messages.readDoneAttention(s.attention) : messages.readDone}${spent}`);
   }
   if (result.warnings.length) {
     ui.readWarnings.hidden = false;

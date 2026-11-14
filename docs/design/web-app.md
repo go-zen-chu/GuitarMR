@@ -247,3 +247,17 @@ below, each kept only when an eval shows no loss of quality:
 - A two-model reading adds a second pass to `readPages` and a threshold to
   tune; a batch reading changes the flow from waiting on the page to
   results arriving later.
+
+**Update (2026-11-14)**: Reading was both costly (about $0.5 a scan) and
+poor in the app, while Claude Code reading the same scan did well. A
+reply is capped at 16k output tokens and thinking counts toward the cap,
+so a whole page of tab could run past it: the reply was cut mid-JSON,
+seen as `invalid_json`, the page stayed empty, and the 16k tokens (about
+$0.32 on Opus) were billed all the same. Done before any other lever:
+- A reply cut at the cap fails as `truncated`, its own page warning.
+- The tab pass sends one system per request, not a page, so the answer
+  and its thinking fit, and Claude looks at one line of TAB at a time.
+  The structure pass (chords and signs, short answers) stays per page.
+- After a reading, the status line tells the requests, input and output
+  tokens and their price from the responses' `usage`: the measured
+  numbers the levers above are to be judged by.
