@@ -109,6 +109,12 @@ export const PAGE_EN: Record<string, string> = {
   importLabel: "Import an exported library",
   playGtsTitle: "Open a gts.json in the play view",
   playGtsHint: "A gts.json saved on another device opens in the play view on its own, without the PDF or photos.",
+  scanCacheTitle: "Scan cache",
+  scanCacheHint:
+    "A score scanned once keeps its page images and the measures found on this device, and opens without scanning from then on. Clearing it makes each score scan again the next time it opens (your work stays).",
+  clearScans: "Clear the cache",
+  rescan: "Scan again",
+  rescanTitle: "Makes the page images and the measure positions again from the files (your work stays)",
   pickGts: "Choose gts.json",
   footer:
     "GuitarMR · Where the measures are is found on this device; the chords, sections and tab are read by Claude. Reading the lyrics is still to come. The files you open and your work stay only on this device.",
@@ -219,6 +225,7 @@ const JA = {
     `${name}: どの写真にも段（TAB譜の6本線）が見つかりませんでした。紙全体が入るように、明るい場所で撮り直してください。`,
   noSystemsInPages: (name: string) => `${name}: どのページにも段（TAB譜の6本線）が見つかりませんでした。`,
   cannotKeep: "この画面では端末に保存できません。作業が終わったら gts.json を保存してください。",
+  scansCleared: (n: number) => (n ? `${n} 曲のキャッシュを消しました。次に開くときにスキャンし直します。` : "消すキャッシュはありませんでした。"),
   elapsed: (s: number) => `${s} 秒`,
   readErrors: {
     cancelled: "止めました。「続きを読む」で未読のページから再開できます。",
@@ -439,6 +446,7 @@ const EN: Messages = {
     `${name}: no systems (six tab lines) found in any photo. Take them again in good light with the whole sheet in view.`,
   noSystemsInPages: (name) => `${name}: no systems (six tab lines) found on any page.`,
   cannotKeep: "This screen cannot keep scores on the device. Save gts.json when you are done.",
+  scansCleared: (n) => (n ? `Cleared the cache of ${n} score(s); they scan again when next opened.` : "There was no cache to clear."),
   elapsed: (s) => `${s} s`,
   readErrors: {
     cancelled: "Stopped. “Read on” resumes from the unread pages.",

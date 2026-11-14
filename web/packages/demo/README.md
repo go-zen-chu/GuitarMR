@@ -55,8 +55,14 @@ are behind the gear (ADR-009 amendment 2026-11-02). The screen is kept in the UR
    work on it; it is the score list, the first view: one card per score
    with its first page as the cover (`src/cover.ts`; made when the score is
    scanned, or from the stored files for older entries), where a score is
-   opened again (analyzed again from the stored files, then the stored
-   work restored) or deleted. Nothing in it leaves the device. A saved gts
+   opened again or deleted. The first scan of a score is kept with it
+   (the upright page images as JPEG and what detection found, `scan` in
+   the entry), so it opens again without scanning; a scan made by other
+   detection code (the page names it by a hash of the detection scripts)
+   is not used, and the score scans again. "スキャンし直す" on the score
+   scans its files anew, and "キャッシュを消す" in the settings drops
+   every stored scan; the work on a score stays either way. The scan is
+   neither exported nor taken from an import. Nothing in it leaves the device. A saved gts
    file can also be opened again to continue. "別の端末へ引っ越す" writes
    the whole library to one `guitarmr-library-<date>.jsonl` file and
    takes such a file in on the new device (`src/transfer.ts`): the work

@@ -15,11 +15,11 @@
 
 import { type GtsDocument, measures } from "@guitarmr/gts";
 import { checkDocument, removePage, restorePage, reviewSummary, tabUnread } from "@guitarmr/extract";
-import { type RgbaImage, type ScannedPage, buildDocument, renderPages, sha256Hex } from "@guitarmr/layoutscan";
+import { type PageLayout, type RgbaImage, type ScannedPage, buildDocument, renderPages, sha256Hex } from "@guitarmr/layoutscan";
 import * as pdfjs from "pdfjs-dist";
 import { coverArt, coverPixels, coverUrl } from "./cover.ts";
 import { createEditor } from "./editor.ts";
-import { type LibraryEntry, type StoredFile, library } from "./library.ts";
+import { type CachedPage, type LibraryEntry, type ScanCache, type StoredFile, library } from "./library.ts";
 import { type PhotoFile, concatPhotos, createTray, decodePhoto, isImage } from "./photos.ts";
 import { ImportError, exportLibrary, importLibrary, isLibraryExport, linesOf, mergeEntry } from "./transfer.ts";
 import { MESSAGES, localizePage, pickLang } from "./i18n.ts";
@@ -85,6 +85,9 @@ const ui = {
   library: $<HTMLElement>("library"),
   libraryList: $<HTMLUListElement>("library-list"),
   libraryNote: $<HTMLElement>("library-note"),
+  clearScans: $<HTMLButtonElement>("clear-scans"),
+  clearScansNote: $<HTMLElement>("clear-scans-note"),
+  rescan: $<HTMLButtonElement>("rescan"),
   libraryEmpty: $<HTMLElement>("library-empty"),
   libraryUnavailable: $<HTMLElement>("library-unavailable"),
   libraryExport: $<HTMLButtonElement>("library-export"),
@@ -343,7 +346,7 @@ const editor = createEditor({
   text: messages,
 });
 
-function pageCard(result: DetectResult, preview: { blob: Blob; url: string } | null, photoUrl?: string): HTMLLIElement {
+function pageCard(result: PageResult, photoUrl?: string): HTMLLIElement {
   const { layout } = result;
   const li = document.createElement("li");
   li.className = "page";
@@ -354,7 +357,7 @@ function pageCard(result: DetectResult, preview: { blob: Blob; url: string } | n
   title.textContent = `p${result.index + 1}`;
   head.append(title);
   const original = photoUrl ? photoFigure(photoUrl, result.paper ?? null) : null;
-  if (!preview || !result.preview) {
+  if (!result.image) {
     li.classList.add("skipped");
     const note = document.createElement("p");
     note.textContent = photoUrl ? messages.noSystemsPhoto : messages.noSystemsPage;
@@ -399,7 +402,8 @@ function pageCard(result: DetectResult, preview: { blob: Blob; url: string } | n
   const figure = document.createElement("div");
   figure.className = "figure";
   const img = document.createElement("img");
-  img.src = preview.url;
+  const url = URL.createObjectURL(result.image.blob);
+  img.src = url;
   img.alt = messages.pageImage(result.index + 1);
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("class", "overlay");
@@ -408,12 +412,12 @@ function pageCard(result: DetectResult, preview: { blob: Blob; url: string } | n
   if (original) li.append(original);
   state.pages.set(result.index, {
     index: result.index,
-    width: result.preview.width,
-    height: result.preview.height,
+    width: result.image.width,
+    height: result.image.height,
     scale: result.scale,
     layout,
-    image: preview.blob,
-    url: preview.url,
+    image: result.image.blob,
+    url,
     svg,
   });
   return li;
@@ -511,7 +515,52 @@ const filesOf = (source: Source): StoredFile[] =>
       ? [{ name: source.name, type: "application/pdf", data: source.bytes.slice().buffer }]
       : [];
 
-async function analyze(source: Source) {
+/** A page as its scan left it: what detection found, and the upright image the score is drawn on (null without systems). */
+interface PageResult {
+  index: number;
+  layout: PageLayout;
+  scale: number;
+  ms: number;
+  paper?: [number, number][] | null;
+  image: { blob: Blob; width: number; height: number } | null;
+}
+
+let scanVersionOnce: Promise<string> | null = null;
+/** Names the detection code on this page, so a scan cached by other code is not used. */
+const scanVersion = (): Promise<string> =>
+  (scanVersionOnce ??= sha256Hex(new TextEncoder().encode($("layoutscan-core").textContent! + $("layoutscan-worker").textContent!)));
+
+/** Each page of `source` detected now; `starting` is told before each page, `covered` gets the cover. */
+async function* detectedPages(
+  source: Source,
+  starting: (index: number, photo: boolean) => void,
+  covered: (cover: string) => void,
+): AsyncGenerator<PageResult> {
+  for await (const [index, image, photo] of pagesOf(source)) {
+    starting(index, photo);
+    const firstPage = index === 0 ? coverPixels(image) : null;
+    const result = await detectInWorker(index, image, photo);
+    if (firstPage) covered(coverUrl(result.preview ? coverPixels(result.preview) : firstPage));
+    const { layout, scale, ms, paper } = result;
+    const upright = result.preview && { blob: await toJpeg(result.preview), width: result.preview.width, height: result.preview.height };
+    yield { index, layout, scale, ms, ...(paper !== undefined ? { paper } : {}), image: upright };
+  }
+}
+
+/** The pages of a stored scan, as they were detected. */
+async function* cachedPages(pages: CachedPage[]): AsyncGenerator<PageResult> {
+  for (const { image, ...page } of pages) {
+    yield { ...page, image: image ? { blob: new Blob([image.data], { type: "image/jpeg" }), width: image.width, height: image.height } : null };
+  }
+}
+
+/** A page made storable in the library. */
+async function cachedPage({ image, ...page }: PageResult): Promise<CachedPage> {
+  return { ...page, ...(image ? { image: { data: await image.blob.arrayBuffer(), width: image.width, height: image.height } } : {}) };
+}
+
+/** Show `source` as a score: from `cache` when it was made by this detection code, else scanned now (and cached). */
+async function analyze(source: Source, cache?: ScanCache) {
   const mine = ++run;
   reset();
   const { name } = source;
@@ -519,38 +568,40 @@ async function analyze(source: Source) {
   state.kind = source.kind;
   setStatus(messages.loading(name), 0);
   const scanned: ScannedPage[] = [];
+  const toCache: CachedPage[] = [];
   let total = 0;
   let done = 0;
   let sha256: string;
   let cover: string | undefined;
+  const version = await scanVersion();
+  const cached = cache?.version === version ? cache.pages : null;
   try {
-    total = await pageCount(source);
+    total = cached ? cached.length : await pageCount(source);
     sha256 = await sha256Hex(source.kind === "photos" ? concatPhotos(source.photos) : source.bytes);
-    for await (const [index, image, photo] of pagesOf(source)) {
+    const pages = cached
+      ? cachedPages(cached)
+      : detectedPages(
+          source,
+          (index, photo) => setStatus((photo ? messages.analysingPhoto : messages.analysingPage)(name, index + 1, total), done / total),
+          (made) => (cover = made),
+        );
+    for await (const page of pages) {
       if (mine !== run) return;
-      setStatus((photo ? messages.analysingPhoto : messages.analysingPage)(name, index + 1, total), done / total);
-      const firstPage = index === 0 ? coverPixels(image) : null;
-      const result = await detectInWorker(index, image, photo);
-      if (mine !== run) return;
-      if (firstPage) cover = coverUrl(result.preview ? coverPixels(result.preview) : firstPage);
-      let preview = null;
-      if (result.preview) {
-        const blob = await toJpeg(result.preview);
-        preview = { blob, url: URL.createObjectURL(blob) };
-      }
+      const { index } = page;
+      if (!cached) toCache.push(await cachedPage(page));
       let photoUrl: string | undefined;
       if (source.kind === "photos") {
         const p = source.photos[index]!;
         photoUrl = URL.createObjectURL(new Blob([p.bytes as Uint8Array<ArrayBuffer>], { type: p.type }));
         state.photoUrls.push(photoUrl);
       }
-      ui.pages.append(pageCard(result, preview, photoUrl));
-      if (result.layout.systems.length) {
+      ui.pages.append(pageCard(page, photoUrl));
+      if (page.layout.systems.length) {
         scanned.push({
           index,
-          layout: result.layout,
+          layout: page.layout,
           ...(source.kind === "photos" ? { file: source.photos[index]!.name } : {}),
-          ...(result.paper ? { paper: result.paper } : {}),
+          ...(page.paper ? { paper: page.paper } : {}),
         });
         showScanned(sha256, buildDocument(name, sha256, scanned), index);
       }
@@ -578,7 +629,9 @@ async function analyze(source: Source) {
   if (cover) stored.cover = cover;
   // The detected layout is already work worth keeping (and moving to another device).
   stored.doc = draft ?? state.detected;
-  const kept = await library.put(stored);
+  if (!cached) stored.scan = { version, pages: toCache };
+  // Without room for the page images, the files and the work are still kept.
+  const kept = (await library.put(stored)) || (!cached && (await library.put({ ...stored, scan: undefined })));
   if (mine !== run) return;
   // Only work beyond the detection counts as a draft to tell about.
   ui.draftNote.hidden = !draft || JSON.stringify(draft) === JSON.stringify(state.detected);
@@ -1088,6 +1141,15 @@ ui.libraryImport.addEventListener("change", () => {
 });
 
 /** Open the score `id`: analyze its stored files (or the built-in sample) again, then continue the stored work. */
+/** Scan the open score's files again, replacing its stored scan; the work on it stays. */
+async function rescan() {
+  const entry = await library.get(state.sha256);
+  const source = entry ? entrySource(entry) : null;
+  const sample = source ? null : await sampleById(state.sha256);
+  if (source) await analyze(source);
+  else if (sample) await analyze({ kind: "sample", name: sample.file, bytes: decode(sample.pdf) });
+}
+
 async function openEntry(id: string) {
   opening = id;
   try {
@@ -1095,12 +1157,12 @@ async function openEntry(id: string) {
     const source = entry && entrySource(entry);
     if (source) {
       tray.clear();
-      await analyze(source);
+      await analyze(source, entry.scan);
       return;
     }
     const sample = await sampleById(id);
     if (sample) {
-      await analyze({ kind: "sample", name: sample.file, bytes: decode(sample.pdf) });
+      await analyze({ kind: "sample", name: sample.file, bytes: decode(sample.pdf) }, entry?.scan);
       return;
     }
     setStatus(entry ? messages.filesMissing : messages.notInLibrary);
@@ -1220,6 +1282,11 @@ ui.discardDraft.addEventListener("click", () => {
   if (state.detected) commit(state.detected, false);
 });
 ui.undo.addEventListener("click", undo);
+ui.clearScans.addEventListener("click", async () => {
+  ui.clearScansNote.textContent = messages.scansCleared(await library.clearScans());
+  void renderLibrary();
+});
+ui.rescan.addEventListener("click", () => void rescan());
 ui.undoEdit.addEventListener("click", undo);
 ui.sheetUndo.addEventListener("click", undo);
 addEventListener("keydown", (e) => {
