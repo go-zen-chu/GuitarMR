@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { type GtsDocument, type Measure, measures } from "@guitarmr/gts";
 import { validate } from "@guitarmr/gts/validate";
 import {
+  ANNOTATIONS,
   STRUCTURE_FIELDS,
   applyReading,
   cropsByPage,
@@ -80,6 +81,13 @@ for (const name of ["twinkle-twinkle", "sakura-sakura"]) {
       }
       // Engraved samples have 4 measures per full system.
       assert.ok(crops.every((c) => c.measures.length <= 4));
+    });
+
+    it("If the scan may carry colored-pen marks it should tell Claude to read past them but keep signs written in colored pen", () => {
+      const prompt = pagePrompt([...cropsByPage(layoutOnly(truth)).values()][0]!, { header: true });
+      assert.ok(prompt.includes(ANNOTATIONS));
+      assert.match(prompt, /written in colored pen \(such as\s+"x3" at a repeat\) still counts/);
+      assert.match(ANNOTATIONS, /a box around something is not a rehearsal mark/);
     });
 
     it("If every page is answered perfectly the document should match the sample", () => {

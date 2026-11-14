@@ -31,6 +31,7 @@ export function pause(ms: number, signal?: AbortSignal): Promise<void> {
 export function withRetries(sample: Sample, delays: number[] = RETRY_DELAYS_MS, wait = pause): Sample {
   return {
     limits: () => sample.limits(),
+    ...(sample.spent ? { spent: sample.spent.bind(sample) } : {}),
     async json<T>(input: string, options?: { images?: Blob[]; signal?: AbortSignal }): Promise<T> {
       for (let attempt = 0; ; attempt++) {
         try {
