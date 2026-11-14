@@ -1,6 +1,7 @@
 /**
- * Reading with Claude: one request per page, carrying one image per system
- * (cut from the upright page, with measure ids in a strip above), through
+ * Reading with Claude: one image per system (cut from the upright page,
+ * with measure ids in a strip above), a page per request for structure and
+ * a system per request for the tab (ADR-012), through
  * the claude.ai "sample" capability, so it runs on the viewer's own Claude
  * account and nothing else sees the score.
  */
@@ -134,13 +135,21 @@ export interface ReadResult {
 /** What a reading pass fills: structure and chords (with the header), or the tab layer. */
 export type ReadLayer = "structure" | "tab";
 
-/** Read the given pages in order; each finished request is committed at once. */
+/** Cuts the images sent with one request (a canvas in the page; a stand-in in tests). */
+export type SystemCutter = typeof systemImages;
+
+/**
+ * Read the given pages in order; each finished request is committed at once.
+ * Every request is billed on the API, so how pages are split into requests
+ * is part of the contract (see ADR-012 and test/reader.test.ts).
+ */
 export async function readPages(
   sample: Sample,
   host: ReaderHost,
   pages: number[],
   signal: AbortSignal,
   layer: ReadLayer = "structure",
+  cut: SystemCutter = systemImages,
 ): Promise<ReadResult> {
   const maxCount = (await sample.limits().catch(() => null))?.images?.maxCount ?? 0;
   if (maxCount < 1) return { warnings: [], error: { code: "images_unavailable", message: "no images" } };
@@ -160,7 +169,7 @@ export async function readPages(
       i += chunk.length;
       const ids = chunk.flatMap((c) => c.measures.map((m) => m.id));
       try {
-        const images = await systemImages(image, chunk, first);
+        const images = await cut(image, chunk, first);
         if (layer === "tab") {
           const simile = new Set(measures(host.doc()).filter((m) => m.simile).map((m) => m.id!));
           const answer = await sample.json(tabPrompt(chunk, simile), { images, signal });
