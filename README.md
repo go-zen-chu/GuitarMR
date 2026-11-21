@@ -154,7 +154,16 @@ headless — no device needed:
 ```
 
 The script prints the pass/fail counts and exits non-zero on compile errors
-or failures. The suite is also available interactively via
+or failures.
+
+With a Quest connected over USB, an on-device smoke check builds, installs
+and launches a development build that loads a sample PDF and turns its
+pages by itself, then reports PASS/FAIL from logcat
+(details in [docs/development](docs/development/README.md#4-on-device-smoke-check-scriptable-quest-connected-over-usb)):
+
+```sh
+./scripts/run-device-tests.sh
+``` The suite is also available interactively via
 `Window > General > Test Runner`.
 
 ## TODO

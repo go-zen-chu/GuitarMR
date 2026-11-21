@@ -8,6 +8,8 @@
 /[Uu]ser[Ss]ettings/
 /[Mm]emoryCaptures/
 /[Rr]ecordings/
+# IL2CPP build tools and symbols
+/.utmp/
 
 # IDE generated files
 /.idea/

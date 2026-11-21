@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using GuitarMR.Usecase;
 using UnityEngine;
 using UnityEngine.XR;
 
@@ -10,7 +11,7 @@ namespace GuitarMR.Infra
     /// edge-triggered events per physical control. Mapping buttons to actions
     /// is left to the use case layer, which is modal (score vs picker).
     /// </summary>
-    public sealed class XrControllerInput : MonoBehaviour
+    public sealed class XrControllerInput : MonoBehaviour, IControllerInput
     {
         const float StickThreshold = 0.65f;
 
