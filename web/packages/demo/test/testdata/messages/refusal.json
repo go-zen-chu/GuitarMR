@@ -1,0 +1,11 @@
+{
+  "id": "msg_contract_refusal",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-opus-5-5",
+  "content": [],
+  "stop_reason": "refusal",
+  "stop_sequence": null,
+  "stop_details": { "type": "refusal", "category": null, "explanation": null },
+  "usage": { "input_tokens": 2400, "output_tokens": 10, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0 }
+}

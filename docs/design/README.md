@@ -20,6 +20,7 @@ numbers are shared across the files and never reused.
 - ADR-009: Digitize and view on phone/tablet as a client-only PWA in TypeScript
 - ADR-010: Ship the phone page as an Android app wrapping it in a WebView
 - ADR-011: Lower the cost of reading with Claude without lowering its quality
+- ADR-012: How the app calls the Claude API, and what a reading may spend
 
 ## Other design notes
 

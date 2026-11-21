@@ -56,6 +56,7 @@ export function createAndroidHost(bridge: AndroidBridge, fetchImpl?: typeof fetc
   });
   const sample: Sample = {
     limits: () => apiSample.limits(),
+    spent: () => apiSample.spent(),
     async json<T>(input: string, options?: { images?: Blob[]; signal?: AbortSignal }): Promise<T> {
       try {
         return await apiSample.json<T>(input, options);
