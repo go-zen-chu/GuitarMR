@@ -6,13 +6,20 @@
  * claude.ai sample capability, so the reader treats both alike.
  */
 
-import type { Sample } from "./reader.ts";
+import type { Sample, Spent } from "./reader.ts";
 
 export const API_URL = "https://api.anthropic.com/v1/messages";
 export const DEFAULT_MODEL = "claude-opus-5-5";
 /** Images per request; the API takes more, but one page of systems is far fewer. */
 export const MAX_IMAGES = 20;
 const MAX_TOKENS = 16000;
+
+/** USD per million input and output tokens (external spec: Anthropic's price list), for the models a reading is likely to use. */
+export const PRICES: Record<string, { input: number; output: number }> = {
+  "claude-opus-5-5": { input: 4, output: 20 },
+  "claude-sonnet-5-5": { input: 2, output: 10 },
+  "claude-haiku-5-5": { input: 0.1, output: 0.5 },
+};
 
 export interface ApiSampleOptions {
   /** The key for this request; empty when there is none, and the request fails as `invalid_api_key`. */
@@ -78,13 +85,29 @@ export function detailOfStatus(status: number, body: string): string {
 interface MessageResponse {
   stop_reason?: string;
   content?: { type: string; text?: string }[];
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
 }
 
-/** A `Sample` that asks Claude through the Messages API. */
-export function createApiSample(options: ApiSampleOptions): Sample {
+/** A `Sample` that asks Claude through the Messages API, and tells what it has spent. */
+export function createApiSample(options: ApiSampleOptions): Sample & { spent(): Spent } {
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
   const model = options.model || DEFAULT_MODEL;
+  const total = { requests: 0, inputTokens: 0, outputTokens: 0 };
+  const count = (usage: MessageResponse["usage"]) => {
+    total.requests++;
+    total.inputTokens += (usage?.input_tokens ?? 0) + (usage?.cache_creation_input_tokens ?? 0) + (usage?.cache_read_input_tokens ?? 0);
+    total.outputTokens += usage?.output_tokens ?? 0;
+  };
   return {
+    spent: () => {
+      const price = PRICES[model];
+      return price ? { ...total, usd: (total.inputTokens * price.input + total.outputTokens * price.output) / 1e6 } : { ...total };
+    },
     limits: async () => ({ images: { maxCount: MAX_IMAGES } }),
     async json<T = unknown>(input: string, opts: { images?: Blob[]; signal?: AbortSignal } = {}): Promise<T> {
       const key = await options.apiKey();
@@ -122,7 +145,10 @@ export function createApiSample(options: ApiSampleOptions): Sample {
         throw fail(codeOfStatus(response.status, body), detailOfStatus(response.status, body));
       }
       const message = (await response.json()) as MessageResponse;
+      count(message.usage);
       if (message.stop_reason === "refusal") throw fail("refused", "refused");
+      // A reply cut at max_tokens (thinking included) ends mid-JSON: say so rather than invalid_json.
+      if (message.stop_reason === "max_tokens") throw fail("truncated", `cut off at ${message.usage?.output_tokens ?? MAX_TOKENS} output tokens`);
       const text = (message.content ?? []).flatMap((c) => (c.type === "text" && c.text ? [c.text] : [])).join("");
       return jsonOfReply(text) as T;
     },

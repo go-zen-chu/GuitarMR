@@ -1,6 +1,7 @@
 /**
- * Reading with Claude: one request per page, carrying one image per system
- * (cut from the upright page, with measure ids in a strip above), through
+ * Reading with Claude: one image per system (cut from the upright page,
+ * with measure ids in a strip above), a page per request for structure and
+ * a system per request for the tab (ADR-012), through
  * the claude.ai "sample" capability, so it runs on the viewer's own Claude
  * account and nothing else sees the score.
  */
@@ -18,10 +19,21 @@ import {
   tabPrompt,
 } from "@guitarmr/extract";
 
+/** What the requests so far have used, as the API reported it (thinking counts as output). */
+export interface Spent {
+  requests: number;
+  inputTokens: number;
+  outputTokens: number;
+  /** The price of those tokens, when the model's price is known. */
+  usd?: number;
+}
+
 /** The part of the claude.ai sample capability used here. */
 export interface Sample {
   json<T = unknown>(input: string, options?: { images?: Blob[]; signal?: AbortSignal }): Promise<T>;
   limits(): Promise<{ images?: { maxCount: number } }>;
+  /** What has been spent so far; only where reading is billed per token (the Claude API on the user's key). */
+  spent?(): Spent;
 }
 
 export interface ReaderHost {
@@ -105,7 +117,14 @@ export async function systemImages(
 }
 
 /** Errors after which the next page may still work. */
-const PAGE_ERRORS = new Set(["invalid_json", "refused", "image_rejected", "prompt_too_large"]);
+const PAGE_ERRORS = new Set(["invalid_json", "refused", "image_rejected", "prompt_too_large", "truncated"]);
+
+/**
+ * Systems per tab request. A whole page of tab with the thinking behind it
+ * can run past the reply's token limit, which loses the page and still bills
+ * it; one system per request also keeps Claude on one line of TAB.
+ */
+export const TAB_SYSTEMS_PER_REQUEST = 1;
 
 export interface ReadResult {
   warnings: string[];
@@ -116,13 +135,21 @@ export interface ReadResult {
 /** What a reading pass fills: structure and chords (with the header), or the tab layer. */
 export type ReadLayer = "structure" | "tab";
 
-/** Read the given pages in order; each finished request is committed at once. */
+/** Cuts the images sent with one request (a canvas in the page; a stand-in in tests). */
+export type SystemCutter = typeof systemImages;
+
+/**
+ * Read the given pages in order; each finished request is committed at once.
+ * Every request is billed on the API, so how pages are split into requests
+ * is part of the contract (see ADR-012 and test/reader.test.ts).
+ */
 export async function readPages(
   sample: Sample,
   host: ReaderHost,
   pages: number[],
   signal: AbortSignal,
   layer: ReadLayer = "structure",
+  cut: SystemCutter = systemImages,
 ): Promise<ReadResult> {
   const maxCount = (await sample.limits().catch(() => null))?.images?.maxCount ?? 0;
   if (maxCount < 1) return { warnings: [], error: { code: "images_unavailable", message: "no images" } };
@@ -136,12 +163,13 @@ export async function readPages(
     const header = layer === "structure" && page === firstPage && maxCount > 1;
     for (let i = 0; i < crops.length; ) {
       const first = i === 0 && header;
-      const chunk = crops.slice(i, i + maxCount - (first ? 1 : 0));
+      const size = layer === "tab" ? Math.min(TAB_SYSTEMS_PER_REQUEST, maxCount) : maxCount - (first ? 1 : 0);
+      const chunk = crops.slice(i, i + size);
       host.progress(host.text.readingPage(page + 1, n + 1, pages.length, layer === "tab"), (n + i / crops.length) / pages.length);
       i += chunk.length;
       const ids = chunk.flatMap((c) => c.measures.map((m) => m.id));
       try {
-        const images = await systemImages(image, chunk, first);
+        const images = await cut(image, chunk, first);
         if (layer === "tab") {
           const simile = new Set(measures(host.doc()).filter((m) => m.simile).map((m) => m.id!));
           const answer = await sample.json(tabPrompt(chunk, simile), { images, signal });

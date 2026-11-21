@@ -10,6 +10,7 @@
 import { type Beat, type GtsDocument, measures, parseTabLine } from "@guitarmr/gts";
 import { checkTab, timeSignatures } from "./checks.ts";
 import type { SystemCrop } from "./crops.ts";
+import { ANNOTATIONS } from "./prompt.ts";
 import { ATTENTION_BELOW, isObject } from "./reading.ts";
 
 export function tabPrompt(crops: readonly SystemCrop[], simile: ReadonlySet<string> = new Set()): string {
@@ -55,6 +56,8 @@ if they do not, write what is there and say so in the note. Skip measures
 marked "repeat sign". When nothing is written on a measure's TAB (only
 chord names), give an empty tab. Do not guess frets that cannot be read:
 give an empty tab and say so in the note.
+
+${ANNOTATIONS}
 
 For each measure also give confidence (0 to 1) and, when something is
 unclear, a short note (in the language of the score).

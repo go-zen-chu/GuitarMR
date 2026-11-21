@@ -22,7 +22,11 @@ function fakeFetch(status: number, body: unknown) {
   return { impl, sent };
 }
 
-const reply = (text: string, stopReason = "end_turn") => ({ stop_reason: stopReason, content: [{ type: "text", text }] });
+const reply = (text: string, stopReason = "end_turn", usage = { input_tokens: 1000, output_tokens: 200 }) => ({
+  stop_reason: stopReason,
+  content: [{ type: "text", text }],
+  usage,
+});
 
 /** A bridge that records what the page asked of the app; the app's answers are given by the test. */
 function fakeBridge(key = "sk-test") {
@@ -73,6 +77,29 @@ describe("api sample", () => {
   it("If the API refuses it should fail as refused", async () => {
     const sample = createApiSample({ apiKey: async () => "k", fetch: fakeFetch(200, reply("", "refusal")).impl });
     assert.equal(await rejection(sample.json("x")), "refused");
+  });
+
+  it("If the reply is cut off at the token limit it should fail as truncated, not as invalid_json", async () => {
+    const sample = createApiSample({ apiKey: async () => "k", fetch: fakeFetch(200, reply('{"measures": [{"id"', "max_tokens")).impl });
+    assert.equal(await rejection(sample.json("x")), "truncated");
+  });
+
+  it("If requests are answered it should sum their tokens, cut-off ones included, and price them for a known model", async () => {
+    const usage = { input_tokens: 800, output_tokens: 16000, cache_read_input_tokens: 200 };
+    const fetch = fakeFetch(200, reply("", "max_tokens", usage));
+    const sample = createApiSample({ apiKey: async () => "k", fetch: fetch.impl });
+    assert.deepEqual(sample.spent(), { requests: 0, inputTokens: 0, outputTokens: 0, usd: 0 });
+    await rejection(sample.json("x"));
+    await rejection(sample.json("x"));
+    const spent = sample.spent();
+    assert.deepEqual({ ...spent, usd: undefined }, { requests: 2, inputTokens: 2000, outputTokens: 32000, usd: undefined });
+    assert.ok(Math.abs(spent.usd! - (2000 * 4 + 32000 * 20) / 1e6) < 1e-9);
+  });
+
+  it("If the model's price is not known it should tell the tokens without a price", async () => {
+    const sample = createApiSample({ apiKey: async () => "k", model: "claude-new-model", fetch: fakeFetch(200, reply("{}")).impl });
+    await sample.json("x");
+    assert.deepEqual(sample.spent(), { requests: 1, inputTokens: 1000, outputTokens: 200 });
   });
 
   it("If the API answers an error status it should fail with the matching sample code", async () => {
@@ -136,6 +163,13 @@ describe("android host", () => {
     host.settle(fake.asked[0]!, null, "sk-entered");
     assert.deepEqual(await answer, { ok: true });
     assert.equal(fetch.sent[0]!.headers["x-api-key"], "sk-entered");
+  });
+
+  it("If the page reads through the app it should tell what the readings spent on the user's key", async () => {
+    const host = createAndroidHost(fakeBridge().bridge, fakeFetch(200, reply("{}")).impl);
+    const sample = (await host.use("sample")) as Sample;
+    await sample.json("x");
+    assert.equal(sample.spent?.().requests, 1);
   });
 
   it("If the API rejects the key it should make the app forget it", async () => {

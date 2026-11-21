@@ -202,7 +202,15 @@ PDF ──▶ 1. rasterize + orient ──▶ 2. layout ──▶ 3. content ─
    optional note. `tab` is read afterwards from the same crops, answered
    as one compact tab line per measure (`8:6-0+4-2!d 8:r 4:/`,
    `formatTabLine`/`parseTabLine` in `@guitarmr/gts`), the notation the
-   review editor uses too.
+   review editor uses too, one system per request (ADR-012).
+   Unlike layout (step 1), Claude gets the crops in color, colored pen
+   included: circles and boxes drawn around frets and chords were read as
+   notation (a circled fret as "0" or "(3)", a box as a rehearsal mark).
+   Both instructions therefore describe such marks and ask Claude to read
+   the writing under them as if they were not there, while a sign asked
+   for that is written in colored pen (a repeat count) still counts
+   (`ANNOTATIONS` in `prompt.ts`). Removing the colored ink from the crops
+   instead would also drop those signs and the writing a mark crosses.
 4. **Validate**: every answered field is checked against the schema rules
    (chord-symbol grammar, enums, ranges) and dropped with a warning when
    invalid, never guessed. A measure with confidence below 0.7 or a note

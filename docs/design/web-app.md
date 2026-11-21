@@ -247,3 +247,83 @@ below, each kept only when an eval shows no loss of quality:
 - A two-model reading adds a second pass to `readPages` and a threshold to
   tune; a batch reading changes the flow from waiting on the page to
   results arriving later.
+
+**Update (2026-11-14)**: Before any lever above, a failure that wasted
+money was fixed: a page of tab could be cut off at the reply's token cap
+and lost while still billed. The request shape, how a reading is split
+into requests and how its cost is shown are now decided in ADR-012.
+
+## ADR-012: How the app calls the Claude API, and what a reading may spend
+
+**Status**: Accepted (2026-11-14)
+
+**Context**: In the Android app (ADR-010) every request to the Messages
+API is billed to the user's own key, so the shape of a request, how a
+reading is split into requests, and what happens on a failure decide what
+a scan costs. A scan of a few pages cost about $0.5 and many measures came
+back empty, while Claude Code reading the same scan did well. Looking at
+`api-sample.ts` and `reader.ts` showed:
+- A reply is capped at `max_tokens` (16k), and on `claude-opus-5-5`
+  thinking cannot be turned off and counts toward that cap. The tab pass
+  asked for a whole page (up to 20 systems) in one reply, so its thinking
+  and its tab lines could run past the cap.
+- `stop_reason: "max_tokens"` was not checked: the cut reply was taken
+  for `invalid_json`, every measure of the page stayed empty, and the
+  16k output tokens (about $0.32 at $20 per million) were billed anyway.
+  This alone can make up most of the $0.5.
+- Nothing recorded the responses' `usage`, so the cost was only a guess
+  (ADR-011 estimates, never measured).
+
+**Decision**:
+- **Request shape** (`api-sample.ts`): `model`, `max_tokens` 16000 and one
+  user turn with the images before the instruction text; nothing else. No
+  `thinking`, `output_config.effort` or `output_config.format` is sent, so
+  the model runs at its defaults (on `claude-opus-5-5`: adaptive thinking,
+  effort `medium`). Each of those changes the bill or the quality, so each
+  is added only through ADR-011's eval and recorded here.
+- **The SDK is not used**: the page calls the API with `fetch` (ADR-009:
+  the browser calls the API directly, no dependency or server of ours).
+- **Requests per reading** (`reader.ts`): the structure pass (chords and
+  signs, short answers) sends one request per page, with up to the image
+  limit of systems, and the page top first on the first page. The tab pass
+  sends one system per request (`TAB_SYSTEMS_PER_REQUEST`): a system's tab
+  and its thinking fit well under the cap, a failure loses one system
+  rather than a page, and Claude looks at one line of TAB at a time. The
+  images are not sent more often than before; only the instruction (about
+  1.5k input tokens, about $0.006) is repeated per system.
+- **Failures**: a reply stopped at the cap fails as `truncated`, a page
+  warning, and the reading goes on. A billed failure (`truncated`,
+  `refused`, `invalid_json`) is never asked again automatically: asking
+  again bills again and is likely to fail the same way. Only failures the
+  API does not bill and that pass on their own (a lost connection, an
+  overloaded service) are asked again (`retry.ts`). A refused key, an
+  empty balance or a reached rate limit stops the reading at once, with no
+  further request.
+- **The cost is shown**: the API sample adds up `usage` of every billed
+  reply, the cut-off and refused ones included, and prices it from
+  `PRICES` (USD per million tokens, from Anthropic's price list). After a
+  reading the status line tells its requests, input and output tokens and
+  about how much it cost. A model missing from `PRICES` shows tokens only.
+  On claude.ai (not billed per token) nothing is shown.
+- **Contract tests**: `test/api-contract.test.ts` pins the request
+  (headers, the exact body keys, `max_tokens`, the order of images and
+  text), how each kind of answer in `test/testdata/messages/` (taken from
+  the API's documented shapes) is taken and counted, and the `Sample`
+  contract the reader relies on, run against every implementation on the
+  API (the API sample, the Android app's host, and both with `withRetries`):
+  answers parse, failures carry string codes, a billed failure is sent
+  once, and the spent totals never go down. `test/reader.test.ts` pins how
+  many requests and images a reading sends. A change to any of these is a
+  change to what a reading costs: it updates those tests and this ADR
+  together.
+
+**Consequences**:
+- A cut-off reply costs one system, not a page, and says so.
+- A tab reading sends as many requests as there are systems: more,
+  smaller requests. Latency per page grows; per-request overhead is the
+  repeated instruction only.
+- The shown cost gives the measured numbers ADR-011's levers are to be
+  judged by. `PRICES` must be kept in step with Anthropic's price list
+  when a model is added or its price changes.
+- Requests are still one at a time; sending a page's systems in parallel
+  would be faster, at the risk of the rate limit.

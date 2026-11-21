@@ -14,6 +14,29 @@ export interface PromptOptions {
   header: boolean;
 }
 
+/**
+ * What the reader should know about pen marks added to the score later.
+ * Users scan their lesson scores, where a teacher circles, boxes and
+ * comments in colored pen; read as notation, those marks became zeros,
+ * parenthesized frets, harmonics, dim chords and section boxes.
+ */
+export const ANNOTATIONS = `The score may also carry marks added later in colored pen (red, blue,
+green, orange and so on), often by a teacher: circles or boxes around
+notes, frets or chord names, underlines, arrows, check marks, fingering
+numbers and words. They are not part of the score (the magenta strip on
+top is the only thing added for you). Read what is written under and
+inside them as if the marks were not there:
+- a circle around a fret, a note or a chord name is not a fret "0", a
+  fret in parentheses, a harmonic, a diminished "o" or a "°";
+- a box around something is not a rehearsal mark, and an underline or a
+  line across the TAB is not a slide, a tie, a beam or a bar line;
+- numbers and letters in colored pen (fingerings, counts such as
+  "1 2 3 4", string numbers, comments) are not frets or chord names.
+On a scan without color, tell such marks by their stroke: another pen,
+thicker or fainter than the score's own writing. When a mark hides the
+writing under it so it cannot be read, say so in the note rather than
+guess.`;
+
 export function pagePrompt(crops: readonly SystemCrop[], options: PromptOptions): string {
   const offset = options.header ? 2 : 1;
   const systems = [
@@ -72,8 +95,8 @@ For every listed measure, read what is written in or above it:
 - confidence: 0 to 1, how sure you are of this measure as a whole.
 - note: a short note on anything unclear (in the language of the score),
   else leave it out.
-Colored-pen notes from a teacher are comments: ignore them unless they
-are one of the signs above. Do not guess content that is not written.${header}
+${ANNOTATIONS} A sign asked for above that is written in colored pen (such as
+"x3" at a repeat) still counts. Do not guess content that is not written.${header}
 
 Reply with only JSON, no prose, in this shape (one entry per listed id, in
 order; leave out fields that do not apply):
