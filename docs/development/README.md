@@ -14,6 +14,9 @@ Setup, build and verification steps for GuitarMR contributors.
 
 ## Initial setup
 
+The Quest settings below are already committed (`ProjectSettings/`,
+`Assets/XR/`); rerun the configurator only after changing it.
+
 1. Clone the repository and open the folder with Unity Hub.
    The first open resolves packages and imports assets (several minutes).
    If package resolution fails, see "Known issues" in docs/project.
@@ -40,6 +43,20 @@ Editor menu: GuitarMR > Build Android APK   ->  Builds/GuitarMR.apk
 adb install -r Builds/GuitarMR.apk
 adb shell am start -n com.gozenchu.guitarmr/com.unity3d.player.UnityPlayerActivity
 ```
+
+The same build runs headless (the editor must not have the project open);
+it exits non-zero when the build fails:
+
+```sh
+/Applications/Unity/Hub/Editor/6000.5.2f1/Unity.app/Contents/MacOS/Unity \
+  -batchmode -projectPath . -buildTarget Android \
+  -executeMethod GuitarMR.Editor.ProjectConfigurator.BuildAndroidApkForCi \
+  [-guitarmrDevelopment] [-guitarmrIncludeTests] -logFile Logs/build.log
+```
+
+`-guitarmrDevelopment` makes a development build (needed for the
+on-device smoke check below), `-guitarmrIncludeTests` adds the test
+assemblies.
 
 The first IL2CPP build takes a while; subsequent builds are incremental.
 During the build, `AndroidManifestPostProcessor` injects the storage
@@ -107,7 +124,57 @@ After installing on a Quest 3:
 - [ ] Audio stays in time over several minutes (no drift against a reference
       metronome at e.g. 120 BPM).
 
-### 4. Log inspection
+### 4. On-device smoke check (scriptable, Quest connected over USB)
+
+```sh
+./scripts/run-device-tests.sh
+```
+
+The script checks that one authorized device is connected, builds a
+development APK, installs it, grants "all files access"
+(`appops set ... MANAGE_EXTERNAL_STORAGE allow`), pushes a generated
+two-page `guitarmr-smoke.pdf` to `Download`, and launches the app with
+`--es guitarmr.smoke guitarmr-smoke.pdf`. In that mode (development builds
+only) `SmokeScenario` drives the app through scripted controller input
+instead of the real controllers and logs one line per check:
+
+```text
+GuitarMR smoke: PASS launch
+GuitarMR smoke: PASS panels
+GuitarMR smoke: PASS storage permission
+GuitarMR smoke: PASS picker lists score
+GuitarMR smoke: PASS pdf render
+GuitarMR smoke: PASS page turn
+GuitarMR smoke: RESULT PASS
+```
+
+The script waits for the `RESULT` line, saves `Logs/device-tests/logcat.txt`
+and `Logs/device-tests/screenshot.png` (taken by the app itself; the host
+`screencap` only returns a blank frame on Quest), and exits non-zero on
+FAIL, on a crash or when no verdict arrives in time.
+
+Nobody needs to wear the headset: the script fakes the proximity sensor and
+pauses Guardian (`debug.oculus.guardian_pause`) for the run, and restores
+both afterwards, because an unworn headset otherwise pauses the app and
+closes it behind the "tracking lost" dialog. The checks run on the first
+frame for the same reason.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `ADB` | `$ANDROID_HOME/platform-tools/adb`, else `/opt/homebrew/share/android-commandlinetools/platform-tools/adb` | adb binary |
+| `ANDROID_SERIAL` | — | device to use when several are connected |
+| `SMOKE_TIMEOUT` | `90` | seconds to wait for the verdict |
+| `SKIP_BUILD` | `0` | `1` installs the existing `Builds/GuitarMR.apk` |
+
+One-time setup: the Unity Android Build Support module, developer mode on
+the headset, and USB debugging accepted on the headset for this computer.
+If a build signed with another key is installed, `adb uninstall
+com.gozenchu.guitarmr` first.
+
+Not covered by the smoke check (still on the checklist in section 3):
+passthrough, real controller input, audio output and timing.
+
+### 5. Log inspection
 
 ```sh
 adb logcat -s Unity

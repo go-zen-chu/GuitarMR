@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
+using UnityEditor.Build.Reporting;
 using UnityEditor.XR.Management;
 using UnityEditor.XR.Management.Metadata;
 using UnityEditor.XR.OpenXR.Features;
@@ -24,6 +25,8 @@ namespace GuitarMR.Editor
         const string XrSettingsAssetPath = "Assets/XR/XRGeneralSettingsPerBuildTarget.asset";
         const string OpenXrLoaderTypeName = "UnityEngine.XR.OpenXR.OpenXRLoader";
         const string ApkOutputPath = "Builds/GuitarMR.apk";
+        const string DevelopmentBuildArg = "-guitarmrDevelopment";
+        const string IncludeTestsArg = "-guitarmrIncludeTests";
 
         /// <summary>Applies all Android, XR and input settings required for Quest 3.</summary>
         [MenuItem("GuitarMR/Configure Project For Quest 3")]
@@ -43,11 +46,48 @@ namespace GuitarMR.Editor
         [MenuItem("GuitarMR/Build Android APK")]
         public static void BuildAndroidApk()
         {
+            var failure = BuildApk(BuildOptions.None);
+            if (failure != null)
+            {
+                Debug.LogError($"GuitarMR: {failure}");
+            }
+        }
+
+        /// <summary>
+        /// Batch mode entry for scripts: builds the APK and exits the editor with a non-zero
+        /// status on failure. Pass <c>-buildTarget Android</c> so the editor opens on Android,
+        /// and optionally <c>-guitarmrDevelopment</c> (development build, which also enables
+        /// the on-device smoke check) and <c>-guitarmrIncludeTests</c> (test assemblies).
+        /// </summary>
+        public static void BuildAndroidApkForCi()
+        {
+            var args = System.Environment.GetCommandLineArgs();
+            var options = BuildOptions.None;
+            if (args.Contains(DevelopmentBuildArg))
+            {
+                options |= BuildOptions.Development;
+            }
+            if (args.Contains(IncludeTestsArg))
+            {
+                options |= BuildOptions.IncludeTestAssemblies;
+            }
+            var failure = BuildApk(options);
+            if (failure != null)
+            {
+                Debug.LogError($"GuitarMR: {failure}");
+                EditorApplication.Exit(1);
+                return;
+            }
+            EditorApplication.Exit(0);
+        }
+
+        /// <summary>Builds the APK with the given options and returns null on success or the reason it failed.</summary>
+        static string BuildApk(BuildOptions buildOptions)
+        {
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
             {
-                Debug.LogError("GuitarMR: switch the active platform to Android first " +
-                               "(File > Build Profiles > Android > Switch Platform), then run this again.");
-                return;
+                return "switch the active platform to Android first " +
+                       "(File > Build Profiles > Android > Switch Platform), then run this again.";
             }
             Directory.CreateDirectory(Path.GetDirectoryName(ApkOutputPath));
             var options = new BuildPlayerOptions
@@ -55,10 +95,13 @@ namespace GuitarMR.Editor
                 scenes = new[] { MainScenePath },
                 locationPathName = ApkOutputPath,
                 target = BuildTarget.Android,
-                options = BuildOptions.None,
+                options = buildOptions,
             };
             var report = BuildPipeline.BuildPlayer(options);
-            Debug.Log($"GuitarMR: build {report.summary.result}, output: {ApkOutputPath}");
+            Debug.Log($"GuitarMR: build {report.summary.result} ({buildOptions}), output: {ApkOutputPath}");
+            return report.summary.result == BuildResult.Succeeded
+                ? null
+                : $"build {report.summary.result} with {report.summary.totalErrors} error(s)";
         }
 
         /// <summary>Sets identification, scripting backend, graphics and orientation for Quest.</summary>

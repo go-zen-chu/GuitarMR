@@ -3,6 +3,7 @@ using System.Collections;
 using System.IO;
 using GuitarMR.Domain;
 using GuitarMR.Infra;
+using GuitarMR.Smoke;
 using GuitarMR.Usecase;
 using Unity.XR.CoreUtils;
 using UnityEngine;
@@ -23,6 +24,8 @@ namespace GuitarMR.App
         const int BeatsPerBar = 4;
         const float PanelDistanceMeters = 1.1f;
         const float PanelHeightOffsetMeters = -0.1f;
+        const int PanelCount = 3;
+        const string SmokeScreenshotFileName = "guitarmr-smoke.png";
 
         Transform cameraTransform;
         Transform panelRoot;
@@ -42,17 +45,25 @@ namespace GuitarMR.App
             var metronome = gameObject.AddComponent<AudioMetronome>();
             metronome.Initialize(new BeatClock(DefaultBpm, BeatsPerBar));
 
+            var storagePermission = CreateStoragePermission();
+            var smokeTargetScore = SmokeLaunchRequest.ReadTargetScoreName();
+            var smoke = smokeTargetScore == null
+                ? null
+                : new SmokeScenario(scorePanel, pickerPanel, storagePermission,
+                    () => panelRoot.childCount >= PanelCount, smokeTargetScore, line => Debug.Log(line));
+
             controller = new PracticeController(
                 metronome,
                 new SharedStorageScoreRepository(BuildScoreDirectories()),
                 new AndroidPdfDocumentRenderer(),
-                CreateStoragePermission(),
+                storagePermission,
                 new PlayerPrefsScoreSelectionStore(),
-                scorePanel,
+                smoke?.ScoreView ?? scorePanel,
                 metronomePanel,
-                pickerPanel);
+                smoke?.PickerView ?? pickerPanel);
 
-            var input = gameObject.AddComponent<XrControllerInput>();
+            // The smoke check drives the app by itself, so the real controllers stay unwired.
+            var input = smoke?.Input ?? gameObject.AddComponent<XrControllerInput>();
             input.RightPrimaryPressed += controller.OnRightPrimary;
             input.RightSecondaryPressed += controller.OnRightSecondary;
             input.RightStickStepped += controller.OnRightStickStep;
@@ -62,6 +73,10 @@ namespace GuitarMR.App
 
             controller.Initialize();
             StartCoroutine(RecenterAfterTrackingStarts());
+            if (smoke != null)
+            {
+                StartCoroutine(RunSmokeScenario(smoke));
+            }
         }
 
         /// <summary>Keeps the metronome display in sync with the audio clock.</summary>
@@ -168,6 +183,19 @@ namespace GuitarMR.App
                 yield return null;
             }
             RecenterPanels();
+        }
+
+        /// <summary>
+        /// Runs the smoke check on the first frame and saves a screenshot of the result
+        /// into the app's persistent data folder, where scripts/run-device-tests.sh pulls it from.
+        /// </summary>
+        IEnumerator RunSmokeScenario(SmokeScenario smoke)
+        {
+            // An unworn Quest loses tracking and pauses the app within seconds, so nothing waits for XR here.
+            yield return null;
+            smoke.Run();
+            yield return null;
+            ScreenCapture.CaptureScreenshot(SmokeScreenshotFileName);
         }
 
         /// <summary>Moves the panels to a comfortable reading position in front of the player.</summary>

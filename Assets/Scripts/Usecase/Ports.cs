@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace GuitarMR.Usecase
@@ -106,5 +107,21 @@ namespace GuitarMR.Usecase
 
         /// <summary>Hides the picker.</summary>
         void Hide();
+    }
+
+    /// <summary>
+    /// Edge-triggered controller events, one per physical control. Mapping them
+    /// to actions is left to the use case, which is modal (score vs picker).
+    /// </summary>
+    public interface IControllerInput
+    {
+        event Action RightPrimaryPressed;
+        event Action RightSecondaryPressed;
+        event Action LeftPrimaryPressed;
+        event Action LeftSecondaryPressed;
+        event Action LeftMenuPressed;
+
+        /// <summary>Fires +1 when the right stick is flicked up and -1 when flicked down.</summary>
+        event Action<int> RightStickStepped;
     }
 }

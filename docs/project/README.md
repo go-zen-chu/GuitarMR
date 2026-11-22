@@ -99,7 +99,9 @@ project starts taking external contributions.
       (`.github/workflows/android.yml`: unit tests, lint, signed APKs,
       GitHub Releases from main and preview prereleases from PRs). Still to do: run the Unity
       EditMode tests headless (needs a Unity license secret, e.g.
-      game-ci/unity-test-runner).
+      game-ci/unity-test-runner). The on-device smoke check
+      (`scripts/run-device-tests.sh`) runs locally only; running it in CI
+      would need a self-hosted runner with the Quest attached.
 
 ## Known issues / risks
 
@@ -112,11 +114,6 @@ project starts taking external contributions.
 - **Android Build Support may be missing locally**: headless EditMode tests
   run without it, but building the APK requires adding the module (with
   OpenJDK and SDK/NDK) to the 6000.5.2f1 install in Unity Hub.
-- **First editor open is required before building**: the project ships
-  without `ProjectSettings.asset`; Unity generates defaults and
-  `GuitarMR > Configure Project For Quest 3` fills in the Quest-specific
-  settings. Building without running the configurator will produce a
-  non-XR APK.
 - **OpenXR feature enabling relies on type-name matching**:
   `ProjectConfigurator` enables features whose type name contains "Meta" or
   "OculusTouchControllerProfile" to stay robust across package versions. If a
