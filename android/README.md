@@ -85,6 +85,15 @@ key once (`~/.config/tky/tky-<app>.jks` by default) and register its
 secrets with `gh`; `release` also creates the environment and removes the
 release key from the repository secrets. Back up each keystore and its
 password file offline: Android only accepts updates signed with the same key.
+`android/scripts/lastpass-signing.sh` keeps each pair in a LastPass secure
+note (`Signing/<name>`) and restores it:
+
+```sh
+lpass login <email>
+android/scripts/lastpass-signing.sh backup tky-release ~/.config/tky/tky-release.jks
+android/scripts/lastpass-signing.sh backup tky-preview ~/.config/tky/tky-preview.jks
+android/scripts/lastpass-signing.sh restore tky-release ~/.config/tky/tky-release.jks
+```
 A new key also needs its certificate SHA-256 updated in the workflow.
 
 A preview app installed before the preview key was split off carries the
