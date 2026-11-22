@@ -82,7 +82,8 @@ export async function exportLibrary(entries: readonly LibraryEntry[], options: {
     files: files.length,
     bytes: files.reduce((n, f) => n + f.data.length, 0),
   });
-  sorted.forEach((e, i) => put({ type: "entry", entry: { ...e, files: options.files ? infos[i]! : [] } }));
+  // The scan cache is made again from the files on the other device.
+  sorted.forEach(({ scan: _, ...e }, i) => put({ type: "entry", entry: { ...e, files: options.files ? infos[i]! : [] } }));
   let chunks = 0;
   for (const f of files) {
     const count = Math.max(Math.ceil(f.data.length / CHUNK_BYTES), 1);
@@ -139,7 +140,9 @@ export async function importLibrary(lines: AsyncIterable<string> | Iterable<stri
     } else if (record.type === "entry") {
       const e = record.entry;
       if (typeof e?.id === "string" && typeof e.name === "string" && Array.isArray(e.files)) {
-        entries.set(e.id, { ...e, doc: isDoc(e.doc) ? e.doc : null });
+        // A scan cache is only ever made on this device, from its own files.
+        const { scan: _, ...entry } = e;
+        entries.set(e.id, { ...entry, doc: isDoc(e.doc) ? e.doc : null });
       } else skipped++;
     } else if (record.type === "chunk") {
       try {
@@ -189,10 +192,13 @@ export function mergeEntry(local: LibraryEntry | undefined, incoming: LibraryEnt
   if (!local) return incoming;
   const newer = incoming.updated > local.updated ? incoming : local;
   const older = newer === incoming ? local : incoming;
+  const { scan: _, ...merged } = newer;
   return {
-    ...newer,
+    ...merged,
     doc: newer.doc ?? older.doc,
     files: local.files.length ? local.files : incoming.files,
+    // The scan of the files on this device still holds while they are kept.
+    ...(local.files.length && local.scan ? { scan: local.scan } : {}),
     added: Math.min(local.added, incoming.added),
     updated: Math.max(local.updated, incoming.updated),
   };
